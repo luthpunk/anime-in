@@ -38,7 +38,7 @@ import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,

@@ -71,7 +71,8 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp)),
                 colors = TextFieldDefaults.textFieldColors(
-                    textColor = Color.White,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
                     containerColor = DarkSurface,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
