@@ -288,7 +288,7 @@ fun PlayerScreen(
                                     onClick = { isFullscreen = !isFullscreen },
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
-                                        .padding(bottom = 6.dp, end = 12.dp) // Aligns perfectly right next to the gear icon
+                                        .padding(bottom = 56.dp, end = 12.dp) // Aligns perfectly above the gear icon
                                         .size(36.dp)
                                 ) {
                                     Icon(
