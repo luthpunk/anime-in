@@ -330,6 +330,7 @@ fun PlayerScreen(
                         }
                     }
                     }
+                    }
                 }
                 is PlayerUiState.Error -> {
                     Box(
