@@ -5,6 +5,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import kotlin.OptIn
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -58,6 +59,10 @@ fun PlayerScreen(
 
     var showWebViewFallback by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
+    }
 
     LaunchedEffect(isFullscreen) {
         val activity = context as? Activity ?: return@LaunchedEffect
@@ -161,6 +166,7 @@ fun PlayerScreen(
                                 .background(Color.Black)
                         ) {
                             var playPosition by remember { mutableLongStateOf(savedProgress) }
+                            var isControllerVisible by remember { mutableStateOf(true) }
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
@@ -265,6 +271,9 @@ fun PlayerScreen(
                                     PlayerView(ctx).apply {
                                         player = exoPlayer
                                         useController = true
+                                        setControllerVisibilityListener { visibility ->
+                                            isControllerVisible = (visibility == View.VISIBLE)
+                                        }
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -274,20 +283,21 @@ fun PlayerScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            IconButton(
-                                onClick = { isFullscreen = !isFullscreen },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(bottom = 50.dp, end = 12.dp)
-                                    .size(36.dp)
-                                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
-                            ) {
-                                Icon(
-                                    imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
-                                    contentDescription = "Fullscreen",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                            if (isControllerVisible) {
+                                IconButton(
+                                    onClick = { isFullscreen = !isFullscreen },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(bottom = 6.dp, end = 12.dp) // Aligns perfectly right next to the gear icon
+                                        .size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                        contentDescription = "Fullscreen",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                     }
