@@ -164,43 +164,48 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
-    private fun decodeBase64IfNeeded(str: String): String {
-        if (str.startsWith("aHR0cHM") || str.startsWith("aHR0cD")) {
-            try {
-                val tbl = IntArray(256) { -1 }
-                val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-                for (i in alphabet.indices) {
-                    tbl[alphabet[i].code] = i
-                }
-                val clean = str.replace("\\s".toRegex(), "")
-                val len = clean.length
-                if (len == 0) return str
-                var padding = 0
-                if (len > 0 && clean[len - 1] == '=') padding++
-                if (len > 1 && clean[len - 2] == '=') padding++
-                
-                val outputLen = (len * 6 shr 3) - padding
-                val out = ByteArray(outputLen)
-                var outIdx = 0
-                var bits = 0
-                var bitCount = 0
-                for (i in 0 until len) {
-                    val c = clean[i]
-                    if (c == '=') break
-                    val v = tbl[c.code]
-                    if (v >= 0) {
-                        bits = bits shl 6 or v
-                        bitCount += 6
-                        if (bitCount >= 8) {
-                            bitCount -= 8
-                            out[outIdx++] = (bits shr bitCount and 0xFF).toByte()
-                        }
+    private fun decodeBase64(str: String): String {
+        try {
+            val tbl = IntArray(256) { -1 }
+            val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+            for (i in alphabet.indices) {
+                tbl[alphabet[i].code] = i
+            }
+            val clean = str.replace("\\s".toRegex(), "")
+            val len = clean.length
+            if (len == 0) return ""
+            var padding = 0
+            if (len > 0 && clean[len - 1] == '=') padding++
+            if (len > 1 && clean[len - 2] == '=') padding++
+            
+            val outputLen = (len * 6 shr 3) - padding
+            val out = ByteArray(outputLen)
+            var outIdx = 0
+            var bits = 0
+            var bitCount = 0
+            for (i in 0 until len) {
+                val c = clean[i]
+                if (c == '=') break
+                val v = tbl[c.code]
+                if (v >= 0) {
+                    bits = bits shl 6 or v
+                    bitCount += 6
+                    if (bitCount >= 8) {
+                        bitCount -= 8
+                        out[outIdx++] = (bits shr bitCount and 0xFF).toByte()
                     }
                 }
-                return String(out, Charsets.UTF_8).trim()
-            } catch (e: Exception) {
-                // ignore
             }
+            return String(out, Charsets.UTF_8).trim()
+        } catch (e: Exception) {
+            return ""
+        }
+    }
+
+    private fun decodeBase64IfNeeded(str: String): String {
+        if (str.startsWith("aHR0cHM") || str.startsWith("aHR0cD") || str.startsWith("eyJ")) {
+            val decoded = decodeBase64(str)
+            if (decoded.isNotEmpty()) return decoded
         }
         return str
     }
@@ -300,7 +305,7 @@ class OtakudesuDirectScraper @Inject constructor(
             val nonce = org.json.JSONObject(nonceJsonStr).optString("data")
             if (nonce.isNullOrBlank()) return null
             
-            val decodedStr = decodeBase64IfNeeded(dataContent)
+            val decodedStr = decodeBase64(dataContent)
             val decodedJson = org.json.JSONObject(decodedStr)
             val id = decodedJson.optString("id")
             val i = decodedJson.optString("i")
@@ -316,7 +321,7 @@ class OtakudesuDirectScraper @Inject constructor(
             val embedDataBase64 = org.json.JSONObject(embedJsonStr).optString("data")
             if (embedDataBase64.isNullOrBlank()) return null
             
-            val embedHtml = decodeBase64IfNeeded(embedDataBase64)
+            val embedHtml = decodeBase64(embedDataBase64)
             val doc = Jsoup.parse(embedHtml)
             doc.select("iframe").first()?.attr("src")
         } catch (e: Exception) {
