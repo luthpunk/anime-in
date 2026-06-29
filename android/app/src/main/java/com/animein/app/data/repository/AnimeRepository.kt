@@ -43,21 +43,36 @@ class AnimeRepository @Inject constructor(
         }
 
         return try {
-            val response = apiService.getHome()
+            val response = directScraper.getHome()
             inMemoryHome = response
             preferencesManager.saveHomeCache(gson.toJson(response))
             response
         } catch (e: Exception) {
-            inMemoryHome ?: throw e
+            try {
+                val response = apiService.getHome()
+                inMemoryHome = response
+                preferencesManager.saveHomeCache(gson.toJson(response))
+                response
+            } catch (apiEx: Exception) {
+                inMemoryHome ?: throw apiEx
+            }
         }
     }
 
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse {
-        return apiService.getOngoingAnimeList(page)
+        return try {
+            apiService.getOngoingAnimeList(page)
+        } catch (e: Exception) {
+            directScraper.getOngoingAnimeList(page)
+        }
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse {
-        return apiService.getCompletedAnimeList(page)
+        return try {
+            apiService.getCompletedAnimeList(page)
+        } catch (e: Exception) {
+            directScraper.getCompletedAnimeList(page)
+        }
     }
 
     suspend fun searchAnime(query: String): SearchResponse {

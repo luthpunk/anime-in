@@ -8,6 +8,8 @@ import com.animein.app.data.model.Genre
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.data.model.MirrorQuality
 import com.animein.app.data.model.MirrorResponse
+import com.animein.app.data.model.HomeResponse
+import com.animein.app.data.model.AnimeListResponse
 import com.animein.app.util.AnimeIdUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -127,6 +129,130 @@ class OtakudesuDirectScraper @Inject constructor(
             id = mirrorId,
             streamLink = iframeUrl ?: "-",
             linkStream = streamUrl
+        )
+    }
+
+    suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
+        val doc = fetchDocument(baseUrl)
+        val venz = doc.select(".venz")
+        val ongoingElements = venz.first()?.children()?.getOrNull(0)?.select("ul > li")
+        val completedElements = venz.first()?.children()?.getOrNull(1)?.select("ul > li")
+
+        val ongoingList = ongoingElements?.mapNotNull { item ->
+            val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
+            val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
+            val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
+            val uploadedOn = item.select(".newnime").first()?.text()?.trim()
+            val episode = item.select(".epz").first()?.text()?.replace(" ", "") ?: ""
+            val dayUpdated = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            
+            com.animein.app.data.model.AnimeOngoing(
+                title = title,
+                id = id,
+                thumb = thumb,
+                episode = episode,
+                uploadedOn = uploadedOn,
+                dayUpdated = dayUpdated,
+                link = link
+            )
+        }.orEmpty()
+
+        val completedList = completedElements?.mapNotNull { item ->
+            val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
+            val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
+            val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
+            val uploadedOn = item.select(".newnime").first()?.text()?.trim()
+            val episode = item.select(".epz").first()?.text()?.replace(" ", "") ?: ""
+            val score = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            
+            com.animein.app.data.model.AnimeCompleted(
+                title = title,
+                id = id,
+                thumb = thumb,
+                episode = episode,
+                uploadedOn = uploadedOn,
+                score = score,
+                link = link
+            )
+        }.orEmpty()
+
+        HomeResponse(
+            status = "success",
+            home = com.animein.app.data.model.HomeData(
+                ongoing = ongoingList,
+                complete = completedList
+            )
+        )
+    }
+
+    suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val pageSegment = if (page <= 1) "" else "page/$page/"
+        val pageUrl = "${baseUrl}ongoing-anime/$pageSegment"
+        val doc = fetchDocument(pageUrl)
+        val elements = doc.select(".venz").first()?.children()?.getOrNull(0)?.select("ul > li")
+        
+        val list = elements?.mapNotNull { item ->
+            val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
+            val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
+            val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
+            val episode = item.select(".epz").first()?.text()?.replace(" ", "")
+            
+            com.animein.app.data.model.AnimeListItem(
+                title = title,
+                animeName = title,
+                id = id,
+                thumb = thumb,
+                episode = episode,
+                score = null,
+                studio = null,
+                releaseDate = null,
+                genreList = null
+            )
+        }.orEmpty()
+        
+        AnimeListResponse(
+            status = "success",
+            animeList = list
+        )
+    }
+
+    suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val pageSegment = if (page <= 1) "" else "page/$page/"
+        val pageUrl = "${baseUrl}complete-anime/$pageSegment"
+        val doc = fetchDocument(pageUrl)
+        val elements = doc.select(".venz").first()?.children()?.getOrNull(0)?.select("ul > li")
+        
+        val list = elements?.mapNotNull { item ->
+            val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
+            val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
+            val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
+            val episode = item.select(".epz").first()?.text()?.replace(" ", "")
+            val score = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            
+            com.animein.app.data.model.AnimeListItem(
+                title = title,
+                animeName = title,
+                id = id,
+                thumb = thumb,
+                episode = episode,
+                score = score,
+                studio = null,
+                releaseDate = null,
+                genreList = null
+            )
+        }.orEmpty()
+        
+        AnimeListResponse(
+            status = "success",
+            animeList = list
         )
     }
 
