@@ -49,7 +49,7 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.View
 import com.animein.app.data.model.MirrorItem
-import com.animein.app.utils.AnimeIdUtils
+import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
