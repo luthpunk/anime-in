@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -262,10 +264,7 @@ fun PlayerScreen(
                                 factory = { ctx ->
                                     PlayerView(ctx).apply {
                                         player = exoPlayer
-                                        setShowFullscreenButton(true)
-                                        setFullscreenButtonClickListener { isFull ->
-                                            isFullscreen = isFull
-                                        }
+                                        useController = true
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -274,6 +273,22 @@ fun PlayerScreen(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            IconButton(
+                                onClick = { isFullscreen = !isFullscreen },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(bottom = 50.dp, end = 12.dp)
+                                    .size(36.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                            ) {
+                                Icon(
+                                    imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                    contentDescription = "Fullscreen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
 
@@ -384,3 +399,62 @@ fun MirrorRow(
         )
     }
 }
+
+val FullscreenIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Fullscreen",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        strokeWidth = 2f,
+        stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        // Top-left corner
+        moveTo(4f, 9f)
+        lineTo(4f, 4f)
+        lineTo(9f, 4f)
+        // Top-right corner
+        moveTo(15f, 4f)
+        lineTo(20f, 4f)
+        lineTo(20f, 9f)
+        // Bottom-right corner
+        moveTo(20f, 15f)
+        lineTo(20f, 20f)
+        lineTo(15f, 20f)
+        // Bottom-left corner
+        moveTo(9f, 20f)
+        lineTo(4f, 20f)
+        lineTo(4f, 15f)
+    }.build()
+
+val FullscreenExitIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "FullscreenExit",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        strokeWidth = 2f,
+        stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        // Top-left corner
+        moveTo(4f, 8f)
+        lineTo(8f, 8f)
+        lineTo(8f, 4f)
+        // Top-right corner
+        moveTo(20f, 8f)
+        lineTo(16f, 8f)
+        lineTo(16f, 4f)
+        // Bottom-right corner
+        moveTo(16f, 20f)
+        lineTo(16f, 16f)
+        lineTo(20f, 16f)
+        // Bottom-left corner
+        moveTo(8f, 20f)
+        lineTo(8f, 16f)
+        lineTo(4f, 16f)
+    }.build()
+
