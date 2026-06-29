@@ -9,6 +9,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
@@ -174,6 +179,7 @@ fun PlayerScreen(
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             val speed by viewModel.playbackSpeed.collectAsState()
+                            var playerSize by remember { mutableStateOf(IntSize.Zero) }
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
@@ -314,11 +320,25 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) {
-                                        showControls = !showControls
+                                    .onSizeChanged { playerSize = it }
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onDoubleTap = { offset ->
+                                                val isLeft = offset.x < playerSize.width / 2
+                                                if (isLeft) {
+                                                    val target = (exoPlayer.currentPosition - 15000).coerceAtLeast(0L)
+                                                    exoPlayer.seekTo(target)
+                                                    currentPosition = target
+                                                } else {
+                                                    val target = (exoPlayer.currentPosition + 15000).coerceAtMost(exoPlayer.duration)
+                                                    exoPlayer.seekTo(target)
+                                                    currentPosition = target
+                                                }
+                                            },
+                                            onTap = {
+                                                showControls = !showControls
+                                            }
+                                        )
                                     }
                             ) {
                                 AndroidView(
@@ -370,7 +390,7 @@ fun PlayerScreen(
                                             )
                                         }
 
-                                        // 2. Center row: Replay15, Play/Pause, Forward15
+                                        // 2. Center row: Play/Pause only (seek is handled by double-tap)
                                         Row(
                                             modifier = Modifier
                                                 .align(Alignment.Center)
@@ -378,24 +398,6 @@ fun PlayerScreen(
                                             horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            IconButton(
-                                                onClick = {
-                                                    val target = (exoPlayer.currentPosition - 15000).coerceAtLeast(0L)
-                                                     exoPlayer.seekTo(target)
-                                                     currentPosition = target
-                                                },
-                                                modifier = Modifier.size(48.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Replay15Icon,
-                                                    contentDescription = "Mundur 15s",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(32.dp)
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.width(32.dp))
-
                                             IconButton(
                                                 onClick = {
                                                     if (exoPlayer.isPlaying) {
@@ -411,24 +413,6 @@ fun PlayerScreen(
                                                 Icon(
                                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                                     contentDescription = "Play/Pause",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(32.dp)
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.width(32.dp))
-
-                                            IconButton(
-                                                onClick = {
-                                                    val target = (exoPlayer.currentPosition + 15000).coerceAtMost(exoPlayer.duration)
-                                                    exoPlayer.seekTo(target)
-                                                    currentPosition = target
-                                                },
-                                                modifier = Modifier.size(48.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Forward15Icon,
-                                                    contentDescription = "Maju 15s",
                                                     tint = Color.White,
                                                     modifier = Modifier.size(32.dp)
                                                 )
@@ -604,6 +588,55 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
+
+                        // Collect and render episode grid selection
+                        val episodes by viewModel.episodes.collectAsState()
+                        if (episodes.isNotEmpty()) {
+                            item {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text("Pilihan Episode", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                            
+                            val chunkedEpisodes = episodes.chunked(5)
+                            chunkedEpisodes.forEach { rowEpisodes ->
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        rowEpisodes.forEach { episode ->
+                                            val isCurrent = AnimeIdUtils.normalizeEpisodeId(episode.id) == AnimeIdUtils.normalizeEpisodeId(viewModel.episodeId)
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .aspectRatio(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isCurrent) NeonPurple else DarkSurface)
+                                                    .clickable {
+                                                        onEpisodeClick(episode.id, viewModel.animeId)
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = extractEpisodeNumber(episode.title),
+                                                    color = Color.White,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        val placeholdersCount = 5 - rowEpisodes.size
+                                        if (placeholdersCount > 0) {
+                                            repeat(placeholdersCount) {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+                        }
                     }
                     }
                     }
@@ -636,28 +669,35 @@ fun MirrorRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
-            .clickable { onClick() }
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = DarkSurface,
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, NeonPurple),
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(12.dp)
     ) {
-        Text(
-            "Stream via: ${mirror.host} (${mirror.resolution})",
-            color = Color.White,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            "Putar",
-            color = NeonPurple,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "Stream via: ${mirror.host} (${mirror.resolution})",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                "Putar",
+                color = NeonPurple,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -821,6 +861,14 @@ val SkipNextIcon: ImageVector
         lineTo(18f, 6f)
         close()
     }.build()
+
+private fun extractEpisodeNumber(title: String): String {
+    val matches = Regex("\\b(?:Episode|Ep|E|eps)\\b\\s*(\\d+)|\\b(\\d+)\\b", RegexOption.IGNORE_CASE)
+        .findAll(title)
+        .map { it.groupValues[1].ifEmpty { it.groupValues[2] } }
+        .toList()
+    return if (matches.isNotEmpty()) matches.last() else ""
+}
 
 
 

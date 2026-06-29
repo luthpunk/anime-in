@@ -38,6 +38,9 @@ class PlayerViewModel @Inject constructor(
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed
 
+    private val _episodes = MutableStateFlow<List<com.animein.app.data.model.EpisodeItem>>(emptyList())
+    val episodes: StateFlow<List<com.animein.app.data.model.EpisodeItem>> = _episodes
+
     init {
         fetchEpisodeDetail()
         loadSavedProgress()
@@ -71,7 +74,11 @@ class PlayerViewModel @Inject constructor(
         response.mirror3?.mirrorList?.let { allMirrors.addAll(it) } // Try 720p second
         response.mirror1?.mirrorList?.let { allMirrors.addAll(it) } // Try 360p last
 
-        for (mirror in allMirrors) {
+        val prioritizedMirrors = allMirrors.sortedWith(compareByDescending {
+            it.host.contains("vidhide", ignoreCase = true) || it.host.contains("hide", ignoreCase = true)
+        })
+
+        for (mirror in prioritizedMirrors) {
             val mirrorId = mirror.id
             if (!mirrorId.isNullOrBlank() && mirrorId != "-") {
                 try {
@@ -139,6 +146,7 @@ class PlayerViewModel @Inject constructor(
             try {
                 val detail = repository.getAnimeDetail(animeId)
                 val episodes = detail.episodeList ?: emptyList()
+                _episodes.value = episodes
                 val currentIndex = episodes.indexOfFirst {
                     AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
                 }

@@ -192,37 +192,14 @@ fun DetailScreen(
                             if (episodes.isEmpty()) {
                                 Text("Episode belum tersedia", color = TextSecondary, fontSize = 14.sp)
                             } else {
-                                val chunkedEpisodes = episodes.chunked(5)
-                                chunkedEpisodes.forEach { rowEpisodes ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        rowEpisodes.forEach { episode ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .aspectRatio(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(DarkSurface)
-                                                    .clickable { onEpisodeClick(episode.id, detail.animeId) },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = extractEpisodeNumber(episode.title),
-                                                    color = Color.White,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                        val placeholdersCount = 5 - rowEpisodes.size
-                                        if (placeholdersCount > 0) {
-                                            repeat(placeholdersCount) {
-                                                Spacer(modifier = Modifier.weight(1f))
-                                            }
-                                        }
-                                    }
+                                episodes.forEach { episode ->
+                                    val epNum = extractEpisodeNumber(episode.title)
+                                    val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else episode.title
+                                    EpisodeRow(
+                                        title = displayTitle,
+                                        date = episode.uploadedOn ?: "",
+                                        onClick = { onEpisodeClick(episode.id, detail.animeId) }
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
