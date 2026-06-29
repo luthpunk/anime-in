@@ -408,7 +408,7 @@ val FullscreenIcon: ImageVector
         viewportWidth = 24f,
         viewportHeight = 24f
     ).path(
-        strokeWidth = 2f,
+        strokeLineWidth = 2f,
         stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
     ) {
         // Top-left corner
@@ -437,7 +437,7 @@ val FullscreenExitIcon: ImageVector
         viewportWidth = 24f,
         viewportHeight = 24f
     ).path(
-        strokeWidth = 2f,
+        strokeLineWidth = 2f,
         stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
     ) {
         // Top-left corner
