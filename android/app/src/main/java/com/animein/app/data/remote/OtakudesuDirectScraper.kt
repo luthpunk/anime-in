@@ -41,18 +41,18 @@ class OtakudesuDirectScraper @Inject constructor(
                         title = title,
                         id = id,
                         link = link,
-                        uploadedOn = anchor.parent()?.parent()?.selectFirst(".zeebr")?.text()?.trim()
+                        uploadedOn = anchor.parent()?.parent()?.select(".zeebr")?.first()?.text()?.trim()
                     )
                 }
             }
             .distinctBy { it.id }
 
         DetailResponse(
-            thumb = detailElement.selectFirst("img")?.absUrl("src"),
+            thumb = detailElement.select("img").first()?.absUrl("src"),
             animeId = normalizedId,
             synopsis = doc.select(".sinopc p").joinToString("\n") { it.text().trim() },
             title = infoValue(infoItems, 0, "Judul: ").ifBlank {
-                doc.selectFirst("meta[property=og:title]")?.attr("content")
+                doc.select("meta[property=og:title]").first()?.attr("content")
                     ?.replace("Subtitle Indonesia | Otaku Desu", "")
                     ?.trim()
                     .orEmpty()
@@ -75,7 +75,7 @@ class OtakudesuDirectScraper @Inject constructor(
                 )
             },
             episodeList = episodes,
-            batchLink = doc.selectFirst("a[href*=/batch/]")?.let { anchor ->
+            batchLink = doc.select("a[href*=/batch/]").first()?.let { anchor ->
                 val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
                 BatchLink(
                     id = link.removePrefix("${baseUrl}batch/"),
@@ -89,13 +89,13 @@ class OtakudesuDirectScraper @Inject constructor(
         val normalizedId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         val pageUrl = if (normalizedId.startsWith("http")) normalizedId else "$baseUrl$normalizedId"
         val doc = fetchDocument(pageUrl)
-        val iframeUrl = doc.selectFirst("#lightsVideo #embed_holder iframe, #pembed iframe")
+        val iframeUrl = doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()
             ?.absUrl("src")
-            ?.ifBlank { doc.selectFirst("#lightsVideo #embed_holder iframe, #pembed iframe")?.attr("src") }
+            ?.ifBlank { doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()?.attr("src") }
 
         EpisodeDetailResponse(
-            title = doc.selectFirst(".venutama h1")?.text()?.trim()
-                ?: doc.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
+            title = doc.select(".venutama h1").first()?.text()?.trim()
+                ?: doc.select("meta[property=og:title]").first()?.attr("content")?.trim()
                 ?: "Episode",
             id = pageUrl,
             linkStream = iframeUrl?.let { extractStreamUrl(it) } ?: "-",
@@ -110,7 +110,7 @@ class OtakudesuDirectScraper @Inject constructor(
         return MirrorQuality(
             quality = quality,
             mirrorList = doc.select(selector).mapNotNull { item ->
-                val anchor = item.selectFirst("a") ?: return@mapNotNull null
+                val anchor = item.select("a").first() ?: return@mapNotNull null
                 MirrorItem(
                     host = anchor.text().trim(),
                     id = anchor.attr("href")
