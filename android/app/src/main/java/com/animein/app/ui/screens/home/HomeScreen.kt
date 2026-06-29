@@ -36,6 +36,7 @@ import com.animein.app.ui.theme.TextSecondary
 fun HomeScreen(
     viewModel: HomeViewModel,
     onAnimeClick: (String) -> Unit,
+    onSeeAllClick: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.homeState.collectAsState()
@@ -96,7 +97,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(20.dp))
 
                         // Ongoing Section
-                        SectionHeader(title = "Anime Ongoing", onSeeAllClick = {})
+                        SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -109,7 +110,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Completed Section
-                        SectionHeader(title = "Anime Tamat", onSeeAllClick = {})
+                        SectionHeader(title = "Anime Tamat", onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") })
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)

@@ -76,11 +76,29 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun searchAnime(query: String): SearchResponse {
-        return apiService.searchAnime(query)
+        return try {
+            val apiRes = apiService.searchAnime(query)
+            if (apiRes.searchResults.isNullOrEmpty()) {
+                directScraper.searchAnime(query)
+            } else {
+                apiRes
+            }
+        } catch (e: Exception) {
+            directScraper.searchAnime(query)
+        }
     }
 
     suspend fun getGenres(): GenreListResponse {
-        return apiService.getGenres()
+        return try {
+            val apiRes = apiService.getGenres()
+            if (apiRes.genreList.isNullOrEmpty()) {
+                directScraper.getGenres()
+            } else {
+                apiRes
+            }
+        } catch (e: Exception) {
+            directScraper.getGenres()
+        }
     }
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {

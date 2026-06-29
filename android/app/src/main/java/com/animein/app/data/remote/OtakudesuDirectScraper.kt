@@ -10,6 +10,8 @@ import com.animein.app.data.model.MirrorQuality
 import com.animein.app.data.model.MirrorResponse
 import com.animein.app.data.model.HomeResponse
 import com.animein.app.data.model.AnimeListResponse
+import com.animein.app.data.model.GenreListResponse
+import com.animein.app.data.model.SearchResponse
 import com.animein.app.util.AnimeIdUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -135,8 +137,8 @@ class OtakudesuDirectScraper @Inject constructor(
     suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         val doc = fetchDocument(baseUrl)
         val venz = doc.select(".venz")
-        val ongoingElements = venz.first()?.children()?.getOrNull(0)?.select("ul > li")
-        val completedElements = venz.first()?.children()?.getOrNull(1)?.select("ul > li")
+        val ongoingElements = venz.getOrNull(0)?.select("ul > li")
+        val completedElements = venz.getOrNull(1)?.select("ul > li")
 
         val ongoingList = ongoingElements?.mapNotNull { item ->
             val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
@@ -253,6 +255,67 @@ class OtakudesuDirectScraper @Inject constructor(
         AnimeListResponse(
             status = "success",
             animeList = list
+        )
+    }
+
+    suspend fun getGenres(): GenreListResponse = withContext(Dispatchers.IO) {
+        val doc = fetchDocument("${baseUrl}genre-list/")
+        val elements = doc.select(".genres li a")
+        val list = elements.mapIndexed { index, el ->
+            val genreName = el.text().trim()
+            val href = el.attr("href")
+            val id = href.replace("/genres/", "").replace("/", "")
+            val link = if (href.startsWith("http")) href else "$baseUrl$href"
+            
+            com.animein.app.data.model.GenreItem(
+                genreName = genreName,
+                id = id,
+                link = link,
+                imageLink = null
+            )
+        }
+        
+        GenreListResponse(genreList = list)
+    }
+
+    suspend fun searchAnime(query: String): SearchResponse = withContext(Dispatchers.IO) {
+        val pageUrl = "${baseUrl}?s=${java.net.URLEncoder.encode(query, "UTF-8")}&post_type=anime"
+        val doc = fetchDocument(pageUrl)
+        val elements = doc.select(".page ul > li")
+        
+        val list = elements.mapNotNull { item ->
+            val anchor = item.select("h2 > a").first() ?: return@mapNotNull null
+            val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = anchor.text().trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
+            val status = item.select(".set").getOrNull(1)?.text()?.replace("Status : ", "")?.trim()
+            val score = item.select(".set").getOrNull(2)?.text()?.replace("Rating : ", "")?.trim()
+            
+            val genres = item.select(".set").first()?.select("a")?.map { el ->
+                val genreLink = el.absUrl("href")
+                val genreName = el.text().trim()
+                val genreId = genreLink.replace("${baseUrl}genres/", "").replace("/", "")
+                com.animein.app.data.model.Genre(
+                    genreName = genreName,
+                    genreId = genreId,
+                    genreLink = genreLink
+                )
+            }.orEmpty()
+            
+            com.animein.app.data.model.SearchItem(
+                title = title,
+                id = id,
+                thumb = thumb,
+                status = status,
+                score = score,
+                genreList = genres
+            )
+        }
+        
+        SearchResponse(
+            status = "success",
+            searchResults = list
         )
     }
 

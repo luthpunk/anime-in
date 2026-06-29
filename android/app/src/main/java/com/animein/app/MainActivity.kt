@@ -121,6 +121,9 @@ fun MainApp() {
                     viewModel = viewModel,
                     onAnimeClick = { id ->
                         navigateToDetail(navController, id)
+                    },
+                    onSeeAllClick = { type, title ->
+                        navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
                     }
                 )
             }
@@ -195,6 +198,24 @@ fun MainApp() {
                 currentRoute = "genre"
                 val viewModel: GenreViewModel = hiltViewModel()
                 GenreScreen(
+                    viewModel = viewModel,
+                    onBackClick = { navController.popBackStack() },
+                    onAnimeClick = { id ->
+                        navigateToDetail(navController, id)
+                    }
+                )
+            }
+
+            composable(
+                route = "list/{listType}/{listTitle}",
+                arguments = listOf(
+                    navArgument("listType") { type = NavType.StringType },
+                    navArgument("listTitle") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                currentRoute = "list"
+                val viewModel: com.animein.app.ui.screens.animelist.AnimeListViewModel = hiltViewModel()
+                com.animein.app.ui.screens.animelist.AnimeListScreen(
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
                     onAnimeClick = { id ->
