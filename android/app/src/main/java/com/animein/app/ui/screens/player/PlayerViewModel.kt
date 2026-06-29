@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.EpisodeDetailResponse
 import com.animein.app.data.repository.AnimeRepository
+import com.animein.app.util.AnimeIdUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,10 +20,10 @@ class PlayerViewModel @Inject constructor(
 ) : ViewModel() {
 
     val episodeId: String = savedStateHandle.get<String>("episodeId")?.let {
-        java.net.URLDecoder.decode(it, "UTF-8")
+        AnimeIdUtils.normalizeEpisodeId(java.net.URLDecoder.decode(it, "UTF-8"))
     } ?: ""
     val animeId: String = savedStateHandle.get<String>("animeId")?.let {
-        java.net.URLDecoder.decode(it, "UTF-8")
+        AnimeIdUtils.normalizeAnimeId(java.net.URLDecoder.decode(it, "UTF-8"))
     } ?: ""
 
     private val _playerState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)

@@ -1,8 +1,7 @@
 package com.animein.app
 
-import java.net.URLEncoder
-
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +36,7 @@ import com.animein.app.ui.theme.AnimeInTheme
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.util.AnimeIdUtils
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -120,7 +120,7 @@ fun MainApp() {
                 HomeScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
+                        navigateToDetail(navController, id)
                     }
                 )
             }
@@ -131,10 +131,10 @@ fun MainApp() {
                 SearchScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
+                        navigateToDetail(navController, id)
                     },
                     onGenreClick = { id, name ->
-                        navController.navigate("genre/${URLEncoder.encode(id, "UTF-8")}/$name")
+                        navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
                     }
                 )
             }
@@ -145,10 +145,10 @@ fun MainApp() {
                 HistoryScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
+                        navigateToDetail(navController, id)
                     },
                     onEpisodePlay = { episodeId, animeId ->
-                        navController.navigate("player/${URLEncoder.encode(episodeId, "UTF-8")}/${URLEncoder.encode(animeId, "UTF-8")}")
+                        navigateToPlayer(navController, episodeId, animeId)
                     }
                 )
             }
@@ -165,7 +165,7 @@ fun MainApp() {
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
                     onEpisodeClick = { episodeId, animeId ->
-                        navController.navigate("player/${URLEncoder.encode(episodeId, "UTF-8")}/${URLEncoder.encode(animeId, "UTF-8")}")
+                        navigateToPlayer(navController, episodeId, animeId)
                     }
                 )
             }
@@ -198,7 +198,7 @@ fun MainApp() {
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
                     onAnimeClick = { id ->
-                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
+                        navigateToDetail(navController, id)
                     }
                 )
             }
@@ -211,3 +211,25 @@ data class NavigationItem(
     val label: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+private fun navigateToDetail(
+    navController: androidx.navigation.NavHostController,
+    rawAnimeId: String
+) {
+    val animeId = AnimeIdUtils.normalizeAnimeId(rawAnimeId)
+    if (animeId.isNotBlank()) {
+        navController.navigate("detail/${Uri.encode(animeId)}")
+    }
+}
+
+private fun navigateToPlayer(
+    navController: androidx.navigation.NavHostController,
+    rawEpisodeId: String,
+    rawAnimeId: String
+) {
+    val episodeId = AnimeIdUtils.normalizeEpisodeId(rawEpisodeId)
+    val animeId = AnimeIdUtils.normalizeAnimeId(rawAnimeId)
+    if (episodeId.isNotBlank() && animeId.isNotBlank()) {
+        navController.navigate("player/${Uri.encode(episodeId)}/${Uri.encode(animeId)}")
+    }
+}

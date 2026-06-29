@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.animein.app.data.local.entity.FavoriteEntity
 import com.animein.app.data.model.DetailResponse
 import com.animein.app.data.repository.AnimeRepository
+import com.animein.app.util.AnimeIdUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,7 @@ class DetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     val animeId: String = savedStateHandle.get<String>("animeId")?.let {
-        java.net.URLDecoder.decode(it, "UTF-8")
+        AnimeIdUtils.normalizeAnimeId(java.net.URLDecoder.decode(it, "UTF-8"))
     } ?: ""
 
     private val _detailState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
@@ -62,8 +63,8 @@ class DetailViewModel @Inject constructor(
                 _isFavorite.value = false
             } else {
                 val fav = FavoriteEntity(
-                    id = detail.animeId,
-                    title = detail.title,
+                    id = animeId,
+                    title = detail.title.ifBlank { "Tanpa Judul" },
                     thumb = detail.thumb ?: "",
                     score = detail.score ?: "",
                     type = detail.type ?: "",

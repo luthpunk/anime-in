@@ -85,7 +85,20 @@ exports.home = (req, res) => {
     })
     .catch((e) => {
       console.log(e.message);
-      errors.requestFailed(req, res, e);
+      buildSearchBasedHome()
+        .then((home) => {
+          res.status(200).json({
+            status: "success",
+            fallback: true,
+            message: "Homepage upstream blocked; using search fallback.",
+            baseUrl: baseUrl,
+            home,
+          });
+        })
+        .catch((fallbackErr) => {
+          console.log(fallbackErr.message);
+          errors.requestFailed(req, res, e);
+        });
     });
 };
 exports.completeAnimeList = (req, res) => {
@@ -295,18 +308,22 @@ exports.search = (req, res) => {
       element.find("ul > li").each(function () {
         const genre_list = [];
         $(this).find(".set").find("a").each(function () {
+            const genreLink = $(this).attr("href") || "";
+            const genreName = $(this).text();
             const genre_result = {
-              genre_title: $(this).text(),
-              genre_link: $(this).attr("href"),
-              genre_id: $(this).attr("href").replace(`${baseUrl}genres/`, ""),
+              genre_title: genreName,
+              genre_name: genreName,
+              genre_link: genreLink,
+              genre_id: genreLink.replace(`${baseUrl}genres/`, ""),
             };
             genre_list.push(genre_result);
           });
+        const link = $(this).find("h2 > a").attr("href") || "";
         const results = {
           thumb: $(this).find("img").attr("src"),
           title: $(this).find("h2").text(),
-          link: $(this).find("h2 > a").attr("href"),
-          id: $(this).find("h2 > a").attr("href").replace(`${baseUrl}anime/`, ""),
+          link,
+          id: normalizeAnimeId(link),
           status: $(this).find(".set").eq(1).text().replace("Status : ", ""),
           score: parseFloat(
             $(this).find(".set").eq(2).text().replace("Rating : ", "")
@@ -322,3 +339,67 @@ exports.search = (req, res) => {
     errors.requestFailed(req, res, err);
   });
 };
+
+async function buildSearchBasedHome() {
+  const [ongoingResults, completedResults] = await Promise.all([
+    fetchSearchResults("one piece"),
+    fetchSearchResults("naruto"),
+  ]);
+
+  return {
+    on_going: ongoingResults.slice(0, 12).map((item) => ({
+      title: item.title,
+      id: item.id,
+      thumb: item.thumb,
+      episode: item.status || "Anime",
+      uploaded_on: "",
+      day_updated: "",
+      link: item.link,
+    })),
+    completed: completedResults.slice(0, 12).map((item) => ({
+      title: item.title,
+      id: item.id,
+      thumb: item.thumb,
+      episode: item.status || "Anime",
+      uploaded_on: "",
+      score: Number.isFinite(item.score) ? item.score : null,
+      link: item.link,
+    })),
+  };
+}
+
+async function fetchSearchResults(query) {
+  const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
+  const response = await Axios.get(fullUrl);
+  const $ = cheerio.load(response.data);
+  const results = [];
+
+  $(".page").find("ul > li").each(function () {
+    const link = $(this).find("h2 > a").attr("href") || "";
+    if (!link) return;
+
+    results.push({
+      thumb: $(this).find("img").attr("src") || "",
+      title: $(this).find("h2").text().trim(),
+      link,
+      id: normalizeAnimeId(link),
+      status: $(this).find(".set").eq(1).text().replace("Status : ", "").trim(),
+      score: parseFloat($(this).find(".set").eq(2).text().replace("Rating : ", "")),
+    });
+  });
+
+  return results;
+}
+
+function normalizeAnimeId(rawId) {
+  const id = String(rawId || "")
+    .trim()
+    .split("?")[0]
+    .split("#")[0]
+    .replace(/^https?:\/\/otakudesu\.(blog|cloud)\/anime\//, "")
+    .replace(/^anime\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+
+  return id ? `${id}/` : "";
+}

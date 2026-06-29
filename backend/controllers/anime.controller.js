@@ -7,7 +7,7 @@ const {baseUrl} = require("../helpers/base-url");
 const e = require("express");
 
 exports.detailAnime = async (req, res) => {
-  const id = req.params.id;
+  const id = normalizeAnimeId(req.params.id || req.params[0]);
   const fullUrl = url.baseUrl + `anime/${id}`;
   // console.log(fullUrl);
   try {
@@ -19,7 +19,7 @@ exports.detailAnime = async (req, res) => {
     let object = {};
     let episode_list = [];
     object.thumb = detailElement.find("img").attr("src");
-    object.anime_id = req.params.id;
+    object.anime_id = id;
     let genre_name, genre_id, genre_link;
     let genreList = [];
 
@@ -281,6 +281,19 @@ function _batchQualityFunction(num, res) {
       });
   });
   return response;
+}
+
+function normalizeAnimeId(rawId) {
+  const id = String(rawId || "")
+    .trim()
+    .split("?")[0]
+    .split("#")[0]
+    .replace(/^https?:\/\/otakudesu\.(blog|cloud)\/anime\//, "")
+    .replace(/^anime\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+
+  return id ? `${id}/` : "";
 }
 function _epsQualityFunction(num, res) {
   const $ = cheerio.load(res);

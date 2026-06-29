@@ -8,6 +8,7 @@ import com.animein.app.data.local.pref.PreferencesManager
 import com.animein.app.data.model.*
 import com.animein.app.data.remote.AnimeApiService
 import com.animein.app.data.remote.MirrorRequest
+import com.animein.app.util.AnimeIdUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -70,11 +71,12 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
-        val detail = apiService.getAnimeDetail(animeId)
+        val normalizedAnimeId = AnimeIdUtils.normalizeAnimeId(animeId)
+        val detail = apiService.getAnimeDetail(normalizedAnimeId)
         // Add to history
         val history = HistoryEntity(
-            id = animeId,
-            title = detail.title,
+            id = normalizedAnimeId,
+            title = detail.title.ifBlank { "Tanpa Judul" },
             thumb = detail.thumb ?: ""
         )
         animeDao.insertHistory(history)
@@ -82,11 +84,11 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
-        return apiService.getEpisodeDetail(episodeId)
+        return apiService.getEpisodeDetail(AnimeIdUtils.normalizeEpisodeId(episodeId))
     }
 
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {
-        return apiService.getMirrorStream(animeId, MirrorRequest(mirrorId))
+        return apiService.getMirrorStream(AnimeIdUtils.normalizeAnimeId(animeId), MirrorRequest(mirrorId))
     }
 
     // Local DB operations

@@ -79,8 +79,8 @@ data class SearchResponse(
 )
 
 data class SearchItem(
-    @SerializedName("title") val title: String,
-    @SerializedName("id") val id: String,
+    @SerializedName("title") val title: String = "",
+    @SerializedName("id") val id: String = "",
     @SerializedName("thumb") val thumb: String?,
     @SerializedName("status") val status: String?,
     @SerializedName("score") val score: String?,
@@ -90,9 +90,9 @@ data class SearchItem(
 // Detail Response
 data class DetailResponse(
     @SerializedName("thumb") val thumb: String?,
-    @SerializedName("anime_id") val animeId: String,
+    @SerializedName("anime_id") val animeId: String = "",
     @SerializedName("synopsis") val synopsis: String?,
-    @SerializedName("title") val title: String,
+    @SerializedName("title") val title: String = "",
     @SerializedName("japanase") val japanese: String?,
     @SerializedName("score") val score: String?,
     @SerializedName("producer") val producer: String?,
@@ -108,15 +108,15 @@ data class DetailResponse(
 )
 
 data class EpisodeItem(
-    @SerializedName("title") val title: String,
-    @SerializedName("id") val id: String,
+    @SerializedName("title") val title: String = "",
+    @SerializedName("id") val id: String = "",
     @SerializedName("link") val link: String?,
     @SerializedName("uploaded_on") val uploadedOn: String?
 )
 
 data class BatchLink(
-    @SerializedName("id") val id: String,
-    @SerializedName("link") val link: String
+    @SerializedName("id") val id: String = "",
+    @SerializedName("link") val link: String = ""
 )
 
 // Episode Detail Response

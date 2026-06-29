@@ -30,6 +30,7 @@ import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.StarYellow
 import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.util.AnimeIdUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,7 +138,7 @@ fun SearchScreen(
                                 items(results) { anime ->
                                     SearchResultCard(
                                         anime = anime,
-                                        onClick = { onAnimeClick(anime.id) }
+                                        onClick = { onAnimeClick(AnimeIdUtils.normalizeAnimeId(anime.id)) }
                                     )
                                 }
                             }
