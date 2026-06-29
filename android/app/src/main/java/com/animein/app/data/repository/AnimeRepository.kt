@@ -97,7 +97,12 @@ class AnimeRepository @Inject constructor(
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
         val normalizedEpisodeId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         return try {
-            apiService.getEpisodeDetail(normalizedEpisodeId)
+            val apiDetail = apiService.getEpisodeDetail(normalizedEpisodeId)
+            if (apiDetail.linkStream.isNullOrBlank() || apiDetail.linkStream == "-") {
+                directScraper.getEpisodeDetail(normalizedEpisodeId)
+            } else {
+                apiDetail
+            }
         } catch (e: Exception) {
             directScraper.getEpisodeDetail(normalizedEpisodeId)
         }
