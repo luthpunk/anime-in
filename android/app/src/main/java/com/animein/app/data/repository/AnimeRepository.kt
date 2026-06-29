@@ -8,6 +8,7 @@ import com.animein.app.data.local.pref.PreferencesManager
 import com.animein.app.data.model.*
 import com.animein.app.data.remote.AnimeApiService
 import com.animein.app.data.remote.MirrorRequest
+import com.animein.app.data.remote.OtakudesuDirectScraper
 import com.animein.app.util.AnimeIdUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +19,8 @@ import javax.inject.Singleton
 class AnimeRepository @Inject constructor(
     private val apiService: AnimeApiService,
     private val animeDao: AnimeDao,
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val directScraper: OtakudesuDirectScraper
 ) {
     private val gson = Gson()
     private var inMemoryHome: HomeResponse? = null
@@ -72,7 +74,16 @@ class AnimeRepository @Inject constructor(
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
         val normalizedAnimeId = AnimeIdUtils.normalizeAnimeId(animeId)
-        val detail = apiService.getAnimeDetail(normalizedAnimeId)
+        val detail = try {
+            val apiDetail = apiService.getAnimeDetail(normalizedAnimeId)
+            if (apiDetail.episodeList.isNullOrEmpty()) {
+                directScraper.getAnimeDetail(normalizedAnimeId)
+            } else {
+                apiDetail
+            }
+        } catch (e: Exception) {
+            directScraper.getAnimeDetail(normalizedAnimeId)
+        }
         // Add to history
         val history = HistoryEntity(
             id = normalizedAnimeId,
@@ -84,7 +95,12 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
-        return apiService.getEpisodeDetail(AnimeIdUtils.normalizeEpisodeId(episodeId))
+        val normalizedEpisodeId = AnimeIdUtils.normalizeEpisodeId(episodeId)
+        return try {
+            apiService.getEpisodeDetail(normalizedEpisodeId)
+        } catch (e: Exception) {
+            directScraper.getEpisodeDetail(normalizedEpisodeId)
+        }
     }
 
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {

@@ -15,6 +15,7 @@ router.get('/anime/:id',AnimeController.detailAnime)
 router.get('/anime/*',AnimeController.detailAnime)
 router.get('/batch/:id',AnimeController.batchAnime)
 router.get('/eps/:id',AnimeController.epsAnime)
+router.get('/eps/*',AnimeController.epsAnime)
 router.post('/eps/:animeId/mirror/',AnimeController.epsMirror)
 
 module.exports = router

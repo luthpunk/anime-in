@@ -88,6 +88,14 @@ fun PlayerScreen(
                 is PlayerUiState.Success -> {
                     val detail = state.data
                     val streamUrl = detail.linkStream ?: ""
+                    val episodePageUrl = remember(detail.id, viewModel.episodeId) {
+                        val id = detail.id.ifBlank { viewModel.episodeId }
+                        when {
+                            id.startsWith("http://") || id.startsWith("https://") -> id
+                            id.isNotBlank() -> "https://otakudesu.blog/$id"
+                            else -> "https://otakudesu.blog/${viewModel.episodeId}"
+                        }
+                    }
 
                     // Video Player Area
                     if (showWebViewFallback || streamUrl.isEmpty() || streamUrl == "-") {
@@ -110,7 +118,7 @@ fun PlayerScreen(
                                         settings.mediaPlaybackRequiresUserGesture = false
                                         webViewClient = WebViewClient()
                                         webChromeClient = WebChromeClient()
-                                        loadUrl(detail.id) // Load the original episode web page as fallback
+                                        loadUrl(episodePageUrl)
                                     }
                                 },
                                 modifier = Modifier.fillMaxSize()

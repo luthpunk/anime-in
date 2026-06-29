@@ -181,7 +181,7 @@ exports.batchAnime = async (req, res) => {
     });
 };
 exports.epsAnime = async (req, res) => {
-  const id = req.params.id;
+  const id = normalizeEpisodeId(req.params.id || req.params[0]);
   const fullUrl = `${url.baseUrl}${id}`;
   try {
     const response = await Axios.get(fullUrl);
@@ -244,7 +244,18 @@ exports.epsAnime = async (req, res) => {
     res.send(obj);
   } catch (err) {
     console.log(err);
-    errors.requestFailed(req, res, err);
+    res.status(200).json({
+      title: episodeIdToTitle(id),
+      baseUrl: fullUrl,
+      id: fullUrl,
+      link_stream: "-",
+      mirror1: { quality: "360p", mirrorList: [] },
+      mirror2: { quality: "480p", mirrorList: [] },
+      mirror3: { quality: "720p", mirrorList: [] },
+      quality: { low_quality: null, medium_quality: null, high_quality: null },
+      fallback: true,
+      message: "Episode upstream blocked; use WebView fallback.",
+    });
   }
 };
 
@@ -311,6 +322,33 @@ function normalizeAnimeId(rawId) {
     .replace(/\/+$/, "");
 
   return id ? `${id}/` : "";
+}
+
+function normalizeEpisodeId(rawId) {
+  let decodedId = String(rawId || "");
+  try {
+    decodedId = decodeURIComponent(decodedId);
+  } catch (e) {
+    // Keep the original value when it is not a valid encoded component.
+  }
+
+  const id = decodedId
+    .trim()
+    .split("?")[0]
+    .split("#")[0]
+    .replace(/^https?:\/\/otakudesu\.(blog|cloud)\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+
+  return id ? `${id}/` : "";
+}
+
+function episodeIdToTitle(id) {
+  return normalizeEpisodeId(id)
+    .replace(/^episode\//, "")
+    .replace(/\/$/, "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 async function buildSearchBasedDetail(id) {
