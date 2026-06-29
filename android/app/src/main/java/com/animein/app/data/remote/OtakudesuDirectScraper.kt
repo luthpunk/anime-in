@@ -122,13 +122,118 @@ class OtakudesuDirectScraper @Inject constructor(
     private fun extractStreamUrl(url: String): String {
         return try {
             val html = fetch(url)
-            Regex("""["']file["']\s*:\s*["']([^"']+)["']""")
-                .find(html)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?: "-"
+            val unpacked = html + "\n" + unpackPacker(html)
+            
+            // Search via regex
+            val regexes = listOf(
+                Regex("""["']?file["']?\s*:\s*["']([^"']+)["']"""),
+                Regex("""["']?src["']?\s*:\s*["']([^"']+)["']"""),
+                Regex("""source\s*:\s*["']([^"']+)["']""")
+            )
+            
+            for (regex in regexes) {
+                val matches = regex.findAll(unpacked)
+                for (match in matches) {
+                    var streamUrl = match.groupValues.getOrNull(1).orEmpty()
+                    streamUrl = decodeBase64IfNeeded(streamUrl)
+                    if (streamUrl.startsWith("http") && (streamUrl.contains(".mp4") || streamUrl.contains(".m3u8") || streamUrl.contains("stream") || streamUrl.contains("video"))) {
+                        return streamUrl
+                    }
+                }
+            }
+            
+            // Fallback search for any raw link
+            val rawLinkRegex = Regex("""(https?://[^\s"'`]+?\.(?:m3u8|mp4)(?:[^\s"'`]*))""", RegexOption.IGNORE_CASE)
+            val rawMatch = rawLinkRegex.find(unpacked)
+            if (rawMatch != null) {
+                return rawMatch.groupValues[1]
+            }
+            
+            "-"
         } catch (e: Exception) {
             "-"
+        }
+    }
+
+    private fun decodeBase64IfNeeded(str: String): String {
+        if (str.startsWith("aHR0cHM") || str.startsWith("aHR0cD")) {
+            try {
+                val tbl = IntArray(256) { -1 }
+                val alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+                for (i in alphabet.indices) {
+                    tbl[alphabet[i].code] = i
+                }
+                val clean = str.replace("\\s".toRegex(), "")
+                val len = clean.length
+                if (len == 0) return str
+                var padding = 0
+                if (len > 0 && clean[len - 1] == '=') padding++
+                if (len > 1 && clean[len - 2] == '=') padding++
+                
+                val outputLen = (len * 6 shr 3) - padding
+                val out = ByteArray(outputLen)
+                var outIdx = 0
+                var bits = 0
+                var bitCount = 0
+                for (i in 0 until len) {
+                    val c = clean[i]
+                    if (c == '=') break
+                    val v = tbl[c.code]
+                    if (v >= 0) {
+                        bits = bits shl 6 or v
+                        bitCount += 6
+                        if (bitCount >= 8) {
+                            bitCount -= 8
+                            out[outIdx++] = (bits shr bitCount and 0xFF).toByte()
+                        }
+                    }
+                }
+                return String(out, Charsets.UTF_8).trim()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+        return str
+    }
+
+    private fun unpackPacker(packed: String): String {
+        return try {
+            val packerRegex = Regex(
+                """eval\s*\(\s*function\s*\(\s*p\s*,\s*a\s*,\s*c\s*,\s*k\s*,\s*e\s*,\s*[rd]\s*\)\s*\{.*?return\s+p.*?\}(?:\s*\(.*?\))?\s*\(\s*'(.*?)'\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*'(.*?)'\.split\('\|'\)""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            )
+            
+            val builder = StringBuilder()
+            val matches = packerRegex.findAll(packed)
+            for (match in matches) {
+                val p = match.groupValues[1]
+                val a = match.groupValues[2].toIntOrNull() ?: 10
+                val c = match.groupValues[3].toIntOrNull() ?: 0
+                val k = match.groupValues[4].split("|")
+                
+                fun base62Decode(value: Int, base: Int): String {
+                    val alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                    if (value < base) return alphabet[value].toString()
+                    return base62Decode(value / base, base) + alphabet[value % base]
+                }
+                
+                val d = mutableMapOf<String, String>()
+                for (i in 0 until c) {
+                    val word = k.getOrNull(i).orEmpty()
+                    if (word.isNotEmpty()) {
+                        d[base62Decode(i, a)] = word
+                    }
+                }
+                
+                val unpackedBlock = Regex("""\b(\w+)\b""").replace(p) { tokenMatch ->
+                    val token = tokenMatch.value
+                    d[token] ?: token
+                }
+                builder.append("\n").append(unpackedBlock)
+            }
+            builder.toString()
+        } catch (e: Exception) {
+            ""
         }
     }
 

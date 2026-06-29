@@ -30,7 +30,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.ui.theme.DarkSurface
@@ -133,28 +135,53 @@ fun PlayerScreen(
                                 .background(Color.Black)
                         ) {
                             var playPosition by remember { mutableLongStateOf(savedProgress) }
+                            
+                            val httpDataSourceFactory = remember {
+                                DefaultHttpDataSource.Factory()
+                                    .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+                                    .setAllowCrossProtocolRedirects(true)
+                            }
+                            
+                            val mediaSourceFactory = remember {
+                                DefaultMediaSourceFactory(context)
+                                    .setDataSourceFactory(httpDataSourceFactory)
+                            }
+
                             val exoPlayer = remember {
-                                ExoPlayer.Builder(context).build().apply {
-                                    playWhenReady = true
-                                    addListener(object : Player.Listener {
-                                        override fun onPlaybackStateChanged(playbackState: Int) {
-                                            if (playbackState == Player.STATE_READY) {
-                                                // Seek to saved position on first ready
-                                                if (playPosition > 0) {
-                                                    seekTo(playPosition)
-                                                    playPosition = 0
+                                ExoPlayer.Builder(context)
+                                    .setMediaSourceFactory(mediaSourceFactory)
+                                    .build().apply {
+                                        playWhenReady = true
+                                        addListener(object : Player.Listener {
+                                            override fun onPlaybackStateChanged(playbackState: Int) {
+                                                if (playbackState == Player.STATE_READY) {
+                                                    // Seek to saved position on first ready
+                                                    if (playPosition > 0) {
+                                                        seekTo(playPosition)
+                                                        playPosition = 0
+                                                    }
                                                 }
                                             }
-                                        }
-                                    })
-                                }
+                                        })
+                                    }
                             }
 
                             // Load video URI
                             LaunchedEffect(streamUrl) {
-                                val mediaItem = MediaItem.fromUri(streamUrl)
-                                exoPlayer.setMediaItem(mediaItem)
-                                exoPlayer.prepare()
+                                if (streamUrl.isNotEmpty() && streamUrl != "-") {
+                                    val referer = when {
+                                        streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://desustream.me/"
+                                        streamUrl.contains("streamwish") || streamUrl.contains("awish") -> "https://streamwish.to/"
+                                        streamUrl.contains("filelion") || streamUrl.contains("lion") -> "https://filelion.to/"
+                                        streamUrl.contains("otakudesu") -> "https://otakudesu.blog/"
+                                        else -> "https://otakudesu.blog/"
+                                    }
+                                    httpDataSourceFactory.setDefaultRequestProperties(mapOf("Referer" to referer))
+                                    
+                                    val mediaItem = MediaItem.fromUri(streamUrl)
+                                    exoPlayer.setMediaItem(mediaItem)
+                                    exoPlayer.prepare()
+                                }
                             }
 
                             // Periodic Progress Saving
