@@ -146,7 +146,17 @@ exports.detailAnime = async (req, res) => {
     res.json(object);
   } catch (err) {
     console.log(err);
-    errors.requestFailed(req, res, err);
+    try {
+      const fallbackDetail = await buildSearchBasedDetail(id);
+      res.status(200).json({
+        ...fallbackDetail,
+        fallback: true,
+        message: "Detail upstream blocked; using search fallback.",
+      });
+    } catch (fallbackErr) {
+      console.log(fallbackErr);
+      errors.requestFailed(req, res, err);
+    }
   }
 };
 exports.batchAnime = async (req, res) => {
@@ -284,7 +294,14 @@ function _batchQualityFunction(num, res) {
 }
 
 function normalizeAnimeId(rawId) {
-  const id = String(rawId || "")
+  let decodedId = String(rawId || "");
+  try {
+    decodedId = decodeURIComponent(decodedId);
+  } catch (e) {
+    // Keep the original value when it is not a valid encoded component.
+  }
+
+  const id = decodedId
     .trim()
     .split("?")[0]
     .split("#")[0]
@@ -294,6 +311,70 @@ function normalizeAnimeId(rawId) {
     .replace(/\/+$/, "");
 
   return id ? `${id}/` : "";
+}
+
+async function buildSearchBasedDetail(id) {
+  const normalizedId = normalizeAnimeId(id);
+  const query = animeIdToSearchQuery(normalizedId);
+  const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
+  const response = await Axios.get(fullUrl);
+  const $ = cheerio.load(response.data);
+  let matchedItem = null;
+
+  $(".page").find("ul > li").each(function () {
+    if (matchedItem) return;
+
+    const link = $(this).find("h2 > a").attr("href") || "";
+    const itemId = normalizeAnimeId(link);
+    if (itemId !== normalizedId) return;
+
+    const genre_list = [];
+    $(this).find(".set").find("a").each(function () {
+      const genre_link = $(this).attr("href") || "";
+      const genre_name = $(this).text();
+      genre_list.push({
+        genre_name,
+        genre_id: genre_link.replace(`${baseUrl}genres/`, ""),
+        genre_link,
+      });
+    });
+
+    matchedItem = {
+      thumb: $(this).find("img").attr("src") || "",
+      anime_id: normalizedId,
+      synopsis: "",
+      title: $(this).find("h2").text().replace("Subtitle Indonesia", "").trim(),
+      japanase: "",
+      score: parseFloat($(this).find(".set").eq(2).text().replace("Rating : ", "")) || null,
+      producer: "",
+      type: "",
+      status: $(this).find(".set").eq(1).text().replace("Status : ", "").trim(),
+      total_episode: null,
+      duration: "",
+      release_date: "",
+      studio: "",
+      genre_list,
+      episode_list: [],
+      batch_link: {
+        id: "",
+        link: "",
+      },
+    };
+  });
+
+  if (matchedItem) return matchedItem;
+  throw new Error(`No fallback detail found for ${normalizedId}`);
+}
+
+function animeIdToSearchQuery(id) {
+  const slug = normalizeAnimeId(id).replace(/\/$/, "");
+  if (slug === "1piece-sub-indo") return "one piece";
+
+  return slug
+    .replace(/-sub-indo$/, "")
+    .replace(/-/g, " ")
+    .replace(/\bs(\d+)\b/g, "season $1")
+    .trim();
 }
 function _epsQualityFunction(num, res) {
   const $ = cheerio.load(res);

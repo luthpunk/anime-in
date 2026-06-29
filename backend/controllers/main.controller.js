@@ -77,6 +77,7 @@ exports.home = (req, res) => {
           });
         });
       home.complete = complete;
+      home.completed = complete;
       res.status(200).json({
         status: "success",
         baseUrl: baseUrl,
@@ -295,7 +296,7 @@ exports.animeByGenre = (req, res) => {
 };
 exports.search = (req, res) => {
   const query = req.params.query;
-  const fullUrl = `${baseUrl}?s=${query}&post_type=anime`;
+  const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
   Axios.get(fullUrl).then((response) => {
     const $ = cheerio.load(response.data);
     const element = $(".page");
@@ -336,18 +337,37 @@ exports.search = (req, res) => {
     }
     res.send(obj);
   }).catch((err) => {
-    errors.requestFailed(req, res, err);
+    console.log(err.message);
+    res.status(200).json({
+      status: "success",
+      fallback: true,
+      message: "Search upstream blocked; returning empty results.",
+      baseUrl: fullUrl,
+      search_results: [],
+    });
   });
 };
 
 async function buildSearchBasedHome() {
-  const [ongoingResults, completedResults] = await Promise.all([
-    fetchSearchResults("one piece"),
-    fetchSearchResults("naruto"),
-  ]);
+  const seedQueries = [
+    "one piece",
+    "kimetsu",
+    "jujutsu",
+    "boruto",
+    "horimiya",
+    "isekai",
+    "spy family",
+    "tensura",
+  ];
+  const searchGroups = await Promise.all(
+    seedQueries.map((query) => fetchSearchResults(query).catch(() => []))
+  );
+  const allResults = uniqueAnimeResults(searchGroups.flat());
+  const ongoingResults = allResults.filter((item) => /ongoing/i.test(item.status));
+  const completedResults = allResults.filter((item) => /completed/i.test(item.status));
 
   return {
-    on_going: ongoingResults.slice(0, 12).map((item) => ({
+    on_going: (ongoingResults.length ? ongoingResults : allResults).slice(0, 12).map((item) => ({
       title: item.title,
       id: item.id,
       thumb: item.thumb,
@@ -356,7 +376,16 @@ async function buildSearchBasedHome() {
       day_updated: "",
       link: item.link,
     })),
-    completed: completedResults.slice(0, 12).map((item) => ({
+    complete: (completedResults.length ? completedResults : allResults).slice(0, 12).map((item) => ({
+      title: item.title,
+      id: item.id,
+      thumb: item.thumb,
+      episode: item.status || "Anime",
+      uploaded_on: "",
+      score: Number.isFinite(item.score) ? item.score : null,
+      link: item.link,
+    })),
+    completed: (completedResults.length ? completedResults : allResults).slice(0, 12).map((item) => ({
       title: item.title,
       id: item.id,
       thumb: item.thumb,
@@ -391,8 +420,24 @@ async function fetchSearchResults(query) {
   return results;
 }
 
+function uniqueAnimeResults(results) {
+  const seen = new Set();
+  return results.filter((item) => {
+    if (!item.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 function normalizeAnimeId(rawId) {
-  const id = String(rawId || "")
+  let decodedId = String(rawId || "");
+  try {
+    decodedId = decodeURIComponent(decodedId);
+  } catch (e) {
+    // Keep the original value when it is not a valid encoded component.
+  }
+
+  const id = decodedId
     .trim()
     .split("?")[0]
     .split("#")[0]
