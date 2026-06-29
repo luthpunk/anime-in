@@ -271,9 +271,9 @@ fun PlayerScreen(
                                     PlayerView(ctx).apply {
                                         player = exoPlayer
                                         useController = true
-                                        setControllerVisibilityListener { visibility ->
+                                        setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
                                             isControllerVisible = (visibility == View.VISIBLE)
-                                        }
+                                        })
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
