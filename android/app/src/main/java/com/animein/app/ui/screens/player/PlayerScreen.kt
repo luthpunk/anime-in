@@ -49,6 +49,7 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.View
 import com.animein.app.data.model.MirrorItem
+import com.animein.app.utils.AnimeIdUtils
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
@@ -64,6 +65,7 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.playerState.collectAsState()
     val savedProgress by viewModel.savedProgress.collectAsState()
+    val episodes by viewModel.episodes.collectAsState()
     val context = LocalContext.current
 
     var showWebViewFallback by remember { mutableStateOf(false) }
@@ -590,7 +592,6 @@ fun PlayerScreen(
                         }
 
                         // Collect and render episode grid selection
-                        val episodes by viewModel.episodes.collectAsState()
                         if (episodes.isNotEmpty()) {
                             item {
                                 Spacer(modifier = Modifier.height(24.dp))
