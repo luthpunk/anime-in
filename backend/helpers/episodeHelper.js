@@ -72,7 +72,14 @@ const get = async (url) => {
     const unpackedCode = unpack(html);
     const fullSource = html + "\n" + unpackedCode;
     
-    // 2. Try to find the file source using regex in both clean/unpacked HTML
+    // 2. Try to find direct video source via Cheerio
+    const $ = cheerio.load(fullSource);
+    let cheerioSrc = $("video source").attr("src") || $("video").attr("src");
+    if (cheerioSrc && (cheerioSrc.startsWith("http://") || cheerioSrc.startsWith("https://"))) {
+      return decodeBase64IfNeeded(cheerioSrc);
+    }
+    
+    // 3. Try to find the file source using regex in both clean/unpacked HTML
     // Match "file":"..." or 'file':'...' or file: '...'
     const fileRegexes = [
       /["']?file["']?\s*:\s*["']([^"']+)["']/g,
@@ -92,7 +99,7 @@ const get = async (url) => {
       }
     }
     
-    // 3. Fallback: search for any raw https link ending in .m3u8 or .mp4
+    // 4. Fallback: search for any raw https link ending in .m3u8 or .mp4
     const rawLinkRegex = /(https?:\/\/[^\s"'`]+?\.(?:m3u8|mp4)(?:[^\s"'`]*))/gi;
     rawLinkRegex.lastIndex = 0;
     let rawMatch = rawLinkRegex.exec(fullSource);

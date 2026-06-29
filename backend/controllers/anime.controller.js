@@ -180,27 +180,56 @@ exports.batchAnime = async (req, res) => {
       errors.requestFailed(req, res, err);
     });
 };
+async function getIframeFromDataContent(dataContent) {
+  try {
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Referer': 'https://otakudesu.blog/',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+    
+    // 1. Get nonce
+    const params1 = new URLSearchParams();
+    params1.append('action', 'aa1208d27f29ca340c92c66d1926f13f');
+    const nonceRes = await Axios.post('https://otakudesu.blog/wp-admin/admin-ajax.php', params1.toString(), { headers });
+    const nonce = nonceRes.data?.data;
+    if (!nonce) return null;
+    
+    // 2. Decode content
+    const decoded = JSON.parse(Buffer.from(dataContent, 'base64').toString('utf-8'));
+    
+    // 3. Post to get embed
+    const params2 = new URLSearchParams();
+    params2.append('action', '2a3505c93b0035d3f455df82bf976b84');
+    params2.append('id', decoded.id);
+    params2.append('i', decoded.i);
+    params2.append('q', decoded.q);
+    params2.append('nonce', nonce);
+    
+    const embedRes = await Axios.post('https://otakudesu.blog/wp-admin/admin-ajax.php', params2.toString(), { headers });
+    
+    if (embedRes.data && embedRes.data.data) {
+      const embedHtml = Buffer.from(embedRes.data.data, 'base64').toString('utf-8');
+      const $ = cheerio.load(embedHtml);
+      return $("iframe").attr("src");
+    }
+  } catch (e) {
+    console.error("Failed to get iframe from data-content:", e.message);
+  }
+  return null;
+}
+
 exports.epsAnime = async (req, res) => {
   const id = normalizeEpisodeId(req.params.id || req.params[0]);
   const fullUrl = `${url.baseUrl}${id}`;
   try {
     const response = await Axios.get(fullUrl);
     const $ = cheerio.load(response.data);
-    const streamElement = $("#lightsVideo").find("#embed_holder");
     const obj = {};
     obj.title = $(".venutama > h1").text();
     obj.baseUrl = fullUrl;
     obj.id = fullUrl.replace(url.baseUrl, "");
-    const streamLink = streamElement.find("iframe").attr("src");
-    // const streamLinkResponse = await Axios.get(streamLink)
-    // const stream$ = cheerio.load(streamLinkResponse.data)
-    // const sl = stream$('body').find('script').html().search('sources')
-    // const endIndex = stream$('body').find('script').eq(0).html().indexOf('}]',sl)
-    // const val = stream$('body').find('script').eq(0).html().substr(sl,endIndex - sl+1).replace(`sources: [{'file':'`,'')
-    // console.log(val);
-    // console.log(val.replace(`','type':'video/mp4'}`,''));
-    obj.link_stream = await episodeHelper.get(streamLink);
-    console.log($('#pembed > div > iframe').attr('src'));
+    
     let low_quality;
     let medium_quality;
     let high_quality;
@@ -208,34 +237,50 @@ exports.epsAnime = async (req, res) => {
     let mirror2 = [];
     let mirror3 = [];
 
-    $('#embed_holder > div.mirrorstream > ul.m360p > li').each((idx,el)=>{``
+    $('#embed_holder > div.mirrorstream > ul.m360p > li').each((idx,el)=>{
+      const aTag = $(el).find('a');
       mirror1.push({
-        host:$(el).find('a').text().trim(),
-        id:$(el).find('a').attr('href'),
+        host: aTag.text().trim(),
+        id: aTag.attr('data-content') || aTag.attr('href'),
       });
     });
     $('#embed_holder > div.mirrorstream > ul.m480p > li').each((idx,el)=>{
+      const aTag = $(el).find('a');
       mirror2.push({
-        host:$(el).find('a').text().trim(),
-        id:$(el).find('a').attr('href'),
+        host: aTag.text().trim(),
+        id: aTag.attr('data-content') || aTag.attr('href'),
       });
     });
     $('#embed_holder > div.mirrorstream > ul.m720p > li').each((idx,el)=>{
+      const aTag = $(el).find('a');
       mirror3.push({
-        host:$(el).find('a').text().trim(),
-        id:$(el).find('a').attr('href'),
+        host: aTag.text().trim(),
+        id: aTag.attr('data-content') || aTag.attr('href'),
       });
     });
     obj.mirror1 = {quality:'360p',mirrorList:mirror1}
     obj.mirror2 = {quality:'480p',mirrorList:mirror2}
     obj.mirror3 = {quality:'720p',mirrorList:mirror3}
+
+    // Resolve default stream link
+    let defaultStreamLink = "-";
+    const defaultMirrorA = $('.mirrorstream a[data-default="true"]').first();
+    const defaultMirrorContent = defaultMirrorA.attr('data-content') 
+      || $('.mirrorstream a[data-content]').first().attr('data-content');
+
+    if (defaultMirrorContent) {
+      const iframeUrl = await getIframeFromDataContent(defaultMirrorContent);
+      if (iframeUrl) {
+        defaultStreamLink = await episodeHelper.get(iframeUrl);
+      }
+    }
+    obj.link_stream = defaultStreamLink;
+
     if($('#venkonten > div.venser > div.venutama > div.download > ul > li:nth-child(1)').text() === ''){
-      console.log('ul is empty');
       low_quality = _notFoundQualityHandler(response.data,0)
       medium_quality = _notFoundQualityHandler(response.data,1)
       high_quality = _notFoundQualityHandler(response.data,2)
     }else{
-      console.log('ul is not empty');
       low_quality = _epsQualityFunction(0, response.data);
       medium_quality = _epsQualityFunction(1, response.data);
       high_quality = _epsQualityFunction(2, response.data);
@@ -262,23 +307,30 @@ exports.epsAnime = async (req, res) => {
 exports.epsMirror = async (req, res) => {
   const mirrorId = req.body.mirrorId;
   const animeId = req.params.animeId;
-  const fullUrl = `${baseUrl}${animeId}/${mirrorId}`;
   try {
-    const response = await Axios.get(fullUrl);
-    const $ = cheerio.load(response.data);
     const obj = {};
-    obj.title = $(".venutama > h1").text();
-    obj.baseUrl = fullUrl;
-    obj.id = fullUrl.replace(url.baseUrl, "");
-    const streamLink = $('#pembed > div > iframe').attr('src')
-    obj.streamLink = streamLink
-    obj.link_stream = await episodeHelper.get(streamLink);
+    obj.title = "Mirror Stream";
+    obj.baseUrl = `${baseUrl}${animeId}/${mirrorId}`;
+    obj.id = `${animeId}/${mirrorId}`;
+    
+    let iframeUrl = null;
+    if (mirrorId && mirrorId.startsWith("eyJ")) {
+      iframeUrl = await getIframeFromDataContent(mirrorId);
+    } else {
+      const fullUrl = `${baseUrl}${animeId}/${mirrorId}`;
+      const response = await Axios.get(fullUrl);
+      const $ = cheerio.load(response.data);
+      iframeUrl = $('#pembed > div > iframe').attr('src');
+    }
+    
+    obj.streamLink = iframeUrl;
+    obj.link_stream = iframeUrl ? await episodeHelper.get(iframeUrl) : "-";
     res.send(obj);
   } catch (err) {
     console.log(err);
     errors.requestFailed(req, res, err);
   }
-}
+};
 
 function _batchQualityFunction(num, res) {
   const $ = cheerio.load(res);

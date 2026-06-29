@@ -89,9 +89,17 @@ class OtakudesuDirectScraper @Inject constructor(
         val normalizedId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         val pageUrl = if (normalizedId.startsWith("http")) normalizedId else "$baseUrl$normalizedId"
         val doc = fetchDocument(pageUrl)
-        val iframeUrl = doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()
-            ?.absUrl("src")
-            ?.ifBlank { doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()?.attr("src") }
+        
+        val defaultMirrorContent = doc.select(".mirrorstream a[data-default=true]").first()?.attr("data-content")
+            ?: doc.select(".mirrorstream a[data-content]").first()?.attr("data-content")
+            
+        val iframeUrl = if (!defaultMirrorContent.isNullOrBlank()) {
+            getIframeFromDataContent(defaultMirrorContent)
+        } else {
+            doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()
+                ?.absUrl("src")
+                ?.ifBlank { doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()?.attr("src") }
+        }
 
         EpisodeDetailResponse(
             title = doc.select(".venutama h1").first()?.text()?.trim()
@@ -111,9 +119,10 @@ class OtakudesuDirectScraper @Inject constructor(
             quality = quality,
             mirrorList = doc.select(selector).mapNotNull { item ->
                 val anchor = item.select("a").first() ?: return@mapNotNull null
+                val id = anchor.attr("data-content").ifBlank { anchor.attr("href") }
                 MirrorItem(
                     host = anchor.text().trim(),
-                    id = anchor.attr("href")
+                    id = id
                 )
             }
         )
@@ -260,6 +269,59 @@ class OtakudesuDirectScraper @Inject constructor(
 
     private fun infoValue(items: List<org.jsoup.nodes.Element>, index: Int, prefix: String): String {
         return items.getOrNull(index)?.text()?.replace(prefix, "")?.trim().orEmpty()
+    }
+
+    private fun postForm(url: String, params: Map<String, String>): String {
+        val formBuilder = okhttp3.FormBody.Builder()
+        for ((key, value) in params) {
+            formBuilder.add(key, value)
+        }
+        val request = Request.Builder()
+            .url(url)
+            .post(formBuilder.build())
+            .header("User-Agent", USER_AGENT)
+            .header("Referer", baseUrl)
+            .header("Accept", "application/json")
+            .build()
+        
+        okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("POST request failed: ${response.code}")
+            }
+            return response.body?.string().orEmpty()
+        }
+    }
+
+    private fun getIframeFromDataContent(dataContent: String): String? {
+        return try {
+            val nonceJsonStr = postForm("${baseUrl}wp-admin/admin-ajax.php", mapOf(
+                "action" to "aa1208d27f29ca340c92c66d1926f13f"
+            ))
+            val nonce = org.json.JSONObject(nonceJsonStr).optString("data")
+            if (nonce.isNullOrBlank()) return null
+            
+            val decodedStr = decodeBase64IfNeeded(dataContent)
+            val decodedJson = org.json.JSONObject(decodedStr)
+            val id = decodedJson.optString("id")
+            val i = decodedJson.optString("i")
+            val q = decodedJson.optString("q")
+            
+            val embedJsonStr = postForm("${baseUrl}wp-admin/admin-ajax.php", mapOf(
+                "action" to "2a3505c93b0035d3f455df82bf976b84",
+                "id" to id,
+                "i" to i,
+                "q" to q,
+                "nonce" to nonce
+            ))
+            val embedDataBase64 = org.json.JSONObject(embedJsonStr).optString("data")
+            if (embedDataBase64.isNullOrBlank()) return null
+            
+            val embedHtml = decodeBase64IfNeeded(embedDataBase64)
+            val doc = Jsoup.parse(embedHtml)
+            doc.select("iframe").first()?.attr("src")
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private companion object {
