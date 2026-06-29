@@ -162,9 +162,9 @@ fun PlayerScreen(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
-                        }
-                        // ExoPlayer View
-                        Box(
+                        } else {
+                            // ExoPlayer View
+                            Box(
                             modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
                                 .fillMaxWidth()
                                 .height(220.dp)
@@ -552,6 +552,7 @@ fun PlayerScreen(
                                     }
                                 }
                             }
+                    }
                     }
 
                     if (!isFullscreen) {
