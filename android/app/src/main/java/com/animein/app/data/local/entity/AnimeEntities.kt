@@ -8,7 +8,7 @@ data class FavoriteEntity(
     @PrimaryKey val id: String,
     val title: String,
     val thumb: String,
-    val score: Double,
+    val score: String,
     val type: String,
     val status: String,
     val addedAt: Long = System.currentTimeMillis()

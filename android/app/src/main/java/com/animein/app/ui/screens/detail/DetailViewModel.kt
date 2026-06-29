@@ -18,7 +18,9 @@ class DetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val animeId: String = savedStateHandle.get<String>("animeId") ?: ""
+    val animeId: String = savedStateHandle.get<String>("animeId")?.let {
+        java.net.URLDecoder.decode(it, "UTF-8")
+    } ?: ""
 
     private val _detailState = MutableStateFlow<DetailUiState>(DetailUiState.Loading)
     val detailState: StateFlow<DetailUiState> = _detailState
@@ -63,7 +65,7 @@ class DetailViewModel @Inject constructor(
                     id = detail.animeId,
                     title = detail.title,
                     thumb = detail.thumb ?: "",
-                    score = detail.score ?: 0.0,
+                    score = detail.score ?: "",
                     type = detail.type ?: "",
                     status = detail.status ?: ""
                 )

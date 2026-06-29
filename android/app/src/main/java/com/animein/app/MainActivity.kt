@@ -1,5 +1,7 @@
 package com.animein.app
 
+import java.net.URLEncoder
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -118,7 +120,7 @@ fun MainApp() {
                 HomeScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/$id")
+                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
                     }
                 )
             }
@@ -129,10 +131,10 @@ fun MainApp() {
                 SearchScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/$id")
+                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
                     },
                     onGenreClick = { id, name ->
-                        navController.navigate("genre/$id/$name")
+                        navController.navigate("genre/${URLEncoder.encode(id, "UTF-8")}/$name")
                     }
                 )
             }
@@ -143,10 +145,10 @@ fun MainApp() {
                 HistoryScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
-                        navController.navigate("detail/$id")
+                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
                     },
                     onEpisodePlay = { episodeId, animeId ->
-                        navController.navigate("player/$episodeId/$animeId")
+                        navController.navigate("player/${URLEncoder.encode(episodeId, "UTF-8")}/${URLEncoder.encode(animeId, "UTF-8")}")
                     }
                 )
             }
@@ -163,7 +165,7 @@ fun MainApp() {
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
                     onEpisodeClick = { episodeId, animeId ->
-                        navController.navigate("player/$episodeId/$animeId")
+                        navController.navigate("player/${URLEncoder.encode(episodeId, "UTF-8")}/${URLEncoder.encode(animeId, "UTF-8")}")
                     }
                 )
             }
@@ -196,7 +198,7 @@ fun MainApp() {
                     viewModel = viewModel,
                     onBackClick = { navController.popBackStack() },
                     onAnimeClick = { id ->
-                        navController.navigate("detail/$id")
+                        navController.navigate("detail/${URLEncoder.encode(id, "UTF-8")}")
                     }
                 )
             }

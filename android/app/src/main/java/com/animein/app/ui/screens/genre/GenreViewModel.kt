@@ -17,8 +17,12 @@ class GenreViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val genreId: String = savedStateHandle.get<String>("genreId") ?: ""
-    val genreName: String = savedStateHandle.get<String>("genreName") ?: "Genre"
+    val genreId: String = savedStateHandle.get<String>("genreId")?.let {
+        java.net.URLDecoder.decode(it, "UTF-8")
+    } ?: ""
+    val genreName: String = savedStateHandle.get<String>("genreName")?.let {
+        java.net.URLDecoder.decode(it, "UTF-8")
+    } ?: "Genre"
 
     private val _genreState = MutableStateFlow<GenreUiState>(GenreUiState.Loading)
     val genreState: StateFlow<GenreUiState> = _genreState

@@ -10,7 +10,7 @@ data class HomeResponse(
 
 data class HomeData(
     @SerializedName("on_going") val ongoing: List<AnimeOngoing>,
-    @SerializedName("complete") val complete: List<AnimeCompleted>
+    @SerializedName("completed") val complete: List<AnimeCompleted>
 )
 
 data class AnimeOngoing(
@@ -29,7 +29,7 @@ data class AnimeCompleted(
     @SerializedName("thumb") val thumb: String,
     @SerializedName("episode") val episode: String,
     @SerializedName("uploaded_on") val uploadedOn: String?,
-    @SerializedName("score") val score: Double?,
+    @SerializedName("score") val score: String?,
     @SerializedName("link") val link: String?
 )
 
@@ -45,7 +45,7 @@ data class AnimeListItem(
     @SerializedName("id") val id: String,
     @SerializedName("thumb") val thumb: String?,
     @SerializedName("episode") val episode: String?,
-    @SerializedName("score") val score: Double?,
+    @SerializedName("score") val score: String?,
     @SerializedName("studio") val studio: String?,
     @SerializedName("release_date") val releaseDate: String?,
     @SerializedName("genre_list") val genreList: List<Genre>?
@@ -83,7 +83,7 @@ data class SearchItem(
     @SerializedName("id") val id: String,
     @SerializedName("thumb") val thumb: String?,
     @SerializedName("status") val status: String?,
-    @SerializedName("score") val score: Double?,
+    @SerializedName("score") val score: String?,
     @SerializedName("genre_list") val genreList: List<Genre>?
 )
 
@@ -94,11 +94,11 @@ data class DetailResponse(
     @SerializedName("synopsis") val synopsis: String?,
     @SerializedName("title") val title: String,
     @SerializedName("japanase") val japanese: String?,
-    @SerializedName("score") val score: Double?,
+    @SerializedName("score") val score: String?,
     @SerializedName("producer") val producer: String?,
     @SerializedName("type") val type: String?,
     @SerializedName("status") val status: String?,
-    @SerializedName("total_episode") val totalEpisode: Int?,
+    @SerializedName("total_episode") val totalEpisode: String?,
     @SerializedName("duration") val duration: String?,
     @SerializedName("release_date") val releaseDate: String?,
     @SerializedName("studio") val studio: String?,

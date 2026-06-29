@@ -18,8 +18,12 @@ class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val episodeId: String = savedStateHandle.get<String>("episodeId") ?: ""
-    val animeId: String = savedStateHandle.get<String>("animeId") ?: ""
+    val episodeId: String = savedStateHandle.get<String>("episodeId")?.let {
+        java.net.URLDecoder.decode(it, "UTF-8")
+    } ?: ""
+    val animeId: String = savedStateHandle.get<String>("animeId")?.let {
+        java.net.URLDecoder.decode(it, "UTF-8")
+    } ?: ""
 
     private val _playerState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val playerState: StateFlow<PlayerUiState> = _playerState
