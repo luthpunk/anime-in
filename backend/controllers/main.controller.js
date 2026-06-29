@@ -1,6 +1,6 @@
 const cheerio = require("cheerio");
 const url = require("../helpers/base-url");
-const { default: Axios } = require("axios");
+const Axios = require("../helpers/axios-instance");
 const baseUrl = url.baseUrl;
 const completeAnime = url.completeAnime;
 const onGoingAnime = url.onGoingAnime;

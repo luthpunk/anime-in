@@ -1,5 +1,5 @@
 const url = require("../helpers/base-url");
-const { default: Axios } = require("axios");
+const Axios = require("../helpers/axios-instance");
 const cheerio = require("cheerio");
 const errors = require("../helpers/errors");
 const episodeHelper = require("../helpers/episodeHelper");
