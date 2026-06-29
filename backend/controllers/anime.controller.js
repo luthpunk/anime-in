@@ -253,8 +253,8 @@ exports.epsMirror = async (req, res) => {
     obj.streamLink = streamLink
     obj.link_stream = await episodeHelper.get(streamLink);
     res.send(obj);
-  } catch (error) {
-    console.log(error);
+  } catch (err) {
+    console.log(err);
     errors.requestFailed(req, res, err);
   }
 }

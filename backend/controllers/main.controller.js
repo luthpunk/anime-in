@@ -85,6 +85,7 @@ exports.home = (req, res) => {
     })
     .catch((e) => {
       console.log(e.message);
+      errors.requestFailed(req, res, e);
     });
 };
 exports.completeAnimeList = (req, res) => {
@@ -133,6 +134,7 @@ exports.completeAnimeList = (req, res) => {
     })
     .catch((err) => {
       console.log(err.message);
+      errors.requestFailed(req, res, err);
     });
 };
 exports.onGoingAnimeList = (req, res) => {
@@ -181,6 +183,7 @@ exports.onGoingAnimeList = (req, res) => {
     })
     .catch((err) => {
       console.log(err.message);
+      errors.requestFailed(req, res, err);
     });
 };
 exports.schedule = (req, res) => {
@@ -226,6 +229,7 @@ exports.genre = (req, res) => {
     })
     .catch((err) => {
       console.log(err.message);
+      errors.requestFailed(req, res, err);
     });
 };
 exports.animeByGenre = (req, res) => {
@@ -314,5 +318,7 @@ exports.search = (req, res) => {
       });
     }
     res.send(obj);
+  }).catch((err) => {
+    errors.requestFailed(req, res, err);
   });
 };
