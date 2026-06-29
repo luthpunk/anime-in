@@ -184,7 +184,14 @@ fun MainApp() {
                 val viewModel: PlayerViewModel = hiltViewModel()
                 PlayerScreen(
                     viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onEpisodeClick = { nextEpId, aId ->
+                        val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
+                        val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
+                        navController.navigate("player/$encodedEpId/$encodedAnimeId") {
+                            popUpTo("detail/{animeId}") { inclusive = false }
+                        }
+                    }
                 )
             }
 

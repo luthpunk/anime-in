@@ -8,12 +8,16 @@ import kotlin.OptIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +56,7 @@ import kotlinx.coroutines.delay
 fun PlayerScreen(
     viewModel: PlayerViewModel,
     onBackClick: () -> Unit,
+    onEpisodeClick: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.playerState.collectAsState()
@@ -157,7 +163,6 @@ fun PlayerScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-                    } else {
                         // ExoPlayer View
                         Box(
                             modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
@@ -166,7 +171,11 @@ fun PlayerScreen(
                                 .background(Color.Black)
                         ) {
                             var playPosition by remember { mutableLongStateOf(savedProgress) }
-                            var isControllerVisible by remember { mutableStateOf(true) }
+                            var showControls by remember { mutableStateOf(true) }
+                            var isPlaying by remember { mutableStateOf(true) }
+                            var currentPosition by remember { mutableLongStateOf(savedProgress) }
+                            var duration by remember { mutableLongStateOf(0L) }
+                            val speed by viewModel.playbackSpeed.collectAsState()
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
@@ -187,7 +196,6 @@ fun PlayerScreen(
                                         addListener(object : Player.Listener {
                                             override fun onPlaybackStateChanged(playbackState: Int) {
                                                 if (playbackState == Player.STATE_READY) {
-                                                    // Seek to saved position on first ready
                                                     if (playPosition > 0) {
                                                         seekTo(playPosition)
                                                         playPosition = 0
@@ -196,6 +204,45 @@ fun PlayerScreen(
                                             }
                                         })
                                     }
+                            }
+
+                            // Monitor Player state
+                            DisposableEffect(exoPlayer) {
+                                val listener = object : Player.Listener {
+                                    override fun onIsPlayingChanged(playing: Boolean) {
+                                        isPlaying = playing
+                                    }
+                                    override fun onPlaybackStateChanged(state: Int) {
+                                        if (state == Player.STATE_READY) {
+                                            duration = exoPlayer.duration
+                                        }
+                                    }
+                                }
+                                exoPlayer.addListener(listener)
+                                onDispose {
+                                    exoPlayer.removeListener(listener)
+                                }
+                            }
+
+                            // Periodically update progress
+                            LaunchedEffect(isPlaying) {
+                                while (isPlaying) {
+                                    currentPosition = exoPlayer.currentPosition
+                                    delay(250)
+                                }
+                            }
+
+                            // Hide controls after 3.5 seconds
+                            LaunchedEffect(showControls, isPlaying) {
+                                if (showControls && isPlaying) {
+                                    delay(3500)
+                                    showControls = false
+                                }
+                            }
+
+                            // Set playback speed
+                            LaunchedEffect(speed) {
+                                exoPlayer.setPlaybackSpeed(speed)
                             }
 
                             // Load video URI
@@ -221,14 +268,14 @@ fun PlayerScreen(
                                 while (true) {
                                     delay(5000)
                                     val progress = exoPlayer.currentPosition
-                                    val duration = exoPlayer.duration
-                                    if (progress > 0 && duration > 0) {
+                                    val dur = exoPlayer.duration
+                                    if (progress > 0 && dur > 0) {
                                         viewModel.saveProgress(
                                             progress = progress,
-                                            duration = duration,
+                                            duration = dur,
                                             animeTitle = detail.title.split("Episode")[0].trim(),
                                             episodeTitle = detail.title,
-                                            thumb = "" // Handled by DetailScreen
+                                            thumb = ""
                                         )
                                     }
                                 }
@@ -242,11 +289,11 @@ fun PlayerScreen(
                                         Lifecycle.Event.ON_PAUSE -> {
                                             exoPlayer.pause()
                                             val progress = exoPlayer.currentPosition
-                                            val duration = exoPlayer.duration
-                                            if (progress > 0 && duration > 0) {
+                                            val dur = exoPlayer.duration
+                                            if (progress > 0 && dur > 0) {
                                                 viewModel.saveProgress(
                                                     progress = progress,
-                                                    duration = duration,
+                                                    duration = dur,
                                                     animeTitle = detail.title.split("Episode")[0].trim(),
                                                     episodeTitle = detail.title,
                                                     thumb = ""
@@ -266,40 +313,245 @@ fun PlayerScreen(
                                 }
                             }
 
-                            AndroidView(
-                                factory = { ctx ->
-                                    PlayerView(ctx).apply {
-                                        player = exoPlayer
-                                        useController = true
-                                        setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
-                                            isControllerVisible = (visibility == View.VISIBLE)
-                                        })
-                                        layoutParams = ViewGroup.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        showControls = !showControls
                                     }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            ) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        PlayerView(ctx).apply {
+                                            player = exoPlayer
+                                            useController = false
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
 
-                            if (isControllerVisible) {
-                                IconButton(
-                                    onClick = { isFullscreen = !isFullscreen },
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(bottom = 56.dp, end = 12.dp) // Aligns perfectly above the gear icon
-                                        .size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
-                                        contentDescription = "Fullscreen",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                                if (showControls) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.6f))
+                                    ) {
+                                        // 1. Top row: Back & Title
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .align(Alignment.TopStart)
+                                                .padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(onClick = {
+                                                if (isFullscreen) {
+                                                    isFullscreen = false
+                                                } else {
+                                                    onBackClick()
+                                                }
+                                            }) {
+                                                Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = detail.title,
+                                                color = Color.White,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+
+                                        // 2. Center row: Replay15, Play/Pause, Forward15
+                                        Row(
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    val target = (exoPlayer.currentPosition - 15000).coerceAtLeast(0L)
+                                                     exoPlayer.seekTo(target)
+                                                     currentPosition = target
+                                                },
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Replay15Icon,
+                                                    contentDescription = "Mundur 15s",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(32.dp))
+
+                                            IconButton(
+                                                onClick = {
+                                                    if (exoPlayer.isPlaying) {
+                                                        exoPlayer.pause()
+                                                    } else {
+                                                        exoPlayer.play()
+                                                    }
+                                                },
+                                                modifier = Modifier
+                                                    .size(56.dp)
+                                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                    contentDescription = "Play/Pause",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(32.dp))
+
+                                            IconButton(
+                                                onClick = {
+                                                    val target = (exoPlayer.currentPosition + 15000).coerceAtMost(exoPlayer.duration)
+                                                    exoPlayer.seekTo(target)
+                                                    currentPosition = target
+                                                },
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Forward15Icon,
+                                                    contentDescription = "Maju 15s",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(32.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // 3. Bottom controls
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = formatTime(currentPosition),
+                                                    color = Color.White,
+                                                    fontSize = 11.sp
+                                                )
+                                                
+                                                Slider(
+                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
+                                                    onValueChange = {
+                                                        currentPosition = it.toLong()
+                                                        exoPlayer.seekTo(currentPosition)
+                                                    },
+                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .padding(horizontal = 8.dp),
+                                                     colors = SliderDefaults.colors(
+                                                         thumbColor = NeonPurple,
+                                                         activeTrackColor = NeonPurple,
+                                                         inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                                     )
+                                                )
+
+                                                Text(
+                                                    text = formatTime(duration),
+                                                    color = Color.White,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .offset(y = (-4).dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                var showSpeedDialog by remember { mutableStateOf(false) }
+                                                Box {
+                                                    TextButton(
+                                                        onClick = { showSpeedDialog = true },
+                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "${speed}x Speed",
+                                                            color = Color.White,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                     }
+                                                     
+                                                     DropdownMenu(
+                                                         expanded = showSpeedDialog,
+                                                         onDismissRequest = { showSpeedDialog = false },
+                                                         modifier = Modifier.background(DarkSurface)
+                                                     ) {
+                                                         listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                                             DropdownMenuItem(
+                                                                 text = { Text("${value}x", color = Color.White) },
+                                                                 onClick = {
+                                                                     viewModel.setPlaybackSpeed(value)
+                                                                     showSpeedDialog = false
+                                                                 }
+                                                             )
+                                                         }
+                                                     }
+                                                }
+
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    val nextEpId by viewModel.nextEpisodeId.collectAsState()
+                                                     if (nextEpId != null) {
+                                                         IconButton(
+                                                             onClick = {
+                                                                 onEpisodeClick(nextEpId!!, viewModel.animeId)
+                                                             },
+                                                             modifier = Modifier.size(36.dp)
+                                                         ) {
+                                                             Icon(
+                                                                 imageVector = Icons.Default.SkipNext,
+                                                                 contentDescription = "Episode Selanjutnya",
+                                                                 tint = Color.White,
+                                                                 modifier = Modifier.size(24.dp)
+                                                             )
+                                                         }
+                                                         Spacer(modifier = Modifier.width(12.dp))
+                                                     }
+
+                                                     IconButton(
+                                                         onClick = { isFullscreen = !isFullscreen },
+                                                         modifier = Modifier.size(36.dp)
+                                                     ) {
+                                                         Icon(
+                                                             imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                                             contentDescription = "Fullscreen",
+                                                             tint = Color.White,
+                                                             modifier = Modifier.size(24.dp)
+                                                         )
+                                                     }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        }
                     }
 
                     if (!isFullscreen) {
@@ -336,9 +588,9 @@ fun PlayerScreen(
                         }
 
                         // List Mirrors
-                        val mirrors = (detail.mirror1?.mirrorList ?: emptyList()) +
-                                      (detail.mirror2?.mirrorList ?: emptyList()) +
-                                      (detail.mirror3?.mirrorList ?: emptyList())
+                        val mirrors = (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
+                                      (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
+                                      (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
 
                         if (mirrors.isEmpty()) {
                             item {
@@ -381,7 +633,7 @@ fun PlayerScreen(
 
 @Composable
 fun MirrorRow(
-    mirror: MirrorItem,
+    mirror: UiMirrorItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -396,7 +648,7 @@ fun MirrorRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            "Stream via: ${mirror.host}",
+            "Stream via: ${mirror.host} (${mirror.resolution})",
             color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
@@ -467,4 +719,65 @@ val FullscreenExitIcon: ImageVector
         lineTo(8f, 16f)
         lineTo(4f, 16f)
     }.build()
+
+data class UiMirrorItem(
+    val id: String,
+    val host: String,
+    val resolution: String
+)
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val seconds = totalSeconds % 60
+    val minutes = (totalSeconds / 60) % 60
+    val hours = totalSeconds / 3600
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
+val Replay15Icon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Replay15",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        strokeLineWidth = 2f,
+        stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        // Counter-clockwise circular arrow
+        moveTo(12f, 4f)
+        arcTo(8f, 8f, 0f, true, false, 20f, 12f)
+        // Arrow head
+        moveTo(12f, 1f)
+        lineTo(12f, 7f)
+        lineTo(8f, 4f)
+        close()
+    }.build()
+
+val Forward15Icon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Forward15",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        strokeLineWidth = 2f,
+        stroke = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        // Clockwise circular arrow
+        moveTo(12f, 4f)
+        arcTo(8f, 8f, 0f, true, true, 4f, 12f)
+        // Arrow head
+        moveTo(12f, 1f)
+        lineTo(12f, 7f)
+        lineTo(16f, 4f)
+        close()
+    }.build()
+
 

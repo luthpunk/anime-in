@@ -32,9 +32,16 @@ class PlayerViewModel @Inject constructor(
     private val _savedProgress = MutableStateFlow(0L)
     val savedProgress: StateFlow<Long> = _savedProgress
 
+    private val _nextEpisodeId = MutableStateFlow<String?>(null)
+    val nextEpisodeId: StateFlow<String?> = _nextEpisodeId
+
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed
+
     init {
         fetchEpisodeDetail()
         loadSavedProgress()
+        loadNextEpisodeId()
     }
 
     fun fetchEpisodeDetail() {
@@ -120,6 +127,45 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        _playbackSpeed.value = speed
+    }
+
+    private fun loadNextEpisodeId() {
+        if (animeId.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val detail = repository.getAnimeDetail(animeId)
+                val episodes = detail.episodeList ?: emptyList()
+                val currentIndex = episodes.indexOfFirst {
+                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
+                }
+                if (currentIndex != -1) {
+                    val currentEpNum = extractEpisodeNumOnly(episodeId)
+                    val nextEp = episodes.firstOrNull {
+                        val num = extractEpisodeNumOnly(it.id)
+                        num == currentEpNum + 1
+                    }
+                    if (nextEp != null) {
+                        _nextEpisodeId.value = nextEp.id
+                    } else {
+                        // Fallback: index - 1
+                        if (currentIndex - 1 >= 0) {
+                            _nextEpisodeId.value = episodes[currentIndex - 1].id
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
+    private fun extractEpisodeNumOnly(id: String): Int {
+        val matches = Regex("\\d+").findAll(id).map { it.value }.toList()
+        return if (matches.isNotEmpty()) matches.last().toIntOrNull() ?: 0 else 0
     }
 }
 

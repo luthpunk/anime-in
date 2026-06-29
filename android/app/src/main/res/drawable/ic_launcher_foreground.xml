@@ -4,21 +4,25 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Stylized background ring -->
+    <!-- Stylized background ring in gold/yellow accent -->
     <path
         android:pathData="M54,18 A36,36 0 1,1 53.9,18 Z"
         android:strokeWidth="3.5"
-        android:strokeColor="#8A2BE2" />
+        android:strokeColor="#FFD700" />
         
-    <!-- Stylized Play Button / Triangle logo in center -->
+    <!-- Stylized Play Button with rounded corners in yellow -->
     <path
         android:pathData="M46,38 L70,54 L46,70 Z"
-        android:fillColor="#BB86FC" />
+        android:fillColor="#FFD700"
+        android:strokeColor="#FFD700"
+        android:strokeWidth="7"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
 
-    <!-- Sleek neon accents -->
+    <!-- Sleek yellow accents -->
     <path
         android:pathData="M30,30 L40,30 M30,78 L40,78 M78,30 L68,30 M78,78 L68,78"
         android:strokeWidth="3"
-        android:strokeColor="#03DAC6"
+        android:strokeColor="#FFC107"
         android:strokeLineCap="round" />
 </vector>
