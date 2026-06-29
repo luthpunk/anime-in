@@ -34,6 +34,9 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import android.app.Activity
+import android.content.pm.ActivityInfo
+import android.view.View
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
@@ -52,33 +55,53 @@ fun PlayerScreen(
     val context = LocalContext.current
 
     var showWebViewFallback by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFullscreen) {
+        val activity = context as? Activity ?: return@LaunchedEffect
+        if (isFullscreen) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            @Suppress("DEPRECATION")
+            activity.window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
+        } else {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            @Suppress("DEPRECATION")
+            activity.window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
 
     Scaffold(
         topBar = {
-            SmallTopAppBar(
-                title = { Text("Player Video", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.smallTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+            if (!isFullscreen) {
+                SmallTopAppBar(
+                    title = { Text("Player Video", color = Color.White) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                        }
+                    },
+                    colors = TopAppBarDefaults.smallTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+            }
         },
         modifier = modifier
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
+                .padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)
         ) {
             when (val state = uiState) {
                 is PlayerUiState.Loading -> {
                     Box(
-                        modifier = Modifier
+                        modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
                             .fillMaxWidth()
                             .height(220.dp)
                             .background(Color.Black),
@@ -99,15 +122,16 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Video Player Area
-                    if (showWebViewFallback || streamUrl.isEmpty() || streamUrl == "-") {
-                        // WebView Player Fallback
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(220.dp)
-                                .background(Color.Black)
-                        ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Video Player Area
+                        if (showWebViewFallback || streamUrl.isEmpty() || streamUrl == "-") {
+                            // WebView Player Fallback
+                            Box(
+                                modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp)
+                                    .background(Color.Black)
+                            ) {
                             AndroidView(
                                 factory = { ctx ->
                                     WebView(ctx).apply {
@@ -129,7 +153,7 @@ fun PlayerScreen(
                     } else {
                         // ExoPlayer View
                         Box(
-                            modifier = Modifier
+                            modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
                                 .fillMaxWidth()
                                 .height(220.dp)
                                 .background(Color.Black)
@@ -238,6 +262,10 @@ fun PlayerScreen(
                                 factory = { ctx ->
                                     PlayerView(ctx).apply {
                                         player = exoPlayer
+                                        setShowFullscreenButton(true)
+                                        setFullscreenButtonClickListener { isFull ->
+                                            isFullscreen = isFull
+                                        }
                                         layoutParams = ViewGroup.LayoutParams(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -249,13 +277,14 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Metadata & Mirrors List
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(16.dp)
-                    ) {
+                    if (!isFullscreen) {
+                        // Metadata & Mirrors List
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(16.dp)
+                        ) {
                         item {
                             Text(
                                 detail.title,
@@ -299,6 +328,7 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
+                    }
                     }
                 }
                 is PlayerUiState.Error -> {

@@ -46,11 +46,39 @@ class PlayerViewModel @Inject constructor(
             _playerState.value = PlayerUiState.Loading
             try {
                 val response = repository.getEpisodeDetail(episodeId)
-                _playerState.value = PlayerUiState.Success(response)
+                val finalResponse = if (response.linkStream.isNullOrBlank() || response.linkStream == "-") {
+                    autoResolveMirrors(response)
+                } else {
+                    response
+                }
+                _playerState.value = PlayerUiState.Success(finalResponse)
             } catch (e: Exception) {
                 _playerState.value = PlayerUiState.Error(e.localizedMessage ?: "Gagal memuat video episode")
             }
         }
+    }
+
+    private suspend fun autoResolveMirrors(response: EpisodeDetailResponse): EpisodeDetailResponse {
+        val allMirrors = mutableListOf<com.animein.app.data.model.MirrorItem>()
+        response.mirror2?.mirrorList?.let { allMirrors.addAll(it) } // Try 480p first
+        response.mirror3?.mirrorList?.let { allMirrors.addAll(it) } // Try 720p second
+        response.mirror1?.mirrorList?.let { allMirrors.addAll(it) } // Try 360p last
+
+        for (mirror in allMirrors) {
+            val mirrorId = mirror.id
+            if (!mirrorId.isNullOrBlank() && mirrorId != "-") {
+                try {
+                    val mirrorRes = repository.getMirrorStream(animeId, mirrorId)
+                    val resolvedStream = mirrorRes.linkStream ?: mirrorRes.streamLink
+                    if (!resolvedStream.isNullOrBlank() && resolvedStream != "-") {
+                        return response.copy(linkStream = resolvedStream)
+                    }
+                } catch (e: Exception) {
+                    // try next mirror
+                }
+            }
+        }
+        return response
     }
 
     private fun loadSavedProgress() {
