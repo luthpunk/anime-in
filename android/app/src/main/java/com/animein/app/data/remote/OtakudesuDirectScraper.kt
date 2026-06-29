@@ -123,6 +123,9 @@ class OtakudesuDirectScraper @Inject constructor(
         }
         val streamUrl = iframeUrl?.let { extractStreamUrl(it) } ?: "-"
         MirrorResponse(
+            title = "Mirror Stream",
+            id = mirrorId,
+            streamLink = iframeUrl ?: "-",
             linkStream = streamUrl
         )
     }
