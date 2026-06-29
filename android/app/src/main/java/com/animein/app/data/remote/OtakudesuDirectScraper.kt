@@ -7,6 +7,7 @@ import com.animein.app.data.model.EpisodeItem
 import com.animein.app.data.model.Genre
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.data.model.MirrorQuality
+import com.animein.app.data.model.MirrorResponse
 import com.animein.app.util.AnimeIdUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -114,6 +115,18 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
+    suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
+        val iframeUrl = if (mirrorId.startsWith("eyJ")) {
+            getIframeFromDataContent(mirrorId)
+        } else {
+            null
+        }
+        val streamUrl = iframeUrl?.let { extractStreamUrl(it) } ?: "-"
+        MirrorResponse(
+            linkStream = streamUrl
+        )
+    }
+
     private fun mirrorQuality(doc: Document, quality: String, selector: String): MirrorQuality {
         return MirrorQuality(
             quality = quality,
@@ -132,6 +145,19 @@ class OtakudesuDirectScraper @Inject constructor(
         return try {
             val html = fetch(url)
             val unpacked = html + "\n" + unpackPacker(html)
+            
+            // Jsoup elements parsing
+            val parsedDoc = org.jsoup.Jsoup.parse(unpacked)
+            val cheerioSrc = parsedDoc.select("video source").first()?.attr("src")
+                ?: parsedDoc.select("video").first()?.attr("src")
+                ?: parsedDoc.select("iframe").first()?.attr("src")
+                
+            if (!cheerioSrc.isNullOrBlank() && cheerioSrc.startsWith("http")) {
+                val decoded = decodeBase64IfNeeded(cheerioSrc)
+                if (decoded.startsWith("http")) {
+                    return decoded
+                }
+            }
             
             // Search via regex
             val regexes = listOf(

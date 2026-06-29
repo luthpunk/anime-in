@@ -109,7 +109,16 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {
-        return apiService.getMirrorStream(AnimeIdUtils.normalizeAnimeId(animeId), MirrorRequest(mirrorId))
+        return try {
+            val apiRes = apiService.getMirrorStream(AnimeIdUtils.normalizeAnimeId(animeId), MirrorRequest(mirrorId))
+            if (apiRes.linkStream.isNullOrBlank() || apiRes.linkStream == "-") {
+                directScraper.getMirrorStream(mirrorId)
+            } else {
+                apiRes
+            }
+        } catch (e: Exception) {
+            directScraper.getMirrorStream(mirrorId)
+        }
     }
 
     // Local DB operations
