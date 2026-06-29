@@ -1,19 +1,13 @@
 package com.animein.app.ui.screens.player
 
 import android.view.ViewGroup
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import kotlin.OptIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -68,7 +62,6 @@ fun PlayerScreen(
     val episodes by viewModel.episodes.collectAsState()
     val context = LocalContext.current
 
-    var showWebViewFallback by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
 
     BackHandler(enabled = isFullscreen) {
@@ -96,7 +89,7 @@ fun PlayerScreen(
         topBar = {
             if (!isFullscreen) {
                 SmallTopAppBar(
-                    title = { Text("Player Video", color = Color.White) },
+                    title = { Text(uiState.let { if (it is PlayerUiState.Success) it.data.title else "Player Video" }, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
@@ -131,45 +124,10 @@ fun PlayerScreen(
                 is PlayerUiState.Success -> {
                     val detail = state.data
                     val streamUrl = detail.linkStream ?: ""
-                    val episodePageUrl = remember(detail.id, viewModel.episodeId) {
-                        val id = detail.id.ifBlank { viewModel.episodeId }
-                        when {
-                            id.startsWith("http://") || id.startsWith("https://") -> id
-                            id.isNotBlank() -> "https://otakudesu.blog/$id"
-                            else -> "https://otakudesu.blog/${viewModel.episodeId}"
-                        }
-                    }
 
                     Column(modifier = Modifier.fillMaxSize()) {
-                        // Video Player Area
-                        if (showWebViewFallback || streamUrl.isEmpty() || streamUrl == "-") {
-                            // WebView Player Fallback
-                            Box(
-                                modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
-                                    .fillMaxWidth()
-                                    .height(220.dp)
-                                    .background(Color.Black)
-                            ) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    WebView(ctx).apply {
-                                        layoutParams = ViewGroup.LayoutParams(
-                                            ViewGroup.LayoutParams.MATCH_PARENT,
-                                            ViewGroup.LayoutParams.MATCH_PARENT
-                                        )
-                                        settings.javaScriptEnabled = true
-                                        settings.domStorageEnabled = true
-                                        settings.mediaPlaybackRequiresUserGesture = false
-                                        webViewClient = WebViewClient()
-                                        webChromeClient = WebChromeClient()
-                                        loadUrl(episodePageUrl)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } } else {
-                            // ExoPlayer View
-                            Box(
+                        // Video Player Area - ExoPlayer as default
+                        Box(
                             modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
                                 .fillMaxWidth()
                                 .height(220.dp)
@@ -537,10 +495,9 @@ fun PlayerScreen(
                                 }
                             }
                     }
-                    }
 
                     if (!isFullscreen) {
-                        // Metadata & Mirrors List
+                        // Metadata & Mirrors Dropdown
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -556,45 +513,73 @@ fun PlayerScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Fallback Toggle Button
-                            Button(
-                                onClick = { showWebViewFallback = !showWebViewFallback },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (showWebViewFallback) NeonPurple else Color.Gray
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(if (showWebViewFallback) "Ganti ke ExoPlayer" else "Ganti ke WebPlayer (Bypass)")
+                            // Mirror Dropdown Button
+                            val mirrors = (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
+                                          (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
+                                          (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
+
+                            var showMirrorDropdown by remember { mutableStateOf(false) }
+
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { showMirrorDropdown = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Pilih Server", fontWeight = FontWeight.Bold)
+                                }
+                                DropdownMenu(
+                                    expanded = showMirrorDropdown,
+                                    onDismissRequest = { showMirrorDropdown = false },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.9f)
+                                        .background(DarkSurface)
+                                ) {
+                                    if (mirrors.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Tidak ada server tersedia", color = TextSecondary) },
+                                            onClick = { showMirrorDropdown = false }
+                                        )
+                                    } else {
+                                        mirrors.forEach { mirror ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            "Stream via: ${mirror.host} (${mirror.resolution})",
+                                                            color = Color.White,
+                                                            fontSize = 13.sp
+                                                        )
+                                                        Text(
+                                                            "Putar",
+                                                            color = NeonPurple,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                },
+                                                onClick = {
+                                                    viewModel.switchMirror(mirror.id)
+                                                    showMirrorDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Text("Pilih Server Mirror (Streaming)", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        // List Mirrors
-                        val mirrors = (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
-                                      (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
-                                      (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
-
-                        if (mirrors.isEmpty()) {
-                            item {
-                                Text("Tidak ada server mirror alternatif", color = TextSecondary, fontSize = 13.sp)
-                            }
-                        } else {
-                            items(mirrors) { mirror ->
-                                MirrorRow(
-                                    mirror = mirror,
-                                    onClick = { viewModel.switchMirror(mirror.id) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
 
                         // Collect and render episode grid selection
                         if (episodes.isNotEmpty()) {
                             item {
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text("Pilihan Episode", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
@@ -639,9 +624,9 @@ fun PlayerScreen(
                             }
                         }
                     }
-                    }
-                    }
-                }
+                    } // end if (!isFullscreen)
+                    } // end Column(fillMaxSize)
+                } // end is PlayerUiState.Success
                 is PlayerUiState.Error -> {
                     Box(
                         modifier = Modifier
@@ -660,44 +645,6 @@ fun PlayerScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun MirrorRow(
-    mirror: UiMirrorItem,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = DarkSurface,
-            contentColor = Color.White
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, NeonPurple),
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                "Stream via: ${mirror.host} (${mirror.resolution})",
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                "Putar",
-                color = NeonPurple,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }

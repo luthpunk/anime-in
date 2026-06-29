@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.AnimeCompleted
 import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.ui.theme.DarkSurface
@@ -37,9 +38,11 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onAnimeClick: (String) -> Unit,
     onSeeAllClick: (String, String) -> Unit,
+    onEpisodePlay: (String, String) -> Unit, // episodeId, animeId
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.homeState.collectAsState()
+    val continueWatchingList by viewModel.continueWatchingList.collectAsState()
 
     Scaffold(
         topBar = {
@@ -95,6 +98,23 @@ fun HomeScreen(
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
+
+                        // Lanjut Nonton Section
+                        if (continueWatchingList.isNotEmpty()) {
+                            SectionHeader(title = "Lanjut Nonton")
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(continueWatchingList.take(10)) { item ->
+                                    ContinueWatchingCard(
+                                        item = item,
+                                        onClick = { onEpisodePlay(item.episodeId, item.animeId) }
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
 
                         // Ongoing Section
                         SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
@@ -223,7 +243,7 @@ fun HeroBanner(
 @Composable
 fun SectionHeader(
     title: String,
-    onSeeAllClick: () -> Unit,
+    onSeeAllClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -239,13 +259,15 @@ fun SectionHeader(
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            "Lihat Semua",
-            color = NeonPurple,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.clickable { onSeeAllClick() }
-        )
+        if (onSeeAllClick != null) {
+            Text(
+                "Lihat Semua",
+                color = NeonPurple,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { onSeeAllClick() }
+            )
+        }
     }
 }
 
@@ -375,6 +397,104 @@ fun CompletedAnimeCard(
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+fun ContinueWatchingCard(
+    item: ContinueWatchingEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val progressPercent = if (item.duration > 0) item.progress.toFloat() / item.duration.toFloat() else 0f
+
+    Column(
+        modifier = modifier
+            .width(160.dp)
+            .clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .height(100.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(DarkSurface)
+        ) {
+            if (item.thumb.isNotEmpty()) {
+                AsyncImage(
+                    model = item.thumb,
+                    contentDescription = item.episodeTitle,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(NeonPurple.copy(alpha = 0.6f), DarkSurface)
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            // Play overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(18.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Putar",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            // Progress bar at bottom
+            LinearProgressIndicator(
+                progress = progressPercent,
+                color = NeonPurple,
+                trackColor = Color.White.copy(alpha = 0.2f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            item.episodeTitle,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            item.animeTitle,
+            color = TextSecondary,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }

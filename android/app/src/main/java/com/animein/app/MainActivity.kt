@@ -124,6 +124,9 @@ fun MainApp() {
                     },
                     onSeeAllClick = { type, title ->
                         navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
+                    },
+                    onEpisodePlay = { episodeId, animeId ->
+                        navigateToPlayer(navController, episodeId, animeId)
                     }
                 )
             }

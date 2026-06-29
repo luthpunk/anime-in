@@ -2,11 +2,14 @@ package com.animein.app.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.HomeResponse
 import com.animein.app.data.repository.AnimeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,6 +20,12 @@ class HomeViewModel @Inject constructor(
 
     private val _homeState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val homeState: StateFlow<HomeUiState> = _homeState
+
+    val continueWatchingList: StateFlow<List<ContinueWatchingEntity>> = repository.getContinueWatchingList().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     init {
         fetchHome()

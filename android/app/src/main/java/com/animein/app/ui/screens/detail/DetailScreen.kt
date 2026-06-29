@@ -123,12 +123,14 @@ fun DetailScreen(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            detail.japanese?.let {
+                            detail.japanese?.takeIf { it.isNotBlank() }?.let {
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     it,
                                     color = TextSecondary,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(top = 4.dp)
+                                    fontSize = 13.sp,
+                                    overflow = TextOverflow.Ellipsis,
+                                    maxLines = 2
                                 )
                             }
 
