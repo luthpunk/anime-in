@@ -15,9 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -411,7 +409,7 @@ fun PlayerScreen(
                                                     .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
                                             ) {
                                                 Icon(
-                                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                    imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                                     contentDescription = "Play/Pause",
                                                     tint = Color.White,
                                                     modifier = Modifier.size(32.dp)
@@ -526,7 +524,7 @@ fun PlayerScreen(
                                                              modifier = Modifier.size(36.dp)
                                                          ) {
                                                              Icon(
-                                                                 imageVector = Icons.Default.SkipNext,
+                                                                 imageVector = SkipNextIcon,
                                                                  contentDescription = "Episode Selanjutnya",
                                                                  tint = Color.White,
                                                                  modifier = Modifier.size(24.dp)
@@ -780,5 +778,49 @@ val Forward15Icon: ImageVector
         lineTo(16f, 4f)
         close()
     }.build()
+
+val PauseIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Pause",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        moveTo(6f, 19f)
+        lineTo(10f, 19f)
+        lineTo(10f, 5f)
+        lineTo(6f, 5f)
+        close()
+        moveTo(14f, 5f)
+        lineTo(14f, 19f)
+        lineTo(18f, 19f)
+        lineTo(18f, 5f)
+        close()
+    }.build()
+
+val SkipNextIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "SkipNext",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        moveTo(6f, 18f)
+        lineTo(14.5f, 12f)
+        lineTo(6f, 6f)
+        close()
+        moveTo(16f, 6f)
+        lineTo(16f, 18f)
+        lineTo(18f, 18f)
+        lineTo(18f, 6f)
+        close()
+    }.build()
+
 
 
