@@ -68,18 +68,26 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun autoResolveVidhideOrFallback(response: EpisodeDetailResponse): EpisodeDetailResponse {
+        val vidhideMirrors = mutableListOf<com.animein.app.data.model.MirrorItem>()
         val allMirrors = mutableListOf<com.animein.app.data.model.MirrorItem>()
-        response.mirror1?.mirrorList?.let { allMirrors.addAll(it) }
-        response.mirror2?.mirrorList?.let { allMirrors.addAll(it) }
-        response.mirror3?.mirrorList?.let { allMirrors.addAll(it) }
 
-        // 1. Cari & coba vidhide mirror terlebih dahulu
-        val vidhideMirrors = allMirrors.filter { mirror ->
+        fun List<com.animein.app.data.model.MirrorItem>.filterVidhide() = this.filter { mirror ->
             mirror.host.contains("vidhide", ignoreCase = true) ||
             mirror.host.contains("hide", ignoreCase = true) ||
             mirror.id.contains("vidhide", ignoreCase = true)
         }
 
+        // 1. Kumpulkan Vidhide dengan prioritas kualitas: 480p -> 720p -> 360p
+        response.mirror2?.mirrorList?.filterVidhide()?.let { vidhideMirrors.addAll(it) }
+        response.mirror3?.mirrorList?.filterVidhide()?.let { vidhideMirrors.addAll(it) }
+        response.mirror1?.mirrorList?.filterVidhide()?.let { vidhideMirrors.addAll(it) }
+
+        // Kumpulkan semua mirror (sebagai fallback umum) dengan urutan: 480p -> 720p -> 360p
+        response.mirror2?.mirrorList?.let { allMirrors.addAll(it) }
+        response.mirror3?.mirrorList?.let { allMirrors.addAll(it) }
+        response.mirror1?.mirrorList?.let { allMirrors.addAll(it) }
+
+        // Coba resolve vidhide terlebih dahulu
         for (mirror in vidhideMirrors) {
             val mirrorId = mirror.id
             if (!mirrorId.isNullOrBlank() && mirrorId != "-") {

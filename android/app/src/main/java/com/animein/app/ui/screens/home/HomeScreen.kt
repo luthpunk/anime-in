@@ -408,6 +408,10 @@ fun ContinueWatchingCard(
     modifier: Modifier = Modifier
 ) {
     val progressPercent = if (item.duration > 0) item.progress.toFloat() / item.duration.toFloat() else 0f
+    val episodeNumber = remember(item.episodeTitle) {
+        val matches = Regex("\\d+").findAll(item.episodeTitle).map { it.value }.toList()
+        if (matches.isNotEmpty()) "Ep ${matches.last()}" else "Tonton"
+    }
 
     Column(
         modifier = modifier
@@ -467,6 +471,24 @@ fun ContinueWatchingCard(
                         modifier = Modifier.size(20.dp)
                     )
                 }
+            }
+            // Episode overlay at bottom
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .padding(bottom = 3.dp) // Leave room for progress bar
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = episodeNumber,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             // Progress bar at bottom
             LinearProgressIndicator(

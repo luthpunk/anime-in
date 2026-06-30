@@ -38,6 +38,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import android.app.Activity
@@ -49,6 +50,7 @@ import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -141,6 +143,10 @@ fun PlayerScreen(
                             var duration by remember { mutableLongStateOf(0L) }
                             val speed by viewModel.playbackSpeed.collectAsState()
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
+
+                            var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
+                            var doubleTapFeedbackRight by remember { mutableStateOf(false) }
+                            val coroutineScope = rememberCoroutineScope()
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
@@ -153,9 +159,21 @@ fun PlayerScreen(
                                     .setDataSourceFactory(httpDataSourceFactory)
                             }
 
+                            val loadControl = remember {
+                                DefaultLoadControl.Builder()
+                                    .setBufferDurationsMs(
+                                        15000, // minBufferMs
+                                        50000, // maxBufferMs
+                                        2000,  // bufferForPlaybackMs (2s to play)
+                                        3000   // bufferForPlaybackAfterRebufferMs (3s after seek/rebuffer)
+                                    )
+                                    .build()
+                            }
+ 
                             val exoPlayer = remember {
                                 ExoPlayer.Builder(context)
                                     .setMediaSourceFactory(mediaSourceFactory)
+                                    .setLoadControl(loadControl)
                                     .build().apply {
                                         playWhenReady = true
                                         addListener(object : Player.Listener {
@@ -170,7 +188,7 @@ fun PlayerScreen(
                                         })
                                     }
                             }
-
+ 
                             // Monitor Player state
                             DisposableEffect(exoPlayer) {
                                 val listener = object : Player.Listener {
@@ -186,6 +204,7 @@ fun PlayerScreen(
                                 exoPlayer.addListener(listener)
                                 onDispose {
                                     exoPlayer.removeListener(listener)
+                                    exoPlayer.release()
                                 }
                             }
 
@@ -213,6 +232,11 @@ fun PlayerScreen(
                             // Load video URI
                             LaunchedEffect(streamUrl) {
                                 if (streamUrl.isNotEmpty() && streamUrl != "-") {
+                                    val currentPos = exoPlayer.currentPosition
+                                    if (currentPos > 0 && exoPlayer.playbackState != Player.STATE_IDLE) {
+                                        playPosition = currentPos
+                                    }
+
                                     val referer = when {
                                         streamUrl.contains("vidhide") || streamUrl.contains("vidhide.com") -> "https://vidhide.com/"
                                         streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://otakudesu.blog/"
@@ -290,10 +314,24 @@ fun PlayerScreen(
                                                     val target = (exoPlayer.currentPosition - 15000).coerceAtLeast(0L)
                                                     exoPlayer.seekTo(target)
                                                     currentPosition = target
+                                                    
+                                                    doubleTapFeedbackLeft = true
+                                                    doubleTapFeedbackRight = false
+                                                    coroutineScope.launch {
+                                                        delay(600)
+                                                        doubleTapFeedbackLeft = false
+                                                    }
                                                 } else {
                                                     val target = (exoPlayer.currentPosition + 15000).coerceAtMost(exoPlayer.duration)
                                                     exoPlayer.seekTo(target)
                                                     currentPosition = target
+                                                    
+                                                    doubleTapFeedbackRight = true
+                                                    doubleTapFeedbackLeft = false
+                                                    coroutineScope.launch {
+                                                        delay(600)
+                                                        doubleTapFeedbackRight = false
+                                                    }
                                                 }
                                             },
                                             onTap = {
@@ -315,6 +353,43 @@ fun PlayerScreen(
                                     },
                                     modifier = Modifier.fillMaxSize()
                                 )
+
+                                // Double-tap visual feedback overlays
+                                if (doubleTapFeedbackLeft) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.5f)
+                                            .align(Alignment.CenterStart)
+                                            .background(Color.Black.copy(alpha = 0.3f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "-15s",
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                if (doubleTapFeedbackRight) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.5f)
+                                            .align(Alignment.CenterEnd)
+                                            .background(Color.Black.copy(alpha = 0.3f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "+15s",
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
 
                                 if (showControls) {
                                     Box(
