@@ -15,8 +15,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.SimpleCache
 import javax.inject.Inject
 
+@OptIn(UnstableApi::class)
 @HiltViewModel
-class PlayerViewModel @OptIn(UnstableApi::class) @Inject constructor(
+class PlayerViewModel @Inject constructor(
     private val repository: AnimeRepository,
     savedStateHandle: SavedStateHandle,
     val simpleCache: SimpleCache

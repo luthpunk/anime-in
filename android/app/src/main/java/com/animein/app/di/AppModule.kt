@@ -1,8 +1,8 @@
 package com.animein.app.di
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.room.Room
-import com.animein.app.BuildConfig
 import com.animein.app.Config
 import com.animein.app.data.local.dao.AnimeDao
 import com.animein.app.data.local.db.AnimeDatabase
@@ -35,9 +35,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLoggingInterceptor(): HttpLoggingInterceptor {
+    fun provideLoggingInterceptor(@ApplicationContext context: Context): HttpLoggingInterceptor {
+        val isDebug = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
         return HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
+            level = if (isDebug) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
     }
 
