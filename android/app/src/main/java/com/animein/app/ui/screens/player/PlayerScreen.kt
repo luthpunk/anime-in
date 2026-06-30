@@ -37,13 +37,15 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.ui.PlayerView
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -167,20 +169,23 @@ fun PlayerScreen(
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
-                                    .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+                                    .setUserAgent("Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
                                     .setAllowCrossProtocolRedirects(true)
+                                    .setConnectTimeoutMs(15000)
+                                    .setReadTimeoutMs(20000)
                             }
-                            
+
                             val cacheDataSourceFactory = remember {
                                 CacheDataSource.Factory()
                                     .setCache(viewModel.simpleCache)
                                     .setUpstreamDataSourceFactory(httpDataSourceFactory)
                                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
                             }
-                            
-                            val mediaSourceFactory = remember {
-                                DefaultMediaSourceFactory(context)
-                                    .setDataSourceFactory(cacheDataSourceFactory)
+
+                            // HlsMediaSource.Factory — konfigurasi HLS optimal
+                            val hlsMediaSourceFactory = remember {
+                                HlsMediaSource.Factory(cacheDataSourceFactory)
+                                    .setAllowChunklessPreparation(true) // mulai lebih cepat, skip baca semua chunk
                             }
 
                             val loadControl = remember {
@@ -188,18 +193,23 @@ fun PlayerScreen(
                                     .setBufferDurationsMs(
                                         15000, // minBufferMs
                                         50000, // maxBufferMs
-                                        2000,  // bufferForPlaybackMs (2s to play)
-                                        3000   // bufferForPlaybackAfterRebufferMs (3s after seek/rebuffer)
+                                        2000,  // bufferForPlaybackMs (2s langsung play)
+                                        3000   // bufferForPlaybackAfterRebufferMs (3s setelah rebuffer)
                                     )
                                     .build()
                             }
- 
+
                             val exoPlayer = remember {
                                 ExoPlayer.Builder(context)
-                                    .setMediaSourceFactory(mediaSourceFactory)
+                                    .setMediaSourceFactory(hlsMediaSourceFactory)
                                     .setLoadControl(loadControl)
                                     .build().apply {
                                         playWhenReady = true
+                                        // TrackSelectionParameters: adaptive bitrate sesuai kecepatan jaringan
+                                        trackSelectionParameters = TrackSelectionParameters.Builder(context)
+                                            .setMaxVideoSizeSd() // mulai dari SD, naik adaptif
+                                            .setForceHighestSupportedBitrate(false) // biarkan adaptif
+                                            .build()
                                         addListener(object : Player.Listener {
                                             override fun onPlaybackStateChanged(playbackState: Int) {
                                                 if (playbackState == Player.STATE_READY) {
@@ -271,15 +281,38 @@ fun PlayerScreen(
                                     }
 
                                     val referer = when {
-                                        streamUrl.contains("vidhide") || streamUrl.contains("vidhide.com") -> "https://vidhide.com/"
-                                        streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://otakudesu.blog/"
-                                        streamUrl.contains("streamwish") || streamUrl.contains("awish") -> "https://streamwish.to/"
-                                        streamUrl.contains("filelion") || streamUrl.contains("lion") -> "https://filelion.to/"
+                                        streamUrl.contains("vidhide", ignoreCase = true) ->
+                                            "https://vidhide.com/"
+                                        streamUrl.contains("desustream", ignoreCase = true) ||
+                                        streamUrl.contains("desu", ignoreCase = true) ->
+                                            "https://otakudesu.blog/"
+                                        streamUrl.contains("streamwish", ignoreCase = true) ||
+                                        streamUrl.contains("awish", ignoreCase = true) ->
+                                            "https://streamwish.to/"
+                                        streamUrl.contains("filelion", ignoreCase = true) ||
+                                        streamUrl.contains("lion", ignoreCase = true) ->
+                                            "https://filelion.to/"
                                         else -> "https://otakudesu.blog/"
                                     }
-                                    httpDataSourceFactory.setDefaultRequestProperties(mapOf("Referer" to referer))
-                                    
-                                    val mediaItem = MediaItem.fromUri(streamUrl)
+
+                                    // Set Referer langsung di MediaItem.RequestMetadata
+                                    // agar setiap URL punya header yang tepat dan tidak saling override
+                                    httpDataSourceFactory.setDefaultRequestProperties(
+                                        mapOf(
+                                            "Referer" to referer,
+                                            "Origin" to referer.trimEnd('/')
+                                        )
+                                    )
+
+                                    val mediaItem = MediaItem.Builder()
+                                        .setUri(streamUrl)
+                                        .setMediaMetadata(
+                                            MediaMetadata.Builder()
+                                                .setTitle(detail.title)
+                                                .build()
+                                        )
+                                        .build()
+
                                     exoPlayer.setMediaItem(mediaItem)
                                     exoPlayer.prepare()
                                 }
