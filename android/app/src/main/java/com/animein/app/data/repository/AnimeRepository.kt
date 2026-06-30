@@ -25,67 +25,86 @@ class AnimeRepository @Inject constructor(
     private val gson = Gson()
     private var inMemoryHome: HomeResponse? = null
 
-    // ── Home ─────────────────────────────────────────
     suspend fun getHome(forceRefresh: Boolean = false): HomeResponse {
         if (!forceRefresh) {
-            inMemoryHome?.let { return it }
+            if (inMemoryHome != null) {
+                return inMemoryHome!!
+            }
             val cachedJson = preferencesManager.getHomeCache()
             if (!cachedJson.isNullOrEmpty()) {
                 try {
                     val cached = gson.fromJson(cachedJson, HomeResponse::class.java)
                     inMemoryHome = cached
                     return cached
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    // Ignore parsing errors and fetch from network
+                }
             }
         }
 
-        // Direct scraper ke NontonAnimeID dari device (lebih reliable dari Vercel)
         return try {
             val response = directScraper.getHome()
             inMemoryHome = response
             preferencesManager.saveHomeCache(gson.toJson(response))
             response
         } catch (e: Exception) {
-            inMemoryHome ?: throw e
+            try {
+                val response = apiService.getHome()
+                inMemoryHome = response
+                preferencesManager.saveHomeCache(gson.toJson(response))
+                response
+            } catch (apiEx: Exception) {
+                inMemoryHome ?: throw apiEx
+            }
         }
     }
 
-    // ── Ongoing List ──────────────────────────────────
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse {
-        return directScraper.getOngoingAnimeList(page)
+        return try {
+            apiService.getOngoingAnimeList(page)
+        } catch (e: Exception) {
+            directScraper.getOngoingAnimeList(page)
+        }
     }
 
-    // ── Complete List ─────────────────────────────────
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse {
-        return directScraper.getCompletedAnimeList(page)
+        return try {
+            apiService.getCompletedAnimeList(page)
+        } catch (e: Exception) {
+            directScraper.getCompletedAnimeList(page)
+        }
     }
 
-    // ── Search ────────────────────────────────────────
     suspend fun searchAnime(query: String): SearchResponse {
-        return directScraper.searchAnime(query)
+        return try {
+            val apiRes = apiService.searchAnime(query)
+            if (apiRes.searchResults.isNullOrEmpty()) {
+                directScraper.searchAnime(query)
+            } else {
+                apiRes
+            }
+        } catch (e: Exception) {
+            directScraper.searchAnime(query)
+        }
     }
 
-    // ── Genre List ────────────────────────────────────
     suspend fun getGenres(): GenreListResponse {
         return try {
             val apiRes = apiService.getGenres()
-            if (apiRes.genreList.isNullOrEmpty()) directScraper.getGenres() else apiRes
+            if (apiRes.genreList.isNullOrEmpty()) {
+                directScraper.getGenres()
+            } else {
+                apiRes
+            }
         } catch (e: Exception) {
             directScraper.getGenres()
         }
     }
 
-
-    // ── Anime by Genre ────────────────────────────────
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
-        return try {
-            apiService.getAnimeByGenre(genreId, page)
-        } catch (e: Exception) {
-            AnimeListResponse(status = "error", animeList = emptyList())
-        }
+        return apiService.getAnimeByGenre(genreId, page)
     }
 
-    // ── Anime Detail ──────────────────────────────────
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
         val normalizedAnimeId = AnimeIdUtils.normalizeAnimeId(animeId)
         val detail = try {
@@ -98,16 +117,16 @@ class AnimeRepository @Inject constructor(
         } catch (e: Exception) {
             directScraper.getAnimeDetail(normalizedAnimeId)
         }
-        // Simpan ke history
-        animeDao.insertHistory(HistoryEntity(
+        // Add to history
+        val history = HistoryEntity(
             id = normalizedAnimeId,
             title = detail.title.ifBlank { "Tanpa Judul" },
             thumb = detail.thumb ?: ""
-        ))
+        )
+        animeDao.insertHistory(history)
         return detail
     }
 
-    // ── Episode Detail ────────────────────────────────
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
         val normalizedEpisodeId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         return try {
@@ -122,13 +141,9 @@ class AnimeRepository @Inject constructor(
         }
     }
 
-    // ── Mirror Stream ─────────────────────────────────
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {
         return try {
-            val apiRes = apiService.getMirrorStream(
-                AnimeIdUtils.normalizeAnimeId(animeId),
-                MirrorRequest(mirrorId)
-            )
+            val apiRes = apiService.getMirrorStream(AnimeIdUtils.normalizeAnimeId(animeId), MirrorRequest(mirrorId))
             if (apiRes.linkStream.isNullOrBlank() || apiRes.linkStream == "-") {
                 directScraper.getMirrorStream(mirrorId)
             } else {
@@ -139,21 +154,36 @@ class AnimeRepository @Inject constructor(
         }
     }
 
-    // ── Local DB Operations ───────────────────────────
+    // Local DB operations
     fun getFavorites(): Flow<List<FavoriteEntity>> = animeDao.getFavorites()
+
     suspend fun isFavorite(id: String): Boolean = animeDao.isFavorite(id)
+
     suspend fun insertFavorite(favorite: FavoriteEntity) = animeDao.insertFavorite(favorite)
+
     suspend fun deleteFavorite(id: String) = animeDao.deleteFavorite(id)
+
     fun getHistory(): Flow<List<HistoryEntity>> = animeDao.getHistory()
+
     suspend fun deleteHistory(id: String) = animeDao.deleteHistory(id)
+
     suspend fun clearHistory() = animeDao.clearHistory()
+
     fun getContinueWatchingList(): Flow<List<ContinueWatchingEntity>> = animeDao.getContinueWatchingList()
-    suspend fun getLatestContinueWatchingForAnime(animeId: String): ContinueWatchingEntity? =
-        animeDao.getLatestContinueWatchingForAnime(animeId)
-    suspend fun getContinueWatchingForEpisode(episodeId: String): ContinueWatchingEntity? =
-        animeDao.getContinueWatchingForEpisode(episodeId)
-    suspend fun insertContinueWatching(continueWatching: ContinueWatchingEntity) =
+
+    suspend fun getLatestContinueWatchingForAnime(animeId: String): ContinueWatchingEntity? {
+        return animeDao.getLatestContinueWatchingForAnime(animeId)
+    }
+
+    suspend fun getContinueWatchingForEpisode(episodeId: String): ContinueWatchingEntity? {
+        return animeDao.getContinueWatchingForEpisode(episodeId)
+    }
+
+    suspend fun insertContinueWatching(continueWatching: ContinueWatchingEntity) {
         animeDao.insertContinueWatching(continueWatching)
-    suspend fun deleteContinueWatching(episodeId: String) =
+    }
+
+    suspend fun deleteContinueWatching(episodeId: String) {
         animeDao.deleteContinueWatching(episodeId)
+    }
 }

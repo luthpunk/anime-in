@@ -70,15 +70,21 @@ class PlayerViewModel @Inject constructor(
 
     private suspend fun autoResolveMirrors(response: EpisodeDetailResponse): EpisodeDetailResponse {
         val allMirrors = mutableListOf<com.animein.app.data.model.MirrorItem>()
-        response.mirror2?.mirrorList?.let { allMirrors.addAll(it) } // Try 480p first
-        response.mirror3?.mirrorList?.let { allMirrors.addAll(it) } // Try 720p second
-        response.mirror1?.mirrorList?.let { allMirrors.addAll(it) } // Try 360p last
+        // Kumpulkan semua mirror dari semua kualitas
+        response.mirror1?.mirrorList?.let { allMirrors.addAll(it) }
+        response.mirror2?.mirrorList?.let { allMirrors.addAll(it) }
+        response.mirror3?.mirrorList?.let { allMirrors.addAll(it) }
 
-        val prioritizedMirrors = allMirrors.sortedWith(compareByDescending {
-            it.host.contains("vidhide", ignoreCase = true) || it.host.contains("hide", ignoreCase = true)
-        })
+        // Hanya coba vidhide mirror — yang paling konsisten bisa diputar ExoPlayer
+        val vidhideMirrors = allMirrors.filter { mirror ->
+            mirror.host.contains("vidhide", ignoreCase = true) ||
+            mirror.host.contains("hide", ignoreCase = true) ||
+            mirror.id.contains("vidhide", ignoreCase = true)
+        }
+        // Jika tidak ada vidhide, coba semua mirror sebagai fallback
+        val mirrorsToTry = vidhideMirrors.ifEmpty { allMirrors }
 
-        for (mirror in prioritizedMirrors) {
+        for (mirror in mirrorsToTry) {
             val mirrorId = mirror.id
             if (!mirrorId.isNullOrBlank() && mirrorId != "-") {
                 try {
@@ -88,12 +94,13 @@ class PlayerViewModel @Inject constructor(
                         return response.copy(linkStream = resolvedStream)
                     }
                 } catch (e: Exception) {
-                    // try next mirror
+                    // coba mirror berikutnya
                 }
             }
         }
         return response
     }
+
 
     private fun loadSavedProgress() {
         viewModelScope.launch {

@@ -127,7 +127,8 @@ data class EpisodeDetailResponse(
     @SerializedName("mirror1") val mirror1: MirrorQuality?,
     @SerializedName("mirror2") val mirror2: MirrorQuality?,
     @SerializedName("mirror3") val mirror3: MirrorQuality?,
-    @SerializedName("quality") val quality: QualityOptions?
+    @SerializedName("quality") val quality: QualityOptions?,
+    @SerializedName("download_links") val downloadLinks: List<DownloadLink>? = null
 )
 
 data class MirrorQuality(

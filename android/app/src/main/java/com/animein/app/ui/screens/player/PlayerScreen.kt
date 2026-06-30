@@ -213,11 +213,11 @@ fun PlayerScreen(
                             LaunchedEffect(streamUrl) {
                                 if (streamUrl.isNotEmpty() && streamUrl != "-") {
                                     val referer = when {
-                                        streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://desustream.me/"
+                                        streamUrl.contains("vidhide") || streamUrl.contains("vidhide.com") -> "https://vidhide.com/"
+                                        streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://otakudesu.blog/"
                                         streamUrl.contains("streamwish") || streamUrl.contains("awish") -> "https://streamwish.to/"
                                         streamUrl.contains("filelion") || streamUrl.contains("lion") -> "https://filelion.to/"
-                                        streamUrl.contains("kotakanimeid") || streamUrl.contains("nontonanimeid") -> "https://s13.nontonanimeid.boats/"
-                                        else -> "https://s13.nontonanimeid.boats/"
+                                        else -> "https://otakudesu.blog/"
                                     }
                                     httpDataSourceFactory.setDefaultRequestProperties(mapOf("Referer" to referer))
                                     
@@ -321,12 +321,12 @@ fun PlayerScreen(
                                             .fillMaxSize()
                                             .background(Color.Black.copy(alpha = 0.6f))
                                     ) {
-                                        // 1. Top row: Back & Title
+                                        // 1. Top row: Back button only (judul sudah ada di TopAppBar)
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .align(Alignment.TopStart)
-                                                .padding(8.dp),
+                                                .padding(4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             IconButton(onClick = {
@@ -338,16 +338,6 @@ fun PlayerScreen(
                                             }) {
                                                 Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
                                             }
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = detail.title,
-                                                color = Color.White,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.weight(1f)
-                                            )
                                         }
 
                                         // 2. Center row: Play/Pause only (seek is handled by double-tap)
@@ -379,51 +369,18 @@ fun PlayerScreen(
                                             }
                                         }
 
-                                        // 3. Bottom controls
+                                        // 3. Bottom controls — speed/nav di atas, seekbar di paling bawah
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                                .padding(horizontal = 12.dp, vertical = 2.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = formatTime(currentPosition),
-                                                    color = Color.White,
-                                                    fontSize = 11.sp
-                                                )
-                                                
-                                                Slider(
-                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
-                                                    onValueChange = {
-                                                        currentPosition = it.toLong()
-                                                        exoPlayer.seekTo(currentPosition)
-                                                    },
-                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .padding(horizontal = 8.dp),
-                                                     colors = SliderDefaults.colors(
-                                                         thumbColor = NeonPurple,
-                                                         activeTrackColor = NeonPurple,
-                                                         inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                                     )
-                                                )
-
-                                                Text(
-                                                    text = formatTime(duration),
-                                                    color = Color.White,
-                                                    fontSize = 11.sp
-                                                )
-                                            }
-
+                                            // Row 1: Speed + Next episode + Fullscreen
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .offset(y = (-4).dp),
+                                                    .padding(bottom = 2.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -434,61 +391,90 @@ fun PlayerScreen(
                                                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                                     ) {
                                                         Text(
-                                                            text = "${speed}x Speed",
+                                                            text = "${speed}x",
                                                             color = Color.White,
                                                             fontSize = 12.sp,
                                                             fontWeight = FontWeight.Bold
                                                         )
-                                                     }
-                                                     
-                                                     DropdownMenu(
-                                                         expanded = showSpeedDialog,
-                                                         onDismissRequest = { showSpeedDialog = false },
-                                                         modifier = Modifier.background(DarkSurface)
-                                                     ) {
-                                                         listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
-                                                             DropdownMenuItem(
-                                                                 text = { Text("${value}x", color = Color.White) },
-                                                                 onClick = {
-                                                                     viewModel.setPlaybackSpeed(value)
-                                                                     showSpeedDialog = false
-                                                                 }
-                                                             )
-                                                         }
-                                                     }
+                                                    }
+                                                    DropdownMenu(
+                                                        expanded = showSpeedDialog,
+                                                        onDismissRequest = { showSpeedDialog = false },
+                                                        modifier = Modifier.background(DarkSurface)
+                                                    ) {
+                                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                                            DropdownMenuItem(
+                                                                text = { Text("${value}x", color = Color.White) },
+                                                                onClick = {
+                                                                    viewModel.setPlaybackSpeed(value)
+                                                                    showSpeedDialog = false
+                                                                }
+                                                            )
+                                                        }
+                                                    }
                                                 }
 
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     val nextEpId by viewModel.nextEpisodeId.collectAsState()
-                                                     if (nextEpId != null) {
-                                                         IconButton(
-                                                             onClick = {
-                                                                 onEpisodeClick(nextEpId!!, viewModel.animeId)
-                                                             },
-                                                             modifier = Modifier.size(36.dp)
-                                                         ) {
-                                                             Icon(
-                                                                 imageVector = SkipNextIcon,
-                                                                 contentDescription = "Episode Selanjutnya",
-                                                                 tint = Color.White,
-                                                                 modifier = Modifier.size(24.dp)
-                                                             )
-                                                         }
-                                                         Spacer(modifier = Modifier.width(12.dp))
-                                                     }
-
-                                                     IconButton(
-                                                         onClick = { isFullscreen = !isFullscreen },
-                                                         modifier = Modifier.size(36.dp)
-                                                     ) {
-                                                         Icon(
-                                                             imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
-                                                             contentDescription = "Fullscreen",
-                                                             tint = Color.White,
-                                                             modifier = Modifier.size(24.dp)
-                                                         )
-                                                     }
+                                                    if (nextEpId != null) {
+                                                        IconButton(
+                                                            onClick = { onEpisodeClick(nextEpId!!, viewModel.animeId) },
+                                                            modifier = Modifier.size(36.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = SkipNextIcon,
+                                                                contentDescription = "Episode Selanjutnya",
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                    }
+                                                    IconButton(
+                                                        onClick = { isFullscreen = !isFullscreen },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                                            contentDescription = "Fullscreen",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                    }
                                                 }
+                                            }
+
+                                            // Row 2: Seekbar — paling bawah
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = formatTime(currentPosition),
+                                                    color = Color.White,
+                                                    fontSize = 11.sp
+                                                )
+                                                Slider(
+                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
+                                                    onValueChange = {
+                                                        currentPosition = it.toLong()
+                                                        exoPlayer.seekTo(currentPosition)
+                                                    },
+                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .padding(horizontal = 6.dp),
+                                                    colors = SliderDefaults.colors(
+                                                        thumbColor = NeonPurple,
+                                                        activeTrackColor = NeonPurple,
+                                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                                    )
+                                                )
+                                                Text(
+                                                    text = formatTime(duration),
+                                                    color = Color.White,
+                                                    fontSize = 11.sp
+                                                )
                                             }
                                         }
                                     }
