@@ -1,7 +1,7 @@
 const cheerio = require("cheerio");
 const url = require("../helpers/base-url");
 const Axios = require("../helpers/axios-instance");
-const baseUrl = url.baseUrl;
+const { getDomain } = require("../helpers/domain-config");
 const completeAnime = url.completeAnime;
 const onGoingAnime = url.onGoingAnime;
 const errors = require("../helpers/errors");
@@ -9,6 +9,7 @@ const ImageList = require("../helpers/image_genre").ImageList;
 const e = require("express");
 
 exports.home = (req, res) => {
+  const baseUrl = getDomain();
   let home = {};
   let on_going = [];
   let complete = [];
@@ -104,6 +105,7 @@ exports.home = (req, res) => {
     });
 };
 exports.completeAnimeList = (req, res) => {
+  const baseUrl = getDomain();
   const params = req.params.page;
   const page =
     typeof params === "undefined" ? "" : params === "1" ? "" : `page/${params}`;
@@ -153,6 +155,7 @@ exports.completeAnimeList = (req, res) => {
     });
 };
 exports.onGoingAnimeList = (req, res) => {
+  const baseUrl = getDomain();
   const params = req.params.page;
   const page = typeof params === "undefined" ? "" : params === "1" ? "" : `page/${params}`;
   const fullUrl = `${baseUrl}${onGoingAnime}${page}`;
@@ -202,6 +205,7 @@ exports.onGoingAnimeList = (req, res) => {
     });
 };
 exports.schedule = (req, res) => {
+  const baseUrl = getDomain();
   Axios.get(baseUrl + url.schedule).then((response) => {
     const $ = cheerio.load(response.data);
     const element = $(".kgjdwl321");
@@ -227,6 +231,7 @@ exports.schedule = (req, res) => {
   });
 };
 exports.genre = (req, res) => {
+  const baseUrl = getDomain();
   const fullUrl = baseUrl + url.genreList;
   Axios.get(fullUrl)
     .then((response) => {
@@ -250,6 +255,7 @@ exports.genre = (req, res) => {
     });
 };
 exports.animeByGenre = (req, res) => {
+  const baseUrl = getDomain();
   const pageNumber = req.params.pageNumber;
   const id = req.params.id;
   const fullUrl = pageNumber === '1' ? `${baseUrl}genres/${id}/` : `${baseUrl}genres/${id}/page/${pageNumber}`;
@@ -299,6 +305,7 @@ exports.animeByGenre = (req, res) => {
     });
 };
 exports.search = (req, res) => {
+  const baseUrl = getDomain();
   const query = req.params.query;
   const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
   Axios.get(fullUrl).then((response) => {
@@ -403,6 +410,7 @@ async function buildSearchBasedHome() {
 }
 
 async function fetchSearchResults(query) {
+  const baseUrl = getDomain();
   const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
   const response = await Axios.get(fullUrl);
   const $ = cheerio.load(response.data);

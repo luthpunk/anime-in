@@ -1,0 +1,11 @@
+{
+  "otakudesu": {
+    "baseUrl": "https://otakudesu.blog/",
+    "fallbacks": [
+      "https://otakudesu.cloud/",
+      "https://otakudesu.lol/"
+    ],
+    "updatedAt": "2026-06-30",
+    "note": "Update baseUrl jika domain Otakudesu berubah. Tidak perlu rebuild APK."
+  }
+}

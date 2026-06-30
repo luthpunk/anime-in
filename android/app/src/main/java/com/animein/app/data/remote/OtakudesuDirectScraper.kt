@@ -27,9 +27,63 @@ import javax.inject.Singleton
 class OtakudesuDirectScraper @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
-    private val baseUrl = "https://otakudesu.blog/"
+    companion object {
+        private const val REMOTE_CONFIG_URL =
+            "https://raw.githubusercontent.com/luthpunk/anime-in/main/config/domain.json"
+        private const val DEFAULT_BASE_URL = "https://otakudesu.blog/"
+        private val FALLBACK_DOMAINS = listOf("https://otakudesu.cloud/", "https://otakudesu.lol/")
+        private const val CACHE_TTL_MS = 60 * 60 * 1000L // 1 jam
+
+        @Volatile private var cachedDomain: String = DEFAULT_BASE_URL
+        @Volatile private var lastFetchedAt: Long = 0L
+    }
+
+    /**
+     * Ambil domain aktif dari remote config GitHub.
+     * Cache 1 jam — jika cache kedaluwarsa, fetch ulang di latar belakang.
+     * Fallback ke domain hardcoded jika remote config tidak dapat diakses.
+     */
+    private suspend fun getBaseUrl(): String = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (now - lastFetchedAt < CACHE_TTL_MS) return@withContext cachedDomain
+
+        try {
+            val req = okhttp3.Request.Builder()
+                .url(REMOTE_CONFIG_URL)
+                .header("Cache-Control", "no-cache")
+                .build()
+            val body = okHttpClient.newCall(req).execute().use { it.body?.string() ?: "" }
+            val domain = org.json.JSONObject(body)
+                .getJSONObject("otakudesu")
+                .getString("baseUrl")
+            if (domain.startsWith("http")) {
+                cachedDomain = domain
+                lastFetchedAt = now
+                android.util.Log.d("DomainConfig", "Domain aktif: $domain")
+                return@withContext domain
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("DomainConfig", "Gagal fetch remote config: ${e.message}")
+        }
+
+        // Coba fallback domain satu per satu
+        for (candidate in listOf(DEFAULT_BASE_URL) + FALLBACK_DOMAINS) {
+            try {
+                val req = okhttp3.Request.Builder().url(candidate).head().build()
+                okHttpClient.newCall(req).execute().close()
+                cachedDomain = candidate
+                lastFetchedAt = now
+                android.util.Log.d("DomainConfig", "Fallback domain: $candidate")
+                return@withContext candidate
+            } catch (_: Exception) {}
+        }
+
+        DEFAULT_BASE_URL
+    }
+
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val normalizedId = AnimeIdUtils.normalizeAnimeId(animeId)
         val pageUrl = "${baseUrl}anime/$normalizedId"
         val doc = fetchDocument(pageUrl)
@@ -92,6 +146,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val normalizedId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         val pageUrl = if (normalizedId.startsWith("http")) normalizedId else "$baseUrl$normalizedId"
         val doc = fetchDocument(pageUrl)
@@ -136,6 +191,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val doc = fetchDocument(baseUrl)
         val venz = doc.select(".venz")
         val ongoingElements = venz.getOrNull(0)?.select("ul > li")
@@ -193,6 +249,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val pageSegment = if (page <= 1) "" else "page/$page/"
         val pageUrl = "${baseUrl}ongoing-anime/$pageSegment"
         val doc = fetchDocument(pageUrl)
@@ -226,6 +283,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val pageSegment = if (page <= 1) "" else "page/$page/"
         val pageUrl = "${baseUrl}complete-anime/$pageSegment"
         val doc = fetchDocument(pageUrl)
@@ -260,6 +318,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getGenres(): GenreListResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val doc = fetchDocument("${baseUrl}genre-list/")
         val elements = doc.select(".genres li a")
         val list = elements.mapIndexed { index, el ->
@@ -280,6 +339,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun searchAnime(query: String): SearchResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val pageUrl = "${baseUrl}?s=${java.net.URLEncoder.encode(query, "UTF-8")}&post_type=anime"
         val doc = fetchDocument(pageUrl)
         val elements = doc.select(".page ul > li")
@@ -334,7 +394,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    private fun extractStreamUrl(url: String): String {
+    private suspend fun extractStreamUrl(url: String): String {
         return try {
             val html = fetch(url)
             val unpacked = html + "\n" + unpackPacker(html)
@@ -470,11 +530,12 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
-    private fun fetchDocument(url: String): Document {
+    private suspend fun fetchDocument(url: String): Document {
         return Jsoup.parse(fetch(url), url)
     }
 
-    private fun fetch(url: String): String {
+    private suspend fun fetch(url: String): String {
+        val baseUrl = getBaseUrl()
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", USER_AGENT)
@@ -495,7 +556,8 @@ class OtakudesuDirectScraper @Inject constructor(
         return items.getOrNull(index)?.text()?.replace(prefix, "")?.trim().orEmpty()
     }
 
-    private fun postForm(url: String, params: Map<String, String>): String {
+    private suspend fun postForm(url: String, params: Map<String, String>): String {
+        val baseUrl = getBaseUrl()
         val formBuilder = okhttp3.FormBody.Builder()
         for ((key, value) in params) {
             formBuilder.add(key, value)
@@ -516,8 +578,9 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
-    private fun getIframeFromDataContent(dataContent: String): String? {
+    private suspend fun getIframeFromDataContent(dataContent: String): String? {
         return try {
+            val baseUrl = getBaseUrl()
             val nonceJsonStr = postForm("${baseUrl}wp-admin/admin-ajax.php", mapOf(
                 "action" to "aa1208d27f29ca340c92c66d1926f13f"
             ))
@@ -549,6 +612,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val url = if (page == 1) "${baseUrl}genres/$genreId/" else "${baseUrl}genres/$genreId/page/$page/"
         val doc = fetchDocument(url)
         val elements = doc.select(".page .col-md-4")
@@ -596,6 +660,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
     suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
+        val baseUrl = getBaseUrl()
         val doc = fetchDocument("${baseUrl}jadwal-rilis/")
         val elements = doc.select(".kgjdwl321 .kglist321")
         

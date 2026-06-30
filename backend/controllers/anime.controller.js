@@ -3,12 +3,13 @@ const Axios = require("../helpers/axios-instance");
 const cheerio = require("cheerio");
 const errors = require("../helpers/errors");
 const episodeHelper = require("../helpers/episodeHelper");
-const {baseUrl} = require("../helpers/base-url");
+const { getDomain } = require("../helpers/domain-config");
 const e = require("express");
 
 exports.detailAnime = async (req, res) => {
+  const baseUrl = getDomain();
   const id = normalizeAnimeId(req.params.id || req.params[0]);
-  const fullUrl = url.baseUrl + `anime/${id}`;
+  const fullUrl = baseUrl + `anime/${id}`;
   // console.log(fullUrl);
   try {
     const response = await Axios.get(fullUrl);
@@ -161,6 +162,7 @@ exports.detailAnime = async (req, res) => {
   }
 };
 exports.batchAnime = async (req, res) => {
+  const baseUrl = getDomain();
   const id = req.params.id;
   const fullUrl = `${baseUrl}batch/${id}`;
   console.log(fullUrl);
@@ -221,15 +223,16 @@ async function getIframeFromDataContent(dataContent) {
 }
 
 exports.epsAnime = async (req, res) => {
+  const baseUrl = getDomain();
   const id = normalizeEpisodeId(req.params.id || req.params[0]);
-  const fullUrl = `${url.baseUrl}${id}`;
+  const fullUrl = `${baseUrl}${id}`;
   try {
     const response = await Axios.get(fullUrl);
     const $ = cheerio.load(response.data);
     const obj = {};
     obj.title = $(".venutama > h1").text();
     obj.baseUrl = fullUrl;
-    obj.id = fullUrl.replace(url.baseUrl, "");
+    obj.id = fullUrl.replace(baseUrl, "");
     
     let low_quality;
     let medium_quality;
@@ -307,6 +310,7 @@ exports.epsAnime = async (req, res) => {
 };
 
 exports.epsMirror = async (req, res) => {
+  const baseUrl = getDomain();
   const mirrorId = req.body.mirrorId;
   const animeId = req.params.animeId;
   try {
