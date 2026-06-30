@@ -35,7 +35,7 @@ interface AnimeDao {
     suspend fun clearHistory()
 
     // Continue Watching
-    @Query("SELECT * FROM continue_watching ORDER BY lastWatchedAt DESC")
+    @Query("SELECT * FROM continue_watching WHERE lastWatchedAt IN (SELECT MAX(lastWatchedAt) FROM continue_watching GROUP BY animeId) ORDER BY lastWatchedAt DESC")
     fun getContinueWatchingList(): Flow<List<ContinueWatchingEntity>>
 
     @Query("SELECT * FROM continue_watching WHERE animeId = :animeId ORDER BY lastWatchedAt DESC LIMIT 1")

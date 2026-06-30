@@ -27,7 +27,6 @@ import com.animein.app.ui.theme.NeonPink
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     viewModel: DetailViewModel,
@@ -39,37 +38,13 @@ fun DetailScreen(
     val isFavorite by viewModel.isFavorite.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Detail Anime", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                    }
-                },
-                actions = {
-                    if (uiState is DetailUiState.Success) {
-                        val detail = (uiState as DetailUiState.Success).data
-                        IconButton(onClick = { viewModel.toggleFavorite(detail) }) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorit",
-                                tint = if (isFavorite) NeonPink else Color.White
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        },
         modifier = modifier
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
         ) {
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
@@ -109,6 +84,25 @@ fun DetailScreen(
                                         )
                                     )
                             )
+                            // Floating Favorite Button (Top-Right)
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(16.dp)
+                                    .statusBarsPadding()
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.toggleFavorite(detail) },
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Favorit",
+                                        tint = if (isFavorite) NeonPink else Color.White
+                                    )
+                                }
+                            }
                         }
 
                         // Info Details

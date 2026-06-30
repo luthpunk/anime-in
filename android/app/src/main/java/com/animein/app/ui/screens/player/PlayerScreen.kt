@@ -68,8 +68,12 @@ fun PlayerScreen(
 
     var isFullscreen by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = isFullscreen) {
-        isFullscreen = false
+    BackHandler(enabled = true) {
+        if (isFullscreen) {
+            isFullscreen = false
+        } else {
+            onBackClick()
+        }
     }
 
     LaunchedEffect(isFullscreen) {
@@ -90,21 +94,6 @@ fun PlayerScreen(
     }
 
     Scaffold(
-        topBar = {
-            if (!isFullscreen) {
-                SmallTopAppBar(
-                    title = { Text(uiState.let { if (it is PlayerUiState.Success) it.data.title else "Player Video" }, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.smallTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
-                    )
-                )
-            }
-        },
         modifier = modifier
     ) { innerPadding ->
         Box(

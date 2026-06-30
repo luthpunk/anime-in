@@ -185,14 +185,23 @@ fun MainApp() {
             ) { backStackEntry ->
                 currentRoute = "player"
                 val viewModel: PlayerViewModel = hiltViewModel()
+                val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
                 PlayerScreen(
                     viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        val encodedAnimeId = java.net.URLEncoder.encode(animeId, "UTF-8")
+                        navController.navigate("detail/$encodedAnimeId") {
+                            // Bersihkan player dari backstack, kembali ke home terlebih dahulu
+                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
                     onEpisodeClick = { nextEpId, aId ->
                         val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
                         val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
                         navController.navigate("player/$encodedEpId/$encodedAnimeId") {
-                            popUpTo("detail/{animeId}") { inclusive = false }
+                            // Bersihkan player saat ini agar tidak menumpuk backstack
+                            popUpTo("player/{episodeId}/{animeId}") { inclusive = true }
                         }
                     }
                 )

@@ -42,6 +42,12 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun deleteContinueWatching(episodeId: String) {
+        viewModelScope.launch {
+            repository.deleteContinueWatching(episodeId)
+        }
+    }
 }
 
 sealed interface HomeUiState {

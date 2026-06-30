@@ -7,10 +7,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -109,7 +113,8 @@ fun HomeScreen(
                                 items(continueWatchingList.take(10)) { item ->
                                     ContinueWatchingCard(
                                         item = item,
-                                        onClick = { onEpisodePlay(item.episodeId, item.animeId) }
+                                        onClick = { onEpisodePlay(item.episodeId, item.animeId) },
+                                        onDeleteClick = { viewModel.deleteContinueWatching(item.episodeId) }
                                     )
                                 }
                             }
@@ -401,10 +406,12 @@ fun CompletedAnimeCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContinueWatchingCard(
     item: ContinueWatchingEntity,
     onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val progressPercent = if (item.duration > 0) item.progress.toFloat() / item.duration.toFloat() else 0f
@@ -412,11 +419,23 @@ fun ContinueWatchingCard(
         val matches = Regex("\\d+").findAll(item.episodeTitle).map { it.value }.toList()
         if (matches.isNotEmpty()) "Ep ${matches.last()}" else "Tonton"
     }
+    var showDeleteOverlay by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .width(160.dp)
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = {
+                    if (showDeleteOverlay) {
+                        showDeleteOverlay = false
+                    } else {
+                        onClick()
+                    }
+                },
+                onLongClick = {
+                    showDeleteOverlay = true
+                }
+            )
     ) {
         Box(
             modifier = Modifier
@@ -500,6 +519,56 @@ fun ContinueWatchingCard(
                     .height(3.dp)
                     .align(Alignment.BottomCenter)
             )
+
+            // Delete / Trash Overlay (Shown on Long Press)
+            if (showDeleteOverlay) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.85f))
+                        .clickable {
+                            onDeleteClick()
+                            showDeleteOverlay = false
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Close button in top-right
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .clickable {
+                                showDeleteOverlay = false
+                            }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Batal",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Hapus Riwayat",
+                            tint = Color.Red,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Hapus",
+                            color = Color.Red,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
