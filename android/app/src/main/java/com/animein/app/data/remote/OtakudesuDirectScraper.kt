@@ -12,6 +12,7 @@ import com.animein.app.data.model.HomeResponse
 import com.animein.app.data.model.AnimeListResponse
 import com.animein.app.data.model.GenreListResponse
 import com.animein.app.data.model.SearchResponse
+import com.animein.app.data.model.ScheduleResponse
 import com.animein.app.util.AnimeIdUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
