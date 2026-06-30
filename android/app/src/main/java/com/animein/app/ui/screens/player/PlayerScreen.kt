@@ -216,8 +216,8 @@ fun PlayerScreen(
                                         streamUrl.contains("desustream") || streamUrl.contains("desu") -> "https://desustream.me/"
                                         streamUrl.contains("streamwish") || streamUrl.contains("awish") -> "https://streamwish.to/"
                                         streamUrl.contains("filelion") || streamUrl.contains("lion") -> "https://filelion.to/"
-                                        streamUrl.contains("otakudesu") -> "https://otakudesu.blog/"
-                                        else -> "https://otakudesu.blog/"
+                                        streamUrl.contains("kotakanimeid") || streamUrl.contains("nontonanimeid") -> "https://s13.nontonanimeid.boats/"
+                                        else -> "https://s13.nontonanimeid.boats/"
                                     }
                                     httpDataSourceFactory.setDefaultRequestProperties(mapOf("Referer" to referer))
                                     
