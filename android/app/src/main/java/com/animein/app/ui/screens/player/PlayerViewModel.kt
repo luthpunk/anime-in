@@ -11,12 +11,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.SimpleCache
 import javax.inject.Inject
 
 @HiltViewModel
-class PlayerViewModel @Inject constructor(
+class PlayerViewModel @OptIn(UnstableApi::class) @Inject constructor(
     private val repository: AnimeRepository,
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    val simpleCache: SimpleCache
 ) : ViewModel() {
 
     val episodeId: String = savedStateHandle.get<String>("episodeId")?.let {

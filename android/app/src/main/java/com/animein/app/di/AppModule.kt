@@ -2,6 +2,7 @@ package com.animein.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.animein.app.BuildConfig
 import com.animein.app.Config
 import com.animein.app.data.local.dao.AnimeDao
 import com.animein.app.data.local.db.AnimeDatabase
@@ -16,8 +17,16 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.database.DatabaseProvider
+import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -27,7 +36,7 @@ object AppModule {
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
     }
 
@@ -36,8 +45,8 @@ object AppModule {
     fun provideOkHttpClient(loggingInterceptor: HttpLoggingInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
             .build()
     }
 
@@ -77,5 +86,42 @@ object AppModule {
     @Singleton
     fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {
         return PreferencesManager(context)
+    }
+
+    // Media3 ExoPlayer Caching providers
+    @Provides
+    @Singleton
+    @UnstableApi
+    fun provideDatabaseProvider(@ApplicationContext context: Context): DatabaseProvider {
+        return StandaloneDatabaseProvider(context)
+    }
+
+    @Provides
+    @Singleton
+    @UnstableApi
+    fun provideSimpleCache(
+        @ApplicationContext context: Context,
+        databaseProvider: DatabaseProvider
+    ): SimpleCache {
+        val cacheDir = File(context.cacheDir, "media_cache")
+        val evictor = LeastRecentlyUsedCacheEvictor(150 * 1024 * 1024) // 150MB cache limit
+        return SimpleCache(cacheDir, evictor, databaseProvider)
+    }
+
+    @Provides
+    @Singleton
+    @UnstableApi
+    fun provideCacheDataSourceFactory(
+        @ApplicationContext context: Context,
+        simpleCache: SimpleCache
+    ): CacheDataSource.Factory {
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+            
+        return CacheDataSource.Factory()
+            .setCache(simpleCache)
+            .setUpstreamDataSourceFactory(httpDataSourceFactory)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 }

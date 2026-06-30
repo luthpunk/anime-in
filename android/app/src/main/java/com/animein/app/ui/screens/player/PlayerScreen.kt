@@ -37,6 +37,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -154,9 +155,16 @@ fun PlayerScreen(
                                     .setAllowCrossProtocolRedirects(true)
                             }
                             
+                            val cacheDataSourceFactory = remember {
+                                CacheDataSource.Factory()
+                                    .setCache(viewModel.simpleCache)
+                                    .setUpstreamDataSourceFactory(httpDataSourceFactory)
+                                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                            }
+                            
                             val mediaSourceFactory = remember {
                                 DefaultMediaSourceFactory(context)
-                                    .setDataSourceFactory(httpDataSourceFactory)
+                                    .setDataSourceFactory(cacheDataSourceFactory)
                             }
 
                             val loadControl = remember {
@@ -298,7 +306,6 @@ fun PlayerScreen(
                                 lifecycleOwner.lifecycle.addObserver(observer)
                                 onDispose {
                                     lifecycleOwner.lifecycle.removeObserver(observer)
-                                    exoPlayer.release()
                                 }
                             }
 
