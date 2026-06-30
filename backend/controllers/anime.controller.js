@@ -1,528 +1,235 @@
-const url = require("../helpers/base-url");
-const Axios = require("../helpers/axios-instance");
+/**
+ * anime.controller.js
+ * Sumber: NontonAnimeID (https://s13.nontonanimeid.boats/)
+ */
 const cheerio = require("cheerio");
+const Axios = require("../helpers/axios-instance");
 const errors = require("../helpers/errors");
-const episodeHelper = require("../helpers/episodeHelper");
-const {baseUrl} = require("../helpers/base-url");
-const e = require("express");
 
-exports.detailAnime = async (req, res) => {
-  const id = normalizeAnimeId(req.params.id || req.params[0]);
-  const fullUrl = url.baseUrl + `anime/${id}`;
-  // console.log(fullUrl);
-  try {
-    const response = await Axios.get(fullUrl);
+const BASE_URL = "https://s13.nontonanimeid.boats/";
 
-    const $ = cheerio.load(response.data);
-    const detailElement = $(".venser").find(".fotoanime");
-    const epsElement = $("#_epslist").html();
-    let object = {};
-    let episode_list = [];
-    object.thumb = detailElement.find("img").attr("src");
-    object.anime_id = id;
-    let genre_name, genre_id, genre_link;
-    let genreList = [];
-
-    object.synopsis = $("#venkonten > div.venser > div.fotoanime > div.sinopc")
-      .find("p")
-      .text();
-
-    detailElement.find(".infozin").filter(function () {
-      object.title = $(this)
-        .find("p")
-        .children()
-        .eq(0)
-        .text()
-        .replace("Judul: ", "");
-      object.japanase = $(this)
-        .find("p")
-        .children()
-        .eq(1)
-        .text()
-        .replace("Japanese: ", "");
-      object.score = parseFloat(
-        $(this).find("p").children().eq(2).text().replace("Skor: ", "")
-      );
-      object.producer = $(this)
-        .find("p")
-        .children()
-        .eq(3)
-        .text()
-        .replace("Produser:  ", "");
-      object.type = $(this)
-        .find("p")
-        .children()
-        .eq(4)
-        .text()
-        .replace("Tipe: ", "");
-      object.status = $(this)
-        .find("p")
-        .children()
-        .eq(5)
-        .text()
-        .replace("Status: ", "");
-      object.total_episode = parseInt(
-        $(this).find("p").children().eq(6).text().replace("Total Episode: ", "")
-      );
-      object.duration = $(this)
-        .find("p")
-        .children()
-        .eq(7)
-        .text()
-        .replace("Durasi: ", "");
-      object.release_date = $(this)
-        .find("p")
-        .children()
-        .eq(8)
-        .text()
-        .replace("Tanggal Rilis: ", "");
-      object.studio = $(this)
-        .find("p")
-        .children()
-        .eq(9)
-        .text()
-        .replace("Studio: ", "");
-      $(this)
-        .find("p")
-        .children()
-        .eq(10)
-        .find("span > a")
-        .each(function () {
-          genre_name = $(this).text();
-          genre_id = $(this)
-            .attr("href")
-            .replace(`${url.baseUrl}genres/`, "");
-          genre_link = $(this).attr("href");
-          genreList.push({ genre_name, genre_id, genre_link });
-          object.genre_list = genreList;
-        });
-    });
-
-    $("#venkonten > div.venser > div:nth-child(8) > ul > li").each(
-      (i, element) => {
-        const dataList = {
-          title: $(element).find("span > a").text(),
-          id: $(element)
-            .find("span > a")
-            .attr("href")
-            .replace(url.baseUrl, ""),
-          link: $(element).find("span > a").attr("href"),
-          uploaded_on: $(element).find(".zeebr").text(),
-        };
-        episode_list.push(dataList);
-      }
-    );
-    object.episode_list =
-      episode_list.length === 0
-        ? [
-            {
-              title: "Maaf, masih kosong bro",
-              id: "Maaf, masih kosong bro",
-              link: "Maaf, masih kosong bro",
-              uploaded_on: "Maaf, masih kosong bro",
-            },
-          ]
-        : episode_list;
-    const batch_link = {
-      id:
-        $("div.venser > div:nth-child(6) > ul").text().length !== 0
-          ? $("div.venser > div:nth-child(6) > ul > li > span:nth-child(1) > a")
-              .attr("href")
-              .replace(`${url.baseUrl}batch/`, "")
-          : "Maaf, masih kosong bro",
-      link:
-        $("div.venser > div:nth-child(6) > ul").text().length !== 0
-          ? $(
-              "div.venser > div:nth-child(6) > ul > li > span:nth-child(1) > a"
-            ).attr("href")
-          : "Maaf, masih kosong bro",
-    };
-    const empty_link = {
-      id: "Maaf, masih kosong bro",
-      link: "Maaf, masih kosong bro",
-    };
-    object.batch_link = batch_link;
-    //console.log(epsElement);
-    res.json(object);
-  } catch (err) {
-    console.log(err);
-    try {
-      const fallbackDetail = await buildSearchBasedDetail(id);
-      res.status(200).json({
-        ...fallbackDetail,
-        fallback: true,
-        message: "Detail upstream blocked; using search fallback.",
-      });
-    } catch (fallbackErr) {
-      console.log(fallbackErr);
-      errors.requestFailed(req, res, err);
-    }
-  }
-};
-exports.batchAnime = async (req, res) => {
-  const id = req.params.id;
-  const fullUrl = `${baseUrl}batch/${id}`;
-  console.log(fullUrl);
-  Axios.get(fullUrl)
-    .then((response) => {
-      const $ = cheerio.load(response.data);
-      const obj = {};
-      obj.title = $(".batchlink > h4").text();
-      obj.status = "success";
-      obj.baseUrl = fullUrl;
-      let low_quality = _batchQualityFunction(0, response.data);
-      let medium_quality = _batchQualityFunction(1, response.data);
-      let high_quality = _batchQualityFunction(2, response.data);
-      obj.download_list = { low_quality, medium_quality, high_quality };
-      res.send(obj);
-    })
-    .catch((err) => {
-      errors.requestFailed(req, res, err);
-    });
-};
-async function getIframeFromDataContent(dataContent) {
-  try {
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      'Referer': 'https://otakudesu.blog/',
-      'Content-Type': 'application/x-www-form-urlencoded'
-    };
-    
-    // 1. Get nonce
-    const params1 = new URLSearchParams();
-    params1.append('action', 'aa1208d27f29ca340c92c66d1926f13f');
-    const nonceRes = await Axios.post('https://otakudesu.blog/wp-admin/admin-ajax.php', params1.toString(), { headers });
-    const nonce = nonceRes.data?.data;
-    if (!nonce) return null;
-    
-    // 2. Decode content
-    const decoded = JSON.parse(Buffer.from(dataContent, 'base64').toString('utf-8'));
-    
-    // 3. Post to get embed
-    const params2 = new URLSearchParams();
-    params2.append('action', '2a3505c93b0035d3f455df82bf976b84');
-    params2.append('id', decoded.id);
-    params2.append('i', decoded.i);
-    params2.append('q', decoded.q);
-    params2.append('nonce', nonce);
-    
-    const embedRes = await Axios.post('https://otakudesu.blog/wp-admin/admin-ajax.php', params2.toString(), { headers });
-    
-    if (embedRes.data && embedRes.data.data) {
-      const embedHtml = Buffer.from(embedRes.data.data, 'base64').toString('utf-8');
-      const $ = cheerio.load(embedHtml);
-      return $("iframe").attr("src");
-    }
-  } catch (e) {
-    console.error("Failed to get iframe from data-content:", e.message);
-  }
-  return null;
+/* ─── Helper ─── */
+function normalizeAnimeId(rawId) {
+  let id = String(rawId || "");
+  try { id = decodeURIComponent(id); } catch (_) {}
+  return id
+    .trim()
+    .replace(/^https?:\/\/[^/]+\/anime\//, "")
+    .replace(/^anime\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
 }
 
-exports.epsAnime = async (req, res) => {
-  const id = normalizeEpisodeId(req.params.id || req.params[0]);
-  const fullUrl = `${url.baseUrl}${id}`;
+function normalizeEpsId(rawId) {
+  let id = String(rawId || "");
+  try { id = decodeURIComponent(id); } catch (_) {}
+  return id
+    .trim()
+    .replace(/^https?:\/\/[^/]+\//, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
+}
+
+/* ──────────────────────────────────────────
+   DETAIL ANIME
+   GET /api/anime/:id
+────────────────────────────────────────── */
+exports.detailAnime = async (req, res) => {
+  const animeId = normalizeAnimeId(req.params.id || req.params[0]);
+  const fullUrl = `${BASE_URL}anime/${animeId}/`;
   try {
     const response = await Axios.get(fullUrl);
     const $ = cheerio.load(response.data);
+
     const obj = {};
-    obj.title = $(".venutama > h1").text();
-    obj.baseUrl = fullUrl;
-    obj.id = fullUrl.replace(url.baseUrl, "");
-    
-    let low_quality;
-    let medium_quality;
-    let high_quality;
-    let mirror1 = [];
-    let mirror2 = [];
-    let mirror3 = [];
+    obj.anime_id = animeId;
+    obj.link = fullUrl;
 
-    $('#embed_holder > div.mirrorstream > ul.m360p > li').each((idx,el)=>{
-      const aTag = $(el).find('a');
-      mirror1.push({
-        host: aTag.text().trim(),
-        id: aTag.attr('data-content') || aTag.attr('href'),
-      });
+    // Judul
+    const titleSpan = $("h1.entry-title span").first();
+    obj.title = titleSpan.attr("data-title-default")
+      || $("h1.entry-title").text().replace(/Sub Indo/gi, "").trim();
+    obj.japanese = titleSpan.attr("data-title-jp") || "";
+    obj.english = titleSpan.attr("data-title-en") || obj.title;
+
+    // Thumb & score
+    obj.thumb = $(".anime-card__sidebar img").first().attr("src") || "";
+    obj.score = parseFloat($(".anime-card__score .value").text().trim()) || null;
+    obj.type = $(".anime-card__score .type").text().trim() || "";
+
+    // Synopsis
+    obj.synopsis = $(".synopsis-prose p").text().trim() || $(".synopsis-prose").text().trim();
+
+    // Status & quick info
+    obj.status = $(".info-item.status-airing").text().trim()
+      || $(".info-item").first().text().trim();
+
+    const infoItems = $(".anime-card__quick-info .info-item");
+    obj.total_episode = infoItems.eq(1).text().replace(/Episodes?/i, "").trim();
+    obj.duration = infoItems.eq(2).text().trim();
+    const seasonEl = infoItems.filter(function () { return $(this).find("a").length > 0; }).first();
+    obj.release_date = seasonEl.find("a").text().trim() || "";
+
+    // Detail list
+    $(".details-list li").each((i, el) => {
+      const label = $(el).find(".detail-label").text().replace(":", "").trim().toLowerCase();
+      const value = $(el).text().replace($(el).find(".detail-label").text(), "").trim();
+      if (label === "studios") obj.studio = value;
+      if (label === "aired") obj.aired = value;
+      if (label === "rating") obj.content_rating = value;
+      if (label === "synonyms") obj.synonyms = value;
     });
-    $('#embed_holder > div.mirrorstream > ul.m480p > li').each((idx,el)=>{
-      const aTag = $(el).find('a');
-      mirror2.push({
-        host: aTag.text().trim(),
-        id: aTag.attr('data-content') || aTag.attr('href'),
-      });
+
+    // Genre list
+    const genre_list = [];
+    $(".anime-card__genres.in-tab a.genre-tag").each((i, el) => {
+      const genre_link = $(el).attr("href") || "";
+      const genre_name = $(el).text().trim();
+      const genre_id = genre_link.replace(BASE_URL + "genres/", "").replace(/\/+$/, "");
+      genre_list.push({ genre_name, genre_id, genre_link });
     });
-    $('#embed_holder > div.mirrorstream > ul.m720p > li').each((idx,el)=>{
-      const aTag = $(el).find('a');
-      mirror3.push({
-        host: aTag.text().trim(),
-        id: aTag.attr('data-content') || aTag.attr('href'),
-      });
+    obj.genre_list = genre_list;
+
+    // Daftar episode (page 1 — biasanya 20 ep terbaru)
+    const episode_list = [];
+    $(".episode-list-items a.episode-item").each((i, el) => {
+      const link = $(el).attr("href") || "";
+      const epTitle = $(el).find(".ep-title").text().trim();
+      const uploaded_on = $(el).find(".ep-date").text().trim();
+      const id = link.replace(BASE_URL, "").replace(/\/+$/, "");
+      if (link) episode_list.push({ title: epTitle, id, link, uploaded_on });
     });
-    obj.mirror1 = {quality:'360p',mirrorList:mirror1}
-    obj.mirror2 = {quality:'480p',mirrorList:mirror2}
-    obj.mirror3 = {quality:'720p',mirrorList:mirror3}
+    obj.episode_list = episode_list.length > 0
+      ? episode_list
+      : [{ title: "Belum ada episode", id: "", link: "", uploaded_on: "" }];
 
-    // Resolve default stream link
-    let defaultStreamLink = "-";
-    const defaultMirrorA = $('.mirrorstream a[data-default="true"]').first();
-    const defaultMirrorContent = defaultMirrorA.attr('data-content') 
-      || $('.mirrorstream a[data-content]').first().attr('data-content');
+    // Batch (tidak tersedia di NontonAnimeID)
+    obj.batch_link = { id: "", link: "" };
 
-    if (defaultMirrorContent) {
-      const iframeUrl = await getIframeFromDataContent(defaultMirrorContent);
-      if (iframeUrl) {
-        defaultStreamLink = await episodeHelper.get(iframeUrl);
-      }
-    }
-    obj.link_stream = defaultStreamLink;
-
-    if($('#venkonten > div.venser > div.venutama > div.download > ul > li:nth-child(1)').text() === ''){
-      low_quality = _notFoundQualityHandler(response.data,0)
-      medium_quality = _notFoundQualityHandler(response.data,1)
-      high_quality = _notFoundQualityHandler(response.data,2)
-    }else{
-      low_quality = _epsQualityFunction(0, response.data);
-      medium_quality = _epsQualityFunction(1, response.data);
-      high_quality = _epsQualityFunction(2, response.data);
-    }
-    obj.quality = { low_quality, medium_quality, high_quality };
-    res.send(obj);
+    res.status(200).json(obj);
   } catch (err) {
-    console.log(err);
-    res.status(200).json({
-      title: episodeIdToTitle(id),
-      baseUrl: fullUrl,
-      id: fullUrl,
-      link_stream: "-",
-      mirror1: { quality: "360p", mirrorList: [] },
-      mirror2: { quality: "480p", mirrorList: [] },
-      mirror3: { quality: "720p", mirrorList: [] },
-      quality: { low_quality: null, medium_quality: null, high_quality: null },
-      fallback: true,
-      message: "Episode upstream blocked; use WebView fallback.",
-    });
-  }
-};
-
-exports.epsMirror = async (req, res) => {
-  const mirrorId = req.body.mirrorId;
-  const animeId = req.params.animeId;
-  try {
-    const obj = {};
-    obj.title = "Mirror Stream";
-    obj.baseUrl = `${baseUrl}${animeId}/${mirrorId}`;
-    obj.id = `${animeId}/${mirrorId}`;
-    
-    let iframeUrl = null;
-    if (mirrorId && mirrorId.startsWith("eyJ")) {
-      iframeUrl = await getIframeFromDataContent(mirrorId);
-    } else {
-      const fullUrl = `${baseUrl}${animeId}/${mirrorId}`;
-      const response = await Axios.get(fullUrl);
-      const $ = cheerio.load(response.data);
-      iframeUrl = $('#pembed > div > iframe').attr('src');
-    }
-    
-    obj.streamLink = iframeUrl;
-    obj.link_stream = iframeUrl ? await episodeHelper.get(iframeUrl) : "-";
-    res.send(obj);
-  } catch (err) {
-    console.log(err);
+    console.error("[NontonAnimeID] detailAnime error:", err.message);
     errors.requestFailed(req, res, err);
   }
 };
 
-function _batchQualityFunction(num, res) {
-  const $ = cheerio.load(res);
-  const element = $(".download").find(".batchlink");
-  const download_links = [];
-  let response;
-  element.find("ul").filter(function () {
-    const quality = $(this).find("li").eq(num).find("strong").text();
-    const size = $(this).find("li").eq(num).find("i").text();
-    $(this)
-      .find("li")
-      .eq(num)
-      .find("a")
-      .each(function () {
-        const _list = {
-          host: $(this).text(),
-          link: $(this).attr("href"),
-        };
-        download_links.push(_list);
-        response = { quality, size, download_links };
-      });
+/* ──────────────────────────────────────────
+   BATCH ANIME (NontonAnimeID tidak punya batch)
+   GET /api/batch/:id
+────────────────────────────────────────── */
+exports.batchAnime = async (req, res) => {
+  res.status(200).json({
+    status: "info",
+    message: "Fitur batch tidak tersedia di sumber NontonAnimeID.",
+    data: null,
   });
-  return response;
-}
+};
 
-function normalizeAnimeId(rawId) {
-  let decodedId = String(rawId || "");
+/* ──────────────────────────────────────────
+   EPISODE
+   GET /api/eps/:id
+────────────────────────────────────────── */
+exports.epsAnime = async (req, res) => {
+  const epsId = normalizeEpsId(req.params.id || req.params[0]);
+  const fullUrl = `${BASE_URL}${epsId}/`;
   try {
-    decodedId = decodeURIComponent(decodedId);
-  } catch (e) {
-    // Keep the original value when it is not a valid encoded component.
-  }
+    const response = await Axios.get(fullUrl);
+    const $ = cheerio.load(response.data);
 
-  const id = decodedId
-    .trim()
-    .split("?")[0]
-    .split("#")[0]
-    .replace(/^https?:\/\/otakudesu\.(blog|cloud)\/anime\//, "")
-    .replace(/^anime\//, "")
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
+    const obj = {};
+    obj.id = epsId;
+    obj.baseUrl = fullUrl;
 
-  return id ? `${id}/` : "";
-}
+    // Judul
+    const titleSpan = $("h1.entry-title span").first();
+    const titleBase = titleSpan.attr("data-title-default") || titleSpan.text().trim();
+    const episodePart = $("h1.entry-title").text()
+      .replace(titleBase, "")
+      .replace(/Sub Indo/gi, "")
+      .trim();
+    obj.title = `${titleBase} ${episodePart}`.trim();
 
-function normalizeEpisodeId(rawId) {
-  let decodedId = String(rawId || "");
-  try {
-    decodedId = decodeURIComponent(decodedId);
-  } catch (e) {
-    // Keep the original value when it is not a valid encoded component.
-  }
+    // Stream embed (iframe default server pertama)
+    obj.link_stream = $("#videoku iframe, #pembed iframe").attr("data-src")
+      || $("#videoku iframe, #pembed iframe").attr("src")
+      || "-";
 
-  const id = decodedId
-    .trim()
-    .split("?")[0]
-    .split("#")[0]
-    .replace(/^https?:\/\/otakudesu\.(blog|cloud)\//, "")
-    .replace(/^\/+/, "")
-    .replace(/\/+$/, "");
-
-  return id ? `${id}/` : "";
-}
-
-function episodeIdToTitle(id) {
-  return normalizeEpisodeId(id)
-    .replace(/^episode\//, "")
-    .replace(/\/$/, "")
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-async function buildSearchBasedDetail(id) {
-  const normalizedId = normalizeAnimeId(id);
-  const query = animeIdToSearchQuery(normalizedId);
-  const fullUrl = `${baseUrl}?s=${encodeURIComponent(query)}&post_type=anime`;
-  const response = await Axios.get(fullUrl);
-  const $ = cheerio.load(response.data);
-  let matchedItem = null;
-
-  $(".page").find("ul > li").each(function () {
-    if (matchedItem) return;
-
-    const link = $(this).find("h2 > a").attr("href") || "";
-    const itemId = normalizeAnimeId(link);
-    if (itemId !== normalizedId) return;
-
-    const genre_list = [];
-    $(this).find(".set").find("a").each(function () {
-      const genre_link = $(this).attr("href") || "";
-      const genre_name = $(this).text();
-      genre_list.push({
-        genre_name,
-        genre_id: genre_link.replace(`${baseUrl}genres/`, ""),
-        genre_link,
+    // Server list
+    const server_list = [];
+    $("ul.tabs1.player li.tab-link.serverplayer").each((i, el) => {
+      server_list.push({
+        server_name: $(el).find("span").text().trim(),
+        data_post: $(el).attr("data-post") || "",
+        data_type: $(el).attr("data-type") || "",
+        data_nume: $(el).attr("data-nume") || "",
       });
     });
+    obj.server_list = server_list;
 
-    matchedItem = {
-      thumb: $(this).find("img").attr("src") || "",
-      anime_id: normalizedId,
-      synopsis: "",
-      title: $(this).find("h2").text().replace("Subtitle Indonesia", "").trim(),
-      japanase: "",
-      score: parseFloat($(this).find(".set").eq(2).text().replace("Rating : ", "")) || null,
-      producer: "",
-      type: "",
-      status: $(this).find(".set").eq(1).text().replace("Status : ", "").trim(),
-      total_episode: null,
-      duration: "",
-      release_date: "",
-      studio: "",
-      genre_list,
-      episode_list: [],
-      batch_link: {
-        id: "",
-        link: "",
-      },
-    };
-  });
-
-  if (matchedItem) return matchedItem;
-  throw new Error(`No fallback detail found for ${normalizedId}`);
-}
-
-function animeIdToSearchQuery(id) {
-  const slug = normalizeAnimeId(id).replace(/\/$/, "");
-  if (slug === "1piece-sub-indo") return "one piece";
-
-  return slug
-    .replace(/-sub-indo$/, "")
-    .replace(/-/g, " ")
-    .replace(/\bs(\d+)\b/g, "season $1")
-    .trim();
-}
-function _epsQualityFunction(num, res) {
-  const $ = cheerio.load(res);
-  const element = $(".download");
-  const download_links = [];
-  let response;
-
-  element.find("ul").filter(function () {
-    const quality = $(this).find("li").eq(num).find("strong").text();
-    const size = $(this).find("li").eq(num).find("i").text();
-    $(this).find("li").eq(num).find("a").each(function () {
-        const _list = {
-          host: $(this).text(),
-          link: $(this).attr("href"),
-        };
-        download_links.push(_list);
-        response = { quality, size, download_links };
-        
+    // Download links
+    const download_links = [];
+    $(".listlink a").each((i, el) => {
+      download_links.push({
+        host: $(el).text().trim(),
+        link: $(el).attr("href") || "",
       });
-  });
-  return response;
-}
+    });
+    obj.download_links = download_links;
 
-function _notFoundQualityHandler(res,num){
-  const $ = cheerio.load(res);
-  const download_links = [];
-  const element = $('.download')
-  let response;
+    // Navigasi prev/next
+    const navLinks = $(".naveps .nvs");
+    obj.prev_episode = navLinks.first().find("a").attr("href") || null;
+    obj.next_episode = navLinks.last().find("a").attr("href") || null;
+    obj.anime_link = $(".naveps .nvsc a").attr("href") || null;
 
-  element.filter(function(){
-    if($(this).find('.anime-box > .anime-title').eq(0).text() === ''){
-      $(this).find('.yondarkness-box').filter(function(){
-        const quality = $(this).find('.yondarkness-title').eq(num).text().split('[')[1].split(']')[0];
-        const size = $(this).find('.yondarkness-title').eq(num).text().split(']')[1].split('[')[1];
-        $(this).find('.yondarkness-item').eq(num).find('a').each((idx,el) => {
-          const _list = {
-            host: $(el).text(),
-            link: $(el).attr("href"),
-          };
-          download_links.push(_list);
-          response = { quality, size, download_links };
-        })
-      })
-    }else{
-      $(this).find('.anime-box').filter(function(){
-        const quality = $(this).find('.anime-title').eq(num).text().split('[')[1].split(']')[0];
-        const size = $(this).find('.anime-title').eq(num).text().split(']')[1].split('[')[1];
-        $(this).find('.anime-item').eq(num).find('a').each((idx,el) => {
-          const _list = {
-            host: $(el).text(),
-            link: $(el).attr("href"),
-          };
-          download_links.push(_list);
-          response = { quality, size, download_links };
-        })
-      })
-    }
-  })
-  return response;
+    // Thumbnail episode
+    obj.thumb = $(".featuredimgs img").attr("src") || "";
 
-}
+    res.status(200).json(obj);
+  } catch (err) {
+    console.error("[NontonAnimeID] epsAnime error:", err.message);
+    errors.requestFailed(req, res, err);
+  }
+};
+
+/* ──────────────────────────────────────────
+   EPISODE MIRROR (server embed dinamis)
+   POST /api/eps/:animeId/mirror/
+────────────────────────────────────────── */
+exports.epsMirror = async (req, res) => {
+  // NontonAnimeID menggunakan WordPress AJAX untuk load embed
+  // Server embed di-load lewat POST wp-admin/admin-ajax.php
+  const { post, type, nume } = req.body || {};
+  if (!post || !type || !nume) {
+    return res.status(400).json({ status: "error", message: "Butuh body: post, type, nume" });
+  }
+
+  const ajaxUrl = `${BASE_URL}wp-admin/admin-ajax.php`;
+  try {
+    const form = new URLSearchParams();
+    form.append("action", "player_ajax");
+    form.append("post", post);
+    form.append("nume", nume);
+    form.append("type", type);
+
+    const response = await Axios.post(ajaxUrl, form.toString(), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": BASE_URL,
+      },
+    });
+
+    const $ = cheerio.load(response.data || "");
+    const embedUrl = $("iframe").attr("src") || $("iframe").attr("data-src") || response.data || "-";
+
+    res.status(200).json({
+      status: "success",
+      embed_url: embedUrl,
+      raw: response.data,
+    });
+  } catch (err) {
+    console.error("[NontonAnimeID] epsMirror error:", err.message);
+    res.status(200).json({ status: "error", message: err.message, embed_url: "-" });
+  }
+};
