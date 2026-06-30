@@ -39,57 +39,30 @@ class AnimeRepository @Inject constructor(
             }
         }
 
-        // Coba API backend dulu, fallback ke scraper langsung
+        // Direct scraper ke NontonAnimeID dari device (lebih reliable dari Vercel)
         return try {
-            val response = apiService.getHome()
-            val hasData = !response.home?.ongoing.isNullOrEmpty()
-            if (hasData) {
-                inMemoryHome = response
-                preferencesManager.saveHomeCache(gson.toJson(response))
-                response
-            } else {
-                throw Exception("API returned empty home data")
-            }
+            val response = directScraper.getHome()
+            inMemoryHome = response
+            preferencesManager.saveHomeCache(gson.toJson(response))
+            response
         } catch (e: Exception) {
-            try {
-                val response = directScraper.getHome()
-                inMemoryHome = response
-                preferencesManager.saveHomeCache(gson.toJson(response))
-                response
-            } catch (scraperEx: Exception) {
-                inMemoryHome ?: throw scraperEx
-            }
+            inMemoryHome ?: throw e
         }
     }
 
     // ── Ongoing List ──────────────────────────────────
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse {
-        return try {
-            val res = apiService.getOngoingAnimeList(page)
-            if (res.animeList.isNullOrEmpty()) directScraper.getOngoingAnimeList(page) else res
-        } catch (e: Exception) {
-            directScraper.getOngoingAnimeList(page)
-        }
+        return directScraper.getOngoingAnimeList(page)
     }
 
     // ── Complete List ─────────────────────────────────
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse {
-        return try {
-            val res = apiService.getCompletedAnimeList(page)
-            if (res.animeList.isNullOrEmpty()) directScraper.getCompletedAnimeList(page) else res
-        } catch (e: Exception) {
-            directScraper.getCompletedAnimeList(page)
-        }
+        return directScraper.getCompletedAnimeList(page)
     }
 
     // ── Search ────────────────────────────────────────
     suspend fun searchAnime(query: String): SearchResponse {
-        return try {
-            val apiRes = apiService.searchAnime(query)
-            if (apiRes.searchResults.isNullOrEmpty()) directScraper.searchAnime(query) else apiRes
-        } catch (e: Exception) {
-            directScraper.searchAnime(query)
-        }
+        return directScraper.searchAnime(query)
     }
 
     // ── Genre List ────────────────────────────────────
@@ -101,6 +74,7 @@ class AnimeRepository @Inject constructor(
             directScraper.getGenres()
         }
     }
+
 
     // ── Anime by Genre ────────────────────────────────
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
