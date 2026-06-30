@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -321,22 +322,29 @@ fun PlayerScreen(
                                             .fillMaxSize()
                                             .background(Color.Black.copy(alpha = 0.6f))
                                     ) {
-                                        // 1. Top row: Back button only (judul sudah ada di TopAppBar)
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .align(Alignment.TopStart)
-                                                .padding(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            IconButton(onClick = {
-                                                if (isFullscreen) {
-                                                    isFullscreen = false
-                                                } else {
-                                                    onBackClick()
-                                                }
-                                            }) {
-                                                Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = Color.White)
+                                        // 1. Top row: Fullscreen Title & Episode
+                                        if (isFullscreen) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .align(Alignment.TopStart)
+                                                    .background(
+                                                        brush = Brush.verticalGradient(
+                                                            colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                                                        )
+                                                    )
+                                                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = detail.title,
+                                                    color = Color.White,
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
                                             }
                                         }
 

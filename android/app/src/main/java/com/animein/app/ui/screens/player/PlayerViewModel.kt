@@ -41,6 +41,8 @@ class PlayerViewModel @Inject constructor(
     private val _episodes = MutableStateFlow<List<com.animein.app.data.model.EpisodeItem>>(emptyList())
     val episodes: StateFlow<List<com.animein.app.data.model.EpisodeItem>> = _episodes
 
+    private val _animeThumb = MutableStateFlow("")
+
     init {
         fetchEpisodeDetail()
         loadSavedProgress()
@@ -56,11 +58,8 @@ class PlayerViewModel @Inject constructor(
             _playerState.value = PlayerUiState.Loading
             try {
                 val response = repository.getEpisodeDetail(episodeId)
-                val finalResponse = if (response.linkStream.isNullOrBlank() || response.linkStream == "-") {
-                    autoResolveMirrors(response)
-                } else {
-                    response
-                }
+                // Selalu coba resolve vidhide terlebih dahulu
+                val finalResponse = autoResolveVidhideOrFallback(response)
                 _playerState.value = PlayerUiState.Success(finalResponse)
             } catch (e: Exception) {
                 _playerState.value = PlayerUiState.Error(e.localizedMessage ?: "Gagal memuat video episode")
@@ -68,23 +67,20 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private suspend fun autoResolveMirrors(response: EpisodeDetailResponse): EpisodeDetailResponse {
+    private suspend fun autoResolveVidhideOrFallback(response: EpisodeDetailResponse): EpisodeDetailResponse {
         val allMirrors = mutableListOf<com.animein.app.data.model.MirrorItem>()
-        // Kumpulkan semua mirror dari semua kualitas
         response.mirror1?.mirrorList?.let { allMirrors.addAll(it) }
         response.mirror2?.mirrorList?.let { allMirrors.addAll(it) }
         response.mirror3?.mirrorList?.let { allMirrors.addAll(it) }
 
-        // Hanya coba vidhide mirror — yang paling konsisten bisa diputar ExoPlayer
+        // 1. Cari & coba vidhide mirror terlebih dahulu
         val vidhideMirrors = allMirrors.filter { mirror ->
             mirror.host.contains("vidhide", ignoreCase = true) ||
             mirror.host.contains("hide", ignoreCase = true) ||
             mirror.id.contains("vidhide", ignoreCase = true)
         }
-        // Jika tidak ada vidhide, coba semua mirror sebagai fallback
-        val mirrorsToTry = vidhideMirrors.ifEmpty { allMirrors }
 
-        for (mirror in mirrorsToTry) {
+        for (mirror in vidhideMirrors) {
             val mirrorId = mirror.id
             if (!mirrorId.isNullOrBlank() && mirrorId != "-") {
                 try {
@@ -94,13 +90,33 @@ class PlayerViewModel @Inject constructor(
                         return response.copy(linkStream = resolvedStream)
                     }
                 } catch (e: Exception) {
-                    // coba mirror berikutnya
+                    // Coba mirror berikutnya
+                }
+            }
+        }
+
+        // 2. Jika tidak ada vidhide atau gagal, dan linkStream bawaan valid, gunakan linkStream bawaan
+        if (!response.linkStream.isNullOrBlank() && response.linkStream != "-") {
+            return response
+        }
+
+        // 3. Jika linkStream bawaan kosong/invalid, coba mirror apa saja yang ada
+        for (mirror in allMirrors) {
+            val mirrorId = mirror.id
+            if (!mirrorId.isNullOrBlank() && mirrorId != "-") {
+                try {
+                    val mirrorRes = repository.getMirrorStream(animeId, mirrorId)
+                    val resolvedStream = mirrorRes.linkStream ?: mirrorRes.streamLink
+                    if (!resolvedStream.isNullOrBlank() && resolvedStream != "-") {
+                        return response.copy(linkStream = resolvedStream)
+                    }
+                } catch (e: Exception) {
+                    // Coba mirror berikutnya
                 }
             }
         }
         return response
     }
-
 
     private fun loadSavedProgress() {
         viewModelScope.launch {
@@ -118,7 +134,7 @@ class PlayerViewModel @Inject constructor(
                     animeId = animeId,
                     animeTitle = animeTitle,
                     episodeTitle = episodeTitle,
-                    thumb = thumb,
+                    thumb = thumb.ifBlank { _animeThumb.value },
                     progress = progress,
                     duration = duration
                 )
@@ -152,6 +168,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val detail = repository.getAnimeDetail(animeId)
+                _animeThumb.value = detail.thumb ?: ""
                 val episodes = detail.episodeList ?: emptyList()
                 _episodes.value = episodes
                 val currentIndex = episodes.indexOfFirst {
