@@ -33,6 +33,8 @@ class OtakudesuDirectScraper @Inject constructor(
         private const val DEFAULT_BASE_URL = "https://otakudesu.blog/"
         private val FALLBACK_DOMAINS = listOf("https://otakudesu.cloud/", "https://otakudesu.lol/")
         private const val CACHE_TTL_MS = 60 * 60 * 1000L // 1 jam
+        private const val USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
 
         @Volatile private var cachedDomain: String = DEFAULT_BASE_URL
         @Volatile private var lastFetchedAt: Long = 0L
@@ -687,8 +689,5 @@ class OtakudesuDirectScraper @Inject constructor(
         ScheduleResponse(scheduleList = list)
     }
 
-    private companion object {
-        const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
-    }
+
 }
