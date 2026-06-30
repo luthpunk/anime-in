@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -131,6 +132,7 @@ fun PlayerScreen(
                             var playPosition by remember { mutableLongStateOf(savedProgress) }
                             var showControls by remember { mutableStateOf(true) }
                             var isPlaying by remember { mutableStateOf(true) }
+                            var isBuffering by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             val speed by viewModel.playbackSpeed.collectAsState()
@@ -211,15 +213,24 @@ fun PlayerScreen(
                                     }
                             }
  
-                            // Monitor Player state
+                            // Monitor Player state — termasuk deteksi buffering
                             DisposableEffect(exoPlayer) {
                                 val listener = object : Player.Listener {
                                     override fun onIsPlayingChanged(playing: Boolean) {
                                         isPlaying = playing
                                     }
                                     override fun onPlaybackStateChanged(state: Int) {
-                                        if (state == Player.STATE_READY) {
-                                            duration = exoPlayer.duration
+                                        when (state) {
+                                            Player.STATE_READY -> {
+                                                duration = exoPlayer.duration
+                                                isBuffering = false
+                                            }
+                                            Player.STATE_BUFFERING -> {
+                                                isBuffering = true
+                                            }
+                                            Player.STATE_ENDED, Player.STATE_IDLE -> {
+                                                isBuffering = false
+                                            }
                                         }
                                     }
                                 }
@@ -457,40 +468,61 @@ fun PlayerScreen(
                                         )
                                     }
                                 }
-                                 if (isDraggingBrightness || isDraggingVolume) {
-                                     Box(
-                                         modifier = Modifier
-                                             .fillMaxSize(),
-                                         contentAlignment = Alignment.Center
-                                     ) {
-                                         Card(
-                                             colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.75f)),
-                                             shape = RoundedCornerShape(12.dp),
-                                             modifier = Modifier.size(100.dp)
-                                         ) {
-                                             Column(
-                                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                                 verticalArrangement = Arrangement.Center,
-                                                 modifier = Modifier.fillMaxSize().padding(8.dp)
-                                             ) {
-                                                 Icon(
-                                                     imageVector = if (isDraggingBrightness) BrightnessIcon else VolumeUpIcon,
-                                                     contentDescription = null,
-                                                     tint = Color.White,
-                                                     modifier = Modifier.size(36.dp)
-                                                 )
-                                                 Spacer(modifier = Modifier.height(8.dp))
-                                                 val percentage = if (isDraggingBrightness) (brightnessValue * 100).toInt() else (volumePercent * 100).toInt()
-                                                 Text(
-                                                     text = "$percentage%",
-                                                     color = Color.White,
-                                                     fontSize = 14.sp,
-                                                     fontWeight = FontWeight.Bold
-                                                 )
-                                             }
-                                         }
-                                     }
-                                 }
+                                // --- Gesture Indicator Overlay (Volume / Brightness) ---
+                                if (isDraggingBrightness || isDraggingVolume) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.80f)),
+                                            shape = RoundedCornerShape(16.dp),
+                                            modifier = Modifier.size(110.dp)
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center,
+                                                modifier = Modifier.fillMaxSize().padding(12.dp)
+                                            ) {
+                                                val percentage = if (isDraggingBrightness) (brightnessValue * 100).toInt() else (volumePercent * 100).toInt()
+                                                Icon(
+                                                    imageVector = if (isDraggingBrightness) BrightnessIcon else VolumeUpIcon,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(40.dp)
+                                                )
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                LinearProgressIndicator(
+                                                    progress = percentage / 100f,
+                                                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                                                    color = if (isDraggingBrightness) Color(0xFFFFC107) else Color(0xFF4FC3F7),
+                                                    trackColor = Color.White.copy(alpha = 0.2f)
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "$percentage%",
+                                                    color = Color.White,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // --- Buffering Spinner ---
+                                if (isBuffering) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = Color.White,
+                                            strokeWidth = 3.dp,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                    }
+                                }
 
                                  if (showControls) {
                                     Box(
@@ -988,6 +1020,9 @@ private fun extractEpisodeNumber(title: String): String {
     return if (matches.isNotEmpty()) matches.last() else ""
 }
 
+// =====================================================================
+// Icon: Volume Speaker (bentuk speaker asli dengan 2 gelombang suara)
+// =====================================================================
 val VolumeUpIcon: ImageVector
     get() = ImageVector.Builder(
         name = "VolumeUp",
@@ -995,29 +1030,38 @@ val VolumeUpIcon: ImageVector
         defaultHeight = 24.dp,
         viewportWidth = 24f,
         viewportHeight = 24f
-    ).path(
-        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
-    ) {
-        moveTo(3f, 9f)
-        lineTo(3f, 15f)
-        lineTo(7f, 15f)
-        lineTo(12f, 20f)
-        lineTo(12f, 4f)
-        lineTo(7f, 9f)
-        lineTo(3f, 9f)
-        close()
-        moveTo(14f, 8f)
-        lineTo(14f, 16f)
-        lineTo(16f, 14f)
-        lineTo(16f, 10f)
-        close()
-        moveTo(18f, 6f)
-        lineTo(18f, 18f)
-        lineTo(20f, 16f)
-        lineTo(20f, 8f)
-        close()
+    ).apply {
+        // Speaker body (segitiga + kotak)
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color.White)) {
+            moveTo(3f, 9f)
+            lineTo(3f, 15f)
+            lineTo(7f, 15f)
+            lineTo(12f, 20f)
+            lineTo(12f, 4f)
+            lineTo(7f, 9f)
+            close()
+        }
+        // Gelombang kecil (dalam)
+        path(
+            stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
+            strokeLineWidth = 1.8f
+        ) {
+            moveTo(14.5f, 9.5f)
+            arcTo(3.5f, 3.5f, 0f, false, true, 14.5f, 14.5f)
+        }
+        // Gelombang besar (luar)
+        path(
+            stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
+            strokeLineWidth = 1.8f
+        ) {
+            moveTo(17f, 7f)
+            arcTo(6f, 6f, 0f, false, true, 17f, 17f)
+        }
     }.build()
 
+// =====================================================================
+// Icon: Brightness (matahari bulat dengan 8 sinar)
+// =====================================================================
 val BrightnessIcon: ImageVector
     get() = ImageVector.Builder(
         name = "Brightness",
@@ -1025,38 +1069,48 @@ val BrightnessIcon: ImageVector
         defaultHeight = 24.dp,
         viewportWidth = 24f,
         viewportHeight = 24f
-    ).path(
-        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
-    ) {
-        moveTo(10f, 6f)
-        lineTo(14f, 6f)
-        lineTo(18f, 10f)
-        lineTo(18f, 14f)
-        lineTo(14f, 18f)
-        lineTo(10f, 18f)
-        lineTo(6f, 14f)
-        lineTo(6f, 10f)
-        close()
-        moveTo(11f, 2f)
-        lineTo(13f, 2f)
-        lineTo(13f, 5f)
-        lineTo(11f, 5f)
-        close()
-        moveTo(11f, 19f)
-        lineTo(13f, 19f)
-        lineTo(13f, 22f)
-        lineTo(11f, 22f)
-        close()
-        moveTo(2f, 11f)
-        lineTo(5f, 11f)
-        lineTo(5f, 13f)
-        lineTo(2f, 13f)
-        close()
-        moveTo(19f, 11f)
-        lineTo(22f, 11f)
-        lineTo(22f, 13f)
-        lineTo(19f, 13f)
-        close()
+    ).apply {
+        // Lingkaran tengah (matahari)
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color.White)) {
+            moveTo(12f, 9f)
+            arcTo(3f, 3f, 0f, false, true, 15f, 12f)
+            arcTo(3f, 3f, 0f, false, true, 12f, 15f)
+            arcTo(3f, 3f, 0f, false, true, 9f, 12f)
+            arcTo(3f, 3f, 0f, false, true, 12f, 9f)
+            close()
+        }
+        // Sinar atas
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(12f, 2f); lineTo(12f, 5f)
+        }
+        // Sinar bawah
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(12f, 19f); lineTo(12f, 22f)
+        }
+        // Sinar kiri
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(2f, 12f); lineTo(5f, 12f)
+        }
+        // Sinar kanan
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(19f, 12f); lineTo(22f, 12f)
+        }
+        // Sinar kiri-atas
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(4.22f, 4.22f); lineTo(6.34f, 6.34f)
+        }
+        // Sinar kanan-bawah
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(17.66f, 17.66f); lineTo(19.78f, 19.78f)
+        }
+        // Sinar kanan-atas
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(19.78f, 4.22f); lineTo(17.66f, 6.34f)
+        }
+        // Sinar kiri-bawah
+        path(stroke = androidx.compose.ui.graphics.SolidColor(Color.White), strokeLineWidth = 1.8f) {
+            moveTo(6.34f, 17.66f); lineTo(4.22f, 19.78f)
+        }
     }.build()
 
 
