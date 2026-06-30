@@ -470,7 +470,7 @@ fun PlayerScreen(
                                          ) {
                                              Column(
                                                  horizontalAlignment = Alignment.CenterHorizontally,
-                                                 verticalAlignment = Alignment.CenterVertically,
+                                                 verticalArrangement = Arrangement.Center,
                                                  modifier = Modifier.fillMaxSize().padding(8.dp)
                                              ) {
                                                  Icon(
