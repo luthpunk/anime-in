@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -137,6 +139,29 @@ fun PlayerScreen(
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }
                             val coroutineScope = rememberCoroutineScope()
+
+                            var isDraggingBrightness by remember { mutableStateOf(false) }
+                            var isDraggingVolume by remember { mutableStateOf(false) }
+                            var brightnessValue by remember { mutableStateOf(0.5f) }
+                            var volumePercent by remember { mutableStateOf(0f) }
+
+                            val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
+                            val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) }
+
+                            fun setBrightness(value: Float) {
+                                val activity = context as? Activity ?: return
+                                val layoutParams = activity.window.attributes
+                                layoutParams.screenBrightness = value.coerceIn(0.01f, 1f)
+                                activity.window.attributes = layoutParams
+                                brightnessValue = layoutParams.screenBrightness
+                            }
+
+                            fun setVolume(value: Float) {
+                                val targetVolume = (value * maxVolume).toInt().coerceIn(0, maxVolume)
+                                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVolume, 0)
+                                val current = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                                volumePercent = current.toFloat() / maxVolume.toFloat()
+                            }
                             
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
@@ -335,6 +360,52 @@ fun PlayerScreen(
                                             }
                                         )
                                     }
+                                    .pointerInput(Unit) {
+                                        var isLeft = false
+                                        var dragStartValue = 0f
+                                        var accumulatedDeltaY = 0f
+                                        detectDragGestures(
+                                            onDragStart = { offset ->
+                                                isLeft = offset.x < playerSize.width / 2
+                                                accumulatedDeltaY = 0f
+                                                if (isLeft) {
+                                                    isDraggingBrightness = true
+                                                    isDraggingVolume = false
+                                                    val activity = context as? Activity
+                                                    val currentBrightness = activity?.window?.attributes?.screenBrightness ?: -1f
+                                                    dragStartValue = if (currentBrightness < 0f) 0.5f else currentBrightness
+                                                } else {
+                                                    isDraggingVolume = true
+                                                    isDraggingBrightness = false
+                                                    val currentVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                                                    dragStartValue = currentVol.toFloat() / maxVolume.toFloat()
+                                                }
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                accumulatedDeltaY -= dragAmount.y
+                                                val height = playerSize.height.toFloat().coerceAtLeast(1f)
+                                                val deltaPercent = accumulatedDeltaY / height
+                                                val targetValue = (dragStartValue + deltaPercent).coerceIn(0f, 1f)
+                                                if (isDraggingBrightness) {
+                                                    setBrightness(targetValue)
+                                                } else if (isDraggingVolume) {
+                                                    setVolume(targetValue)
+                                                }
+                                            },
+                                            onDragEnd = {
+                                                coroutineScope.launch {
+                                                    delay(800)
+                                                    isDraggingBrightness = false
+                                                    isDraggingVolume = false
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                isDraggingBrightness = false
+                                                isDraggingVolume = false
+                                            }
+                                        )
+                                    }
                             ) {
                                 AndroidView(
                                     factory = { ctx ->
@@ -386,8 +457,42 @@ fun PlayerScreen(
                                         )
                                     }
                                 }
+                                 if (isDraggingBrightness || isDraggingVolume) {
+                                     Box(
+                                         modifier = Modifier
+                                             .fillMaxSize(),
+                                         contentAlignment = Alignment.Center
+                                     ) {
+                                         Card(
+                                             colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.75f)),
+                                             shape = RoundedCornerShape(12.dp),
+                                             modifier = Modifier.size(100.dp)
+                                         ) {
+                                             Column(
+                                                 horizontalAlignment = Alignment.CenterHorizontally,
+                                                 verticalAlignment = Alignment.CenterVertically,
+                                                 modifier = Modifier.fillMaxSize().padding(8.dp)
+                                             ) {
+                                                 Icon(
+                                                     imageVector = if (isDraggingBrightness) BrightnessIcon else VolumeUpIcon,
+                                                     contentDescription = null,
+                                                     tint = Color.White,
+                                                     modifier = Modifier.size(36.dp)
+                                                 )
+                                                 Spacer(modifier = Modifier.height(8.dp))
+                                                 val percentage = if (isDraggingBrightness) (brightnessValue * 100).toInt() else (volumePercent * 100).toInt()
+                                                 Text(
+                                                     text = "$percentage%",
+                                                     color = Color.White,
+                                                     fontSize = 14.sp,
+                                                     fontWeight = FontWeight.Bold
+                                                 )
+                                             }
+                                         }
+                                     }
+                                 }
 
-                                if (showControls) {
+                                 if (showControls) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -882,6 +987,55 @@ private fun extractEpisodeNumber(title: String): String {
         .toList()
     return if (matches.isNotEmpty()) matches.last() else ""
 }
+
+val VolumeUpIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "VolumeUp",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        moveTo(3f, 9f)
+        verticalLineTo(15f)
+        horizontalLineTo(7f)
+        lineTo(12f, 20f)
+        verticalLineTo(4f)
+        lineTo(7f, 9f)
+        horizontalLineTo(3f)
+        close()
+        moveTo(16.5f, 12f)
+        quadTo(16.5f, 9.8f, 15.2f, 8.5f)
+        quadTo(14f, 7.2f, 14f, 7.2f)
+        verticalLineTo(16.8f)
+        quadTo(14f, 16.8f, 15.2f, 15.5f)
+        quadTo(16.5f, 14.2f, 16.5f, 12f)
+        close()
+    }.build()
+
+val BrightnessIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "Brightness",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        moveTo(12f, 18f)
+        quadTo(9.5f, 18f, 7.8f, 16.2f)
+        quadTo(6f, 14.5f, 6f, 12f)
+        quadTo(6f, 9.5f, 7.8f, 7.8f)
+        quadTo(9.5f, 6f, 12f, 6f)
+        quadTo(14.5f, 6f, 16.2f, 7.8f)
+        quadTo(18f, 9.5f, 18f, 12f)
+        quadTo(18f, 14.5f, 16.2f, 16.2f)
+        quadTo(14.5f, 18f, 12f, 18f)
+        close()
+    }.build()
 
 
 

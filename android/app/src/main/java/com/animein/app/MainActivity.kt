@@ -10,10 +10,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -24,14 +27,16 @@ import com.animein.app.ui.screens.detail.DetailScreen
 import com.animein.app.ui.screens.detail.DetailViewModel
 import com.animein.app.ui.screens.genre.GenreScreen
 import com.animein.app.ui.screens.genre.GenreViewModel
+import com.animein.app.ui.screens.genrelist.GenreListScreen
+import com.animein.app.ui.screens.genrelist.GenreListViewModel
 import com.animein.app.ui.screens.history.HistoryScreen
 import com.animein.app.ui.screens.history.HistoryViewModel
 import com.animein.app.ui.screens.home.HomeScreen
 import com.animein.app.ui.screens.home.HomeViewModel
 import com.animein.app.ui.screens.player.PlayerScreen
 import com.animein.app.ui.screens.player.PlayerViewModel
-import com.animein.app.ui.screens.search.SearchScreen
-import com.animein.app.ui.screens.search.SearchViewModel
+import com.animein.app.ui.screens.schedule.ScheduleScreen
+import com.animein.app.ui.screens.schedule.ScheduleViewModel
 import com.animein.app.ui.theme.AnimeInTheme
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
@@ -57,7 +62,8 @@ fun MainApp() {
     val navController = rememberNavController()
     val bottomNavItems = listOf(
         NavigationItem("home", "Home", Icons.Default.Home),
-        NavigationItem("search", "Cari", Icons.Default.Search),
+        NavigationItem("schedule", "Jadwal", Icons.Default.DateRange),
+        NavigationItem("genres_list", "Genre", Icons.Default.Menu),
         NavigationItem("history", "Koleksi", Icons.Default.List)
     )
 
@@ -65,8 +71,7 @@ fun MainApp() {
 
     Scaffold(
         bottomBar = {
-            // Only show bottom navigation on home, search, and history screens
-            if (currentRoute in listOf("home", "search", "history")) {
+            if (currentRoute in listOf("home", "schedule", "genres_list", "history")) {
                 NavigationBar(
                     containerColor = DarkSurface,
                     contentColor = NeonPurple
@@ -131,14 +136,22 @@ fun MainApp() {
                 )
             }
 
-            composable("search") {
-                currentRoute = "search"
-                val viewModel: SearchViewModel = hiltViewModel()
-                SearchScreen(
+            composable("schedule") {
+                currentRoute = "schedule"
+                val viewModel: ScheduleViewModel = hiltViewModel()
+                ScheduleScreen(
                     viewModel = viewModel,
                     onAnimeClick = { id ->
                         navigateToDetail(navController, id)
-                    },
+                    }
+                )
+            }
+
+            composable("genres_list") {
+                currentRoute = "genres_list"
+                val viewModel: GenreListViewModel = hiltViewModel()
+                GenreListScreen(
+                    viewModel = viewModel,
                     onGenreClick = { id, name ->
                         navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
                     }
@@ -152,9 +165,6 @@ fun MainApp() {
                     viewModel = viewModel,
                     onAnimeClick = { id ->
                         navigateToDetail(navController, id)
-                    },
-                    onEpisodePlay = { episodeId, animeId ->
-                        navigateToPlayer(navController, episodeId, animeId)
                     }
                 )
             }

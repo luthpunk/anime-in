@@ -102,7 +102,11 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
-        return apiService.getAnimeByGenre(genreId, page)
+        return try {
+            apiService.getAnimeByGenre(genreId, page)
+        } catch (e: Exception) {
+            directScraper.getAnimeByGenre(genreId, page)
+        }
     }
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
@@ -185,5 +189,13 @@ class AnimeRepository @Inject constructor(
 
     suspend fun deleteContinueWatching(episodeId: String) {
         animeDao.deleteContinueWatching(episodeId)
+    }
+
+    suspend fun getSchedule(): ScheduleResponse {
+        return try {
+            apiService.getSchedule()
+        } catch (e: Exception) {
+            directScraper.getSchedule()
+        }
     }
 }

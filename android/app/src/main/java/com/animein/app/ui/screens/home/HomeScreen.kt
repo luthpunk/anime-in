@@ -31,8 +31,12 @@ import coil.compose.AsyncImage
 import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.AnimeCompleted
 import com.animein.app.data.model.AnimeOngoing
+import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.StarYellow
+import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.StarYellow
 import com.animein.app.ui.theme.TextSecondary
 
@@ -47,31 +51,45 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.homeState.collectAsState()
     val continueWatchingList by viewModel.continueWatchingList.collectAsState()
+    
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchState by viewModel.searchState.collectAsState()
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "AnimeIn",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.fetchHome(forceRefresh = true) }) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+            Column(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    placeholder = { Text("Cari anime...", color = TextSecondary) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = "Cari", tint = TextSecondary)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = DarkSurface,
+                        unfocusedContainerColor = DarkSurface,
+                        focusedBorderColor = NeonPurple,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            )
+            }
         },
         modifier = modifier
     ) { innerPadding ->
@@ -81,88 +99,126 @@ fun HomeScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
-            when (val state = uiState) {
-                is HomeUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NeonPurple)
-                    }
-                }
-                is HomeUiState.Success -> {
-                    val ongoing = state.data.home.ongoing
-                    val complete = state.data.home.complete
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        // Hero Banner (Featured Anime)
-                        if (ongoing.isNotEmpty()) {
-                            HeroBanner(anime = ongoing.first(), onClick = { onAnimeClick(ongoing.first().id) })
+            if (searchQuery.isEmpty()) {
+                when (val state = uiState) {
+                    is HomeUiState.Loading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = NeonPurple)
                         }
+                    }
+                    is HomeUiState.Success -> {
+                        val ongoing = state.data.home.ongoing
+                        val complete = state.data.home.complete
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            // Hero Banner (Featured Anime)
+                            if (ongoing.isNotEmpty()) {
+                                HeroBanner(anime = ongoing.first(), onClick = { onAnimeClick(ongoing.first().id) })
+                            }
 
-                        // Lanjut Nonton Section
-                        if (continueWatchingList.isNotEmpty()) {
-                            SectionHeader(title = "Lanjut Nonton")
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            // Lanjut Nonton Section
+                            if (continueWatchingList.isNotEmpty()) {
+                                SectionHeader(title = "Lanjut Nonton")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    items(continueWatchingList.take(10)) { item ->
+                                        ContinueWatchingCard(
+                                            item = item,
+                                            onClick = { onEpisodePlay(item.episodeId, item.animeId) },
+                                            onDeleteClick = { viewModel.deleteContinueWatching(item.episodeId) }
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+
+                            // Ongoing Section
+                            SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(continueWatchingList.take(10)) { item ->
-                                    ContinueWatchingCard(
-                                        item = item,
-                                        onClick = { onEpisodePlay(item.episodeId, item.animeId) },
-                                        onDeleteClick = { viewModel.deleteContinueWatching(item.episodeId) }
+                                items(ongoing.drop(1)) { anime ->
+                                    OngoingAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // Completed Section
+                            SectionHeader(title = "Anime Tamat", onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") })
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(complete) { anime ->
+                                    CompletedAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(30.dp))
+                        }
+                    }
+                    is HomeUiState.Error -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(state.message, color = Color.Red, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.fetchHome(forceRefresh = true) },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple)
+                            ) {
+                                Text("Coba Lagi")
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Search Results list
+                when (val state = searchState) {
+                    is SearchUiState.Idle -> {}
+                    is SearchUiState.Loading -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = NeonPurple)
+                        }
+                    }
+                    is SearchUiState.Success -> {
+                        val results = state.results
+                        if (results.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Tidak ada hasil ditemukan", color = TextSecondary)
+                            }
+                        } else {
+                            LazyColumn(
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(results) { anime ->
+                                    SearchResultCard(
+                                        anime = anime,
+                                        onClick = { onAnimeClick(AnimeIdUtils.normalizeAnimeId(anime.id)) }
                                     )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(24.dp))
                         }
-
-                        // Ongoing Section
-                        SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(ongoing.drop(1)) { anime ->
-                                OngoingAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Completed Section
-                        SectionHeader(title = "Anime Tamat", onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") })
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(complete) { anime ->
-                                CompletedAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(30.dp))
                     }
-                }
-                is HomeUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(state.message, color = Color.Red, fontSize = 16.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.fetchHome(forceRefresh = true) },
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonPurple)
-                        ) {
-                            Text("Coba Lagi")
+                    is SearchUiState.Error -> {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(state.message, color = Color.Red)
                         }
                     }
                 }
@@ -587,5 +643,71 @@ fun ContinueWatchingCard(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp)
         )
+    }
+}
+
+@Composable
+fun SearchResultCard(
+    anime: SearchItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(DarkSurface)
+            .clickable { onClick() }
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = anime.thumb,
+            contentDescription = anime.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(width = 60.dp, height = 80.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color.Gray)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                anime.title,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            anime.status?.let {
+                Text(
+                    "Status: $it",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            anime.score?.let { score ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = null,
+                        tint = StarYellow,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        score,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }

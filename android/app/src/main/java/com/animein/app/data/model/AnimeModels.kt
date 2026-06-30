@@ -164,3 +164,19 @@ data class DownloadLink(
     @SerializedName("host") val host: String,
     @SerializedName("link") val link: String
 )
+
+// Schedule Response
+data class ScheduleResponse(
+    @SerializedName("scheduleList") val scheduleList: List<ScheduleItem>
+)
+
+data class ScheduleItem(
+    @SerializedName("day") val day: String,
+    @SerializedName("animeList") val animeList: List<ScheduleAnimeItem>
+)
+
+data class ScheduleAnimeItem(
+    @SerializedName("anime_name") val animeName: String,
+    @SerializedName("id") val id: String,
+    @SerializedName("link") val link: String
+)

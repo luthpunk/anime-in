@@ -47,6 +47,9 @@ interface AnimeApiService {
         @Path("animeId") animeId: String,
         @Body body: MirrorRequest
     ): MirrorResponse
+
+    @GET("api/schedule")
+    suspend fun getSchedule(): ScheduleResponse
 }
 
 data class MirrorRequest(

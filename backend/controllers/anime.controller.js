@@ -143,6 +143,7 @@ exports.detailAnime = async (req, res) => {
     };
     object.batch_link = batch_link;
     //console.log(epsElement);
+    res.setHeader('Cache-Control', 's-maxage=43200, stale-while-revalidate=3600');
     res.json(object);
   } catch (err) {
     console.log(err);
@@ -286,6 +287,7 @@ exports.epsAnime = async (req, res) => {
       high_quality = _epsQualityFunction(2, response.data);
     }
     obj.quality = { low_quality, medium_quality, high_quality };
+    res.setHeader('Cache-Control', 's-maxage=7200, stale-while-revalidate=600');
     res.send(obj);
   } catch (err) {
     console.log(err);

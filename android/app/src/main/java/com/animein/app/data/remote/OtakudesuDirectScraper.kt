@@ -547,6 +547,80 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
+    suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        val url = if (page == 1) "${baseUrl}genres/$genreId/" else "${baseUrl}genres/$genreId/page/$page/"
+        val doc = fetchDocument(url)
+        val elements = doc.select(".page .col-md-4")
+        
+        val list = elements.mapNotNull { item ->
+            val titleEl = item.select(".col-anime-title > a").first() ?: return@mapNotNull null
+            val link = titleEl.absUrl("href")
+            val id = AnimeIdUtils.normalizeAnimeId(link)
+            val title = titleEl.text().trim()
+            val thumb = item.select(".col-anime-cover img").first()?.absUrl("src") ?: ""
+            val studio = item.select(".col-anime-studio").text().trim()
+            val eps = item.select(".col-anime-eps").text().trim()
+            val scoreString = item.select(".col-anime-rating").text().trim()
+            val score = scoreString.toFloatOrNull() ?: 0f
+            val date = item.select(".col-anime-date").text().trim()
+            
+            val genres = item.select(".col-anime-genre a").map { el ->
+                val genreLink = el.absUrl("href")
+                val genreName = el.text().trim()
+                val genreIdVal = genreLink.replace("${baseUrl}genres/", "").replace("/", "")
+                com.animein.app.data.model.Genre(
+                    genreName = genreName,
+                    genreId = genreIdVal,
+                    genreLink = genreLink
+                )
+            }
+            
+            com.animein.app.data.model.AnimeListItem(
+                title = title,
+                animeName = title,
+                id = id,
+                thumb = thumb,
+                episode = eps,
+                score = score.toString(),
+                studio = studio,
+                releaseDate = date,
+                genreList = genres
+            )
+        }
+        
+        AnimeListResponse(
+            status = "success",
+            animeList = list
+        )
+    }
+
+    suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
+        val doc = fetchDocument("${baseUrl}jadwal-rilis/")
+        val elements = doc.select(".kgjdwl321 .kglist321")
+        
+        val list = elements.map { item ->
+            val day = item.select("h2").text().trim()
+            val animeElements = item.select("ul > li")
+            val animeList = animeElements.map { li ->
+                val anchor = li.select("a").first()
+                val animeName = anchor?.text().orEmpty().trim()
+                val link = anchor?.absUrl("href").orEmpty()
+                val id = AnimeIdUtils.normalizeAnimeId(link)
+                com.animein.app.data.model.ScheduleAnimeItem(
+                    animeName = animeName,
+                    id = id,
+                    link = link
+                )
+            }
+            com.animein.app.data.model.ScheduleItem(
+                day = day,
+                animeList = animeList
+            )
+        }
+        
+        ScheduleResponse(scheduleList = list)
+    }
+
     private companion object {
         const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"

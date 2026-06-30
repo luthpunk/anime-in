@@ -78,6 +78,7 @@ exports.home = (req, res) => {
         });
       home.complete = complete;
       home.completed = complete;
+      res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=300');
       res.status(200).json({
         status: "success",
         baseUrl: baseUrl,
@@ -221,6 +222,7 @@ exports.schedule = (req, res) => {
         });
       scheduleList.push({ day, animeList });
     });
+    res.setHeader('Cache-Control', 's-maxage=43200, stale-while-revalidate=3600');
     res.json({ scheduleList });
   });
 };
@@ -239,6 +241,7 @@ exports.genre = (req, res) => {
         object.image_link = ImageList[i];
         genreList.push(object);
       });
+      res.setHeader('Cache-Control', 's-maxage=43200, stale-while-revalidate=3600');
       res.json({ genreList });
     })
     .catch((err) => {
@@ -249,7 +252,7 @@ exports.genre = (req, res) => {
 exports.animeByGenre = (req, res) => {
   const pageNumber = req.params.pageNumber;
   const id = req.params.id;
-  const fullUrl = baseUrl + `genres/${id}/page/${pageNumber}`;
+  const fullUrl = pageNumber === '1' ? `${baseUrl}genres/${id}/` : `${baseUrl}genres/${id}/page/${pageNumber}`;
   console.log(fullUrl);
   Axios.get(fullUrl)
     .then((response) => {
@@ -284,6 +287,7 @@ exports.animeByGenre = (req, res) => {
           });
         animeList.push(object);
       });
+      res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600');
       res.send({
         status: "success",
         baseUrl: fullUrl,
@@ -335,6 +339,7 @@ exports.search = (req, res) => {
         obj.search_results = anime_list;
       });
     }
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     res.send(obj);
   }).catch((err) => {
     console.log(err.message);
