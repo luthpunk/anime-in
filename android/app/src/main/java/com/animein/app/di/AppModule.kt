@@ -27,6 +27,7 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
+import kotlin.OptIn
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,14 +92,14 @@ object AppModule {
     // Media3 ExoPlayer Caching providers
     @Provides
     @Singleton
-    @UnstableApi
+    @OptIn(UnstableApi::class)
     fun provideDatabaseProvider(@ApplicationContext context: Context): DatabaseProvider {
         return StandaloneDatabaseProvider(context)
     }
 
     @Provides
     @Singleton
-    @UnstableApi
+    @OptIn(UnstableApi::class)
     fun provideSimpleCache(
         @ApplicationContext context: Context,
         databaseProvider: DatabaseProvider
@@ -110,7 +111,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    @UnstableApi
+    @OptIn(UnstableApi::class)
     fun provideCacheDataSourceFactory(
         @ApplicationContext context: Context,
         simpleCache: SimpleCache
