@@ -2,6 +2,7 @@ package com.animein.app.ui.screens.detail
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -84,17 +85,36 @@ fun DetailScreen(
                                         )
                                     )
                             )
-                            // Floating Favorite Button (Top-Right)
+                        // Back button (top-left)
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(12.dp)
+                                    .statusBarsPadding()
+                            ) {
+                                IconButton(
+                                    onClick = onBackClick,
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowBack,
+                                        contentDescription = "Kembali",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                            // Favorite button (top-right)
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(16.dp)
+                                    .padding(12.dp)
                                     .statusBarsPadding()
                             ) {
                                 IconButton(
                                     onClick = { viewModel.toggleFavorite(detail) },
                                     modifier = Modifier
-                                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                                 ) {
                                     Icon(
                                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -126,6 +146,41 @@ fun DetailScreen(
                                     overflow = TextOverflow.Ellipsis,
                                     maxLines = 2
                                 )
+                            }
+
+                            // Type badge (Movie / OVA / Special / TV)
+                            detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                val (badgeColor, badgeEmoji) = when {
+                                    animeType.contains("Movie", ignoreCase = true) -> Pair(Color(0xFFFFD700), "🎬")
+                                    animeType.contains("OVA", ignoreCase = true) -> Pair(Color(0xFFAB47BC), "💿")
+                                    animeType.contains("Special", ignoreCase = true) -> Pair(Color(0xFF26A69A), "⭐")
+                                    animeType.contains("ONA", ignoreCase = true) -> Pair(Color(0xFFEF5350), "📡")
+                                    else -> Pair(NeonPurple, "📺")
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                            .border(1.dp, badgeColor, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            "$badgeEmoji $animeType",
+                                            color = badgeColor,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let { totalEp ->
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            "$totalEp Episode",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -161,6 +216,7 @@ fun DetailScreen(
                             MetadataItem(label = "Studio", value = detail.studio ?: "-")
                             MetadataItem(label = "Rilis", value = detail.releaseDate ?: "-")
                             MetadataItem(label = "Durasi", value = detail.duration ?: "-")
+                            MetadataItem(label = "Produser", value = detail.producer ?: "-")
 
                             Spacer(modifier = Modifier.height(20.dp))
 
@@ -285,16 +341,31 @@ fun EpisodeRow(
 }
 
 private fun extractEpisodeNumber(title: String): String {
-    val cleanTitle = title.trim()
-    val match = Regex("(?i)(?:episode|ep)\\s*(\\d+)").find(cleanTitle)
-    if (match != null) return match.groupValues[1]
+    // Clean Nimegami format: "[Nimegami] Anime_Title_Episode_01_(720p)"
+    val cleaned = title
+        .replace(Regex("\\[.*?\\]"), "")      // remove [Nimegami]
+        .replace(Regex("\\(\\d+p\\)"), "")    // remove (720p), (1080p), (480p), (360p)
+        .replace(Regex("\\(BD\\)", RegexOption.IGNORE_CASE), "")
+        .replace("_", " ")
+        .trim()
 
-    val digits = Regex("\\d+").findAll(cleanTitle).map { it.value }.toList()
-    if (digits.isNotEmpty()) {
-        return digits.last()
-    }
+    // Priority 1: explicit "Episode XX" or "Ep XX"
+    val epMatch = Regex("(?i)(?:episode|ep)[_\\s]*(\\d+)").find(cleaned)
+    if (epMatch != null) return epMatch.groupValues[1]
 
-    val lastWord = cleanTitle.substringAfterLast(" ").trim()
-    return if (lastWord.length <= 4) lastWord else cleanTitle.take(3)
+    // Priority 2: Movie / OVA / Special (no number needed)
+    if (cleaned.contains("Movie", ignoreCase = true)) return "Movie"
+    if (cleaned.contains("OVA", ignoreCase = true)) return "OVA"
+    if (cleaned.contains("Special", ignoreCase = true)) return "Special"
+
+    // Priority 3: last numeric segment that is NOT a video quality (< 400)
+    val nums = Regex("\\d+").findAll(cleaned)
+        .map { it.value.toIntOrNull() ?: 0 }
+        .filter { it in 1..999 }
+        .toList()
+    if (nums.isNotEmpty()) return nums.last().toString()
+
+    // Fallback: use cleaned title truncated
+    return cleaned.take(20).trim()
 }
 

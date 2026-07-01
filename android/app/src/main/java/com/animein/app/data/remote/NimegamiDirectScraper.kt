@@ -48,10 +48,67 @@ class NimegamiDirectScraper @Inject constructor(
         return Jsoup.parse(fetchHtml(url, referer), url)
     }
 
+    /**
+     * Parse info from a Nimegami article element.
+     * Returns Triple(cleanTitle, episodeLabel, score)
+     *
+     * Title strategy:
+     *   1. h2[itemprop=name] a  → clean display title (e.g. "World Is Dancing")
+     *   2. img[alt]             → alt text without "Sub Indo" suffix
+     *   3. anchor[title]        → full WP title (fallback, strip suffix)
+     *
+     * Episode label strategy:
+     *   1. .eps span/div        → e.g. "Eps. 11" (current latest ep from ongoing list)
+     *   2. anchor[title] suffix → extract "Episode X – Y" or "Movie" from WP title
+     *
+     * Status strategy:
+     *   - anchor[title] ends with "(End)" AND no .eps class (list page) → Completed
+     *   - title/link contains "Movie"  → Movie (Completed)
+     *   - otherwise                    → Ongoing
+     */
+    private fun parseArticleInfo(item: org.jsoup.nodes.Element): Triple<String, String, String?> {
+        val anchor = item.select("a").first()
+        val anchorTitle = anchor?.attr("title") ?: ""
+        val imgAlt = item.select("img").attr("alt").trim()
+
+        // 1. Clean display title
+        val h2Title = item.select("h2[itemprop=name] a, h2 a").text().trim()
+        val rawTitle = when {
+            h2Title.isNotBlank() -> h2Title
+            imgAlt.isNotBlank() -> imgAlt
+            else -> anchorTitle
+        }
+        val cleanTitle = rawTitle
+            .replace("Sub Indo", "", ignoreCase = true)
+            .replace("Subtitle Indonesia", "", ignoreCase = true)
+            .trim().trimEnd(':').trim()
+
+        // 2. Episode label
+        // Priority: .eps class (shows current uploaded episode like "Eps. 11")
+        val epsClass = item.select(".eps").text().trim()
+        val episodeLabel = when {
+            epsClass.isNotBlank() -> epsClass  // e.g. "Eps. 11"
+            anchorTitle.contains("Movie", ignoreCase = true) -> "Movie"
+            else -> {
+                // Try to extract "Episode X" or "Episode X – Y" from anchor title suffix
+                val epMatch = Regex(":\\s*(Episode\\s*\\d+(?:\\s*[–\\-]\\s*\\d+)?)", RegexOption.IGNORE_CASE)
+                    .find(anchorTitle)
+                epMatch?.groupValues?.get(1)?.trim() ?: ""
+            }
+        }
+
+        // 3. Score from .rating div
+        val scoreText = item.select(".rating").text()
+            .replace(Regex("[^\\d.]"), "").trim()
+        val score = if (scoreText.isNotBlank()) scoreText else null
+
+        return Triple(cleanTitle, episodeLabel, score)
+    }
+
     suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         val doc = fetchDocument(BASE_URL)
         val articles = doc.select("article")
-        
+
         val ongoingList = mutableListOf<AnimeOngoing>()
         val completedList = mutableListOf<AnimeCompleted>()
 
@@ -59,23 +116,38 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@forEach
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            
-            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
-            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            
-            // Check if completed or ongoing
-            val isComplete = item.select(".post-2-complete").isNotEmpty()
-            
+            val anchorTitle = anchor.attr("title")
+
+            val (title, episodeLabel, score) = parseArticleInfo(item)
+
+            // Movie: title or link contains "Movie"
+            val isMovie = title.contains("Movie", ignoreCase = true) ||
+                anchorTitle.contains("Movie", ignoreCase = true)
+
+            // Completed: has .post-2-complete OR anchor title ends with (End) AND no ongoing eps selector
+            val hasCompleteClass = item.select(".post-2-complete").isNotEmpty()
+            val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
+            // On home page, stiky_post articles are "featured" - don't assume completed from (End) alone
+            val isStickyPost = item.hasClass("stiky_post")
+            val isComplete = hasCompleteClass || (anchorEndsWithEnd && !isStickyPost) || isMovie
+
+            val displayEpisode = when {
+                isMovie -> "Movie"
+                episodeLabel.isNotBlank() -> episodeLabel
+                isComplete -> "Tamat"
+                else -> "Ongoing"
+            }
+
             if (isComplete) {
                 completedList.add(
                     AnimeCompleted(
                         title = title,
                         id = id,
                         thumb = thumb,
-                        episode = "End",
+                        episode = displayEpisode,
                         uploadedOn = null,
-                        score = null,
+                        score = score,
                         link = link
                     )
                 )
@@ -85,7 +157,7 @@ class NimegamiDirectScraper @Inject constructor(
                         title = title,
                         id = id,
                         thumb = thumb,
-                        episode = "Update",
+                        episode = displayEpisode,
                         uploadedOn = null,
                         dayUpdated = null,
                         link = link
@@ -108,18 +180,26 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
-            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            val episode = item.select(".eps-archive, .eps_ongo").text().trim()
-            
+
+            val (title, episodeLabel, score) = parseArticleInfo(item)
+            val isMovie = title.contains("Movie", ignoreCase = true) ||
+                anchor.attr("title").contains("Movie", ignoreCase = true)
+
+            // Latest episode from .eps (e.g. "Eps. 11")
+            val episode = when {
+                isMovie -> "Movie"
+                episodeLabel.isNotBlank() -> episodeLabel
+                else -> ""
+            }
+
             AnimeListItem(
                 title = title,
                 animeName = title,
                 id = id,
                 thumb = thumb,
                 episode = episode,
-                score = null,
+                score = score,
                 studio = null,
                 releaseDate = null,
                 genreList = null
@@ -130,28 +210,41 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+        // Nimegami home page contains a mix; filter by (End) in anchor title or .post-2-complete
         val url = if (page <= 1) BASE_URL else "${BASE_URL}page/$page/"
         val doc = fetchDocument(url)
         val articles = doc.select("article")
-        
+
         val list = articles.mapNotNull { item ->
-            val isComplete = item.select(".post-2-complete").isNotEmpty()
-            if (!isComplete) return@mapNotNull null
-            
             val anchor = item.select("a").first() ?: return@mapNotNull null
+            val anchorTitle = anchor.attr("title")
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
-            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            
+
+            val (title, episodeLabel, score) = parseArticleInfo(item)
+            val isMovie = title.contains("Movie", ignoreCase = true) ||
+                anchorTitle.contains("Movie", ignoreCase = true)
+            val hasCompleteClass = item.select(".post-2-complete").isNotEmpty()
+            val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
+            val isStickyPost = item.hasClass("stiky_post")
+            val isComplete = hasCompleteClass || (anchorEndsWithEnd && !isStickyPost) || isMovie
+
+            if (!isComplete) return@mapNotNull null
+
+            val episode = when {
+                isMovie -> "Movie"
+                episodeLabel.isNotBlank() -> episodeLabel
+                else -> "Tamat"
+            }
+
             AnimeListItem(
                 title = title,
                 animeName = title,
                 id = id,
                 thumb = thumb,
-                episode = "Complete",
-                score = null,
+                episode = episode,
+                score = score,
                 studio = null,
                 releaseDate = null,
                 genreList = null
