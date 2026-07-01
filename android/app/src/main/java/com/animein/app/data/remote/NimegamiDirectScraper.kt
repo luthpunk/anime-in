@@ -348,33 +348,60 @@ class NimegamiDirectScraper @Inject constructor(
         )
     }
 
+    private fun debugLog(message: String) {
+        try {
+            val file = java.io.File("/data/data/com.termux/files/home/anime-in/resolved_stream.txt")
+            file.appendText("[${java.util.Date()}] $message\n")
+        } catch (e: Exception) {
+            // Ignore logging failures
+        }
+    }
+
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
+        debugLog("getEpisodeDetail called with episodeId: $episodeId")
         val restored = episodeId.replace("_", "/").replace("-", "+")
+        debugLog("restored episodeId: $restored")
         val decodedJsonStr = String(Base64.decode(restored, Base64.DEFAULT), Charsets.UTF_8)
+        debugLog("decodedJsonStr: $decodedJsonStr")
         val jsonArray = JSONArray(decodedJsonStr)
         
         var selectedStreamUrl = "-"
+        var currentPriority = -1
         val mirrorList = mutableListOf<MirrorItem>()
 
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
-            val format = obj.getString("format")
+            val format = obj.getString("format").lowercase()
             val urls = obj.getJSONArray("url")
             if (urls.length() > 0) {
                 val streamPageUrl = urls.getString(0)
                 mirrorList.add(MirrorItem(host = "Berkasdrive - $format", id = streamPageUrl))
                 
-                if (selectedStreamUrl == "-" || format == "720p" || (format == "480p" && selectedStreamUrl.contains("_360p_"))) {
+                // Priority mapping: 720p (4) > 480p (3) > 1080p (2) > 360p (1)
+                val priority = when {
+                    format.contains("720p") -> 4
+                    format.contains("480p") -> 3
+                    format.contains("1080p") -> 2
+                    format.contains("360p") -> 1
+                    else -> 0
+                }
+                
+                if (priority > currentPriority) {
                     selectedStreamUrl = streamPageUrl
+                    currentPriority = priority
                 }
             }
         }
+        
+        debugLog("selectedStreamUrl: $selectedStreamUrl")
 
         val directStreamUrl = if (selectedStreamUrl != "-") {
             resolveBerkasdriveStream(selectedStreamUrl)
         } else {
             "-"
         }
+        
+        debugLog("resolved directStreamUrl: $directStreamUrl")
 
         val mirror1 = if (mirrorList.size > 0) MirrorQuality("Berkasdrive", listOf(mirrorList[0])) else null
         val mirror2 = if (mirrorList.size > 1) MirrorQuality("Berkasdrive", listOf(mirrorList[1])) else null
@@ -392,7 +419,9 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
+        debugLog("getMirrorStream called with mirrorId: $mirrorId")
         val directStreamUrl = resolveBerkasdriveStream(mirrorId)
+        debugLog("getMirrorStream resolved to: $directStreamUrl")
         MirrorResponse(
             title = "Mirror Stream",
             id = mirrorId,
@@ -402,6 +431,7 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     private suspend fun resolveBerkasdriveStream(pageUrl: String): String = withContext(Dispatchers.IO) {
+        debugLog("resolveBerkasdriveStream pageUrl: $pageUrl")
         try {
             val html = fetchHtml(pageUrl, BASE_URL)
             val doc = Jsoup.parse(html, pageUrl)
@@ -409,6 +439,7 @@ class NimegamiDirectScraper @Inject constructor(
             // Try 1: Static source tag
             val src = doc.select("video source").attr("abs:src").trim()
             if (src.startsWith("http")) {
+                debugLog("Try 1 Success: $src")
                 return@withContext src
             }
             
@@ -420,19 +451,24 @@ class NimegamiDirectScraper @Inject constructor(
                 val uri = java.net.URI(pageUrl)
                 val hostUrl = "${uri.scheme}://${uri.host}"
                 val apiUrl = if (apiPath.startsWith("http")) apiPath else "$hostUrl$apiPath"
+                debugLog("Try 2 Found API URL: $apiUrl")
                 
                 val jsonStr = fetchHtml(apiUrl, pageUrl)
+                debugLog("Try 2 API Response: $jsonStr")
                 val json = JSONObject(jsonStr)
                 if (json.optBoolean("ok", false)) {
                     val streamUrl = json.getString("url")
                     if (streamUrl.startsWith("http")) {
+                        debugLog("Try 2 Success: $streamUrl")
                         return@withContext streamUrl
                     }
                 }
             }
             
+            debugLog("Resolution failed returning '-'")
             "-"
         } catch (e: Exception) {
+            debugLog("Error in resolveBerkasdriveStream: ${e.message}")
             android.util.Log.e("NimegamiScraper", "Failed to resolve Berkasdrive URL: $pageUrl", e)
             "-"
         }
