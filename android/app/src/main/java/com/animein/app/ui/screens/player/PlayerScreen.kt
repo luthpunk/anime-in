@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Arrangement
@@ -72,6 +73,7 @@ fun PlayerScreen(
     val episodes by viewModel.episodes.collectAsState()
     val animeTitle by viewModel.animeTitle.collectAsState()
     val currentEpisodeTitle by viewModel.currentEpisodeTitle.collectAsState()
+    val currentEpisodeId by viewModel.currentEpisodeId.collectAsState()
     val context = LocalContext.current
 
     var isFullscreen by remember { mutableStateOf(false) }
@@ -670,37 +672,64 @@ fun PlayerScreen(
                                                     }
                                                 }
 
-                                                // Quality chips (center)
+                                                // Quality Dropdown (center)
                                                 val allMirrors = remember(detail) {
                                                     (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
                                                     (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
                                                     (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
                                                 }
-                                                var selectedResolution by remember { mutableStateOf("") }
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    allMirrors.forEach { mirror ->
-                                                        val isSelected = selectedResolution == mirror.resolution
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(RoundedCornerShape(4.dp))
-                                                                .background(
-                                                                    if (isSelected) NeonPurple
-                                                                    else Color.White.copy(alpha = 0.15f)
-                                                                )
-                                                                .clickable {
-                                                                    selectedResolution = mirror.resolution
-                                                                    viewModel.switchMirror(mirror.id)
-                                                                }
-                                                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                                                        ) {
+                                                var selectedResolution by remember(allMirrors) {
+                                                    mutableStateOf(
+                                                        allMirrors.firstOrNull { detail.linkStream?.contains(it.resolution) == true }?.resolution
+                                                            ?: allMirrors.lastOrNull()?.resolution ?: "720p"
+                                                    )
+                                                }
+                                                var showResolutionDropdown by remember { mutableStateOf(false) }
+
+                                                Box {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(Color.White.copy(alpha = 0.15f))
+                                                            .clickable { showResolutionDropdown = true }
+                                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
                                                             Text(
-                                                                text = mirror.resolution,
+                                                                text = selectedResolution,
                                                                 color = Color.White,
                                                                 fontSize = 11.sp,
                                                                 fontWeight = FontWeight.Bold
+                                                            )
+                                                            Spacer(modifier = Modifier.width(3.dp))
+                                                            Icon(
+                                                                imageVector = Icons.Default.ArrowDropDown,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(14.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    DropdownMenu(
+                                                        expanded = showResolutionDropdown,
+                                                        onDismissRequest = { showResolutionDropdown = false },
+                                                        modifier = Modifier.background(DarkSurface)
+                                                    ) {
+                                                        allMirrors.forEach { mirror ->
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = mirror.resolution,
+                                                                        color = if (selectedResolution == mirror.resolution) NeonPurple else Color.White,
+                                                                        fontSize = 12.sp,
+                                                                        fontWeight = FontWeight.Bold
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    selectedResolution = mirror.resolution
+                                                                    viewModel.switchMirror(mirror.id)
+                                                                    showResolutionDropdown = false
+                                                                }
                                                             )
                                                         }
                                                     }
@@ -711,7 +740,7 @@ fun PlayerScreen(
                                                     val nextEpId by viewModel.nextEpisodeId.collectAsState()
                                                     if (nextEpId != null) {
                                                         IconButton(
-                                                            onClick = { onEpisodeClick(nextEpId!!, viewModel.animeId) },
+                                                            onClick = { viewModel.selectEpisode(nextEpId!!) },
                                                             modifier = Modifier.size(36.dp)
                                                         ) {
                                                             Icon(
@@ -822,7 +851,7 @@ fun PlayerScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         rowEpisodes.forEach { episode ->
-                                            val isCurrent = AnimeIdUtils.normalizeEpisodeId(episode.id) == AnimeIdUtils.normalizeEpisodeId(viewModel.episodeId)
+                                            val isCurrent = AnimeIdUtils.normalizeEpisodeId(episode.id) == AnimeIdUtils.normalizeEpisodeId(currentEpisodeId)
                                             Box(
                                                 modifier = Modifier
                                                     .weight(1f)
@@ -830,7 +859,7 @@ fun PlayerScreen(
                                                     .clip(RoundedCornerShape(8.dp))
                                                     .background(if (isCurrent) NeonPurple else DarkSurface)
                                                     .clickable {
-                                                        onEpisodeClick(episode.id, viewModel.animeId)
+                                                        viewModel.selectEpisode(episode.id)
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {

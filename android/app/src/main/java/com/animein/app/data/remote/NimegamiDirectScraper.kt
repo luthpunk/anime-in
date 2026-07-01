@@ -84,10 +84,17 @@ class NimegamiDirectScraper @Inject constructor(
             .trim().trimEnd(':').trim()
 
         // 2. Episode label
-        // Priority: .eps class (shows current uploaded episode like "Eps. 11")
+        // Priority:
+        // 1. .eps class (shows current uploaded episode like "Eps. 11")
+        // 2. li item containing "Episode:" from info list (e.g. <li><strong>Episode:</strong> 16</li>)
+        // 3. anchorTitle suffix fallback
         val epsClass = item.select(".eps").text().trim()
+        val liEpisode = item.select("li").firstOrNull { it.text().contains("Episode", ignoreCase = true) }
+        val liEpisodeVal = liEpisode?.text()?.substringAfter("Episode:")?.trim() ?: ""
+        
         val episodeLabel = when {
-            epsClass.isNotBlank() -> epsClass  // e.g. "Eps. 11"
+            epsClass.isNotBlank() -> epsClass
+            liEpisodeVal.isNotBlank() -> "Eps. $liEpisodeVal"
             anchorTitle.contains("Movie", ignoreCase = true) -> "Movie"
             else -> {
                 // Try to extract "Episode X" or "Episode X – Y" from anchor title suffix

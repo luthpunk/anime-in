@@ -23,12 +23,15 @@ class PlayerViewModel @Inject constructor(
     val simpleCache: SimpleCache
 ) : ViewModel() {
 
-    val episodeId: String = savedStateHandle.get<String>("episodeId")?.let {
+    val initialEpisodeId: String = savedStateHandle.get<String>("episodeId")?.let {
         AnimeIdUtils.normalizeEpisodeId(java.net.URLDecoder.decode(it, "UTF-8"))
     } ?: ""
     val animeId: String = savedStateHandle.get<String>("animeId")?.let {
         AnimeIdUtils.normalizeAnimeId(java.net.URLDecoder.decode(it, "UTF-8"))
     } ?: ""
+
+    private val _currentEpisodeId = MutableStateFlow(initialEpisodeId)
+    val currentEpisodeId: StateFlow<String> = _currentEpisodeId
 
     private val _playerState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val playerState: StateFlow<PlayerUiState> = _playerState
@@ -52,20 +55,32 @@ class PlayerViewModel @Inject constructor(
     val currentEpisodeTitle: StateFlow<String> = _currentEpisodeTitle
 
     init {
-        fetchEpisodeDetail()
-        loadSavedProgress()
-        loadNextEpisodeId()
+        viewModelScope.launch {
+            _currentEpisodeId.collect { epId ->
+                if (epId.isNotEmpty()) {
+                    fetchEpisodeDetail(epId)
+                    loadSavedProgress(epId)
+                    loadNextEpisodeId(epId)
+                }
+            }
+        }
     }
 
-    fun fetchEpisodeDetail() {
-        if (episodeId.isEmpty()) {
+    fun selectEpisode(newEpisodeId: String) {
+        val cleanEpId = AnimeIdUtils.normalizeEpisodeId(newEpisodeId)
+        if (cleanEpId == _currentEpisodeId.value) return
+        _currentEpisodeId.value = cleanEpId
+    }
+
+    fun fetchEpisodeDetail(epId: String) {
+        if (epId.isEmpty()) {
             _playerState.value = PlayerUiState.Error("ID Episode tidak valid")
             return
         }
         viewModelScope.launch {
             _playerState.value = PlayerUiState.Loading
             try {
-                val response = repository.getEpisodeDetail(episodeId)
+                val response = repository.getEpisodeDetail(epId)
                 // Selalu coba resolve vidhide terlebih dahulu
                 val finalResponse = autoResolveVidhideOrFallback(response)
                 _playerState.value = PlayerUiState.Success(finalResponse)
@@ -134,19 +149,20 @@ class PlayerViewModel @Inject constructor(
         return response
     }
 
-    private fun loadSavedProgress() {
+    private fun loadSavedProgress(epId: String) {
         viewModelScope.launch {
-            val saved = repository.getContinueWatchingForEpisode(episodeId)
+            val saved = repository.getContinueWatchingForEpisode(epId)
             _savedProgress.value = saved?.progress ?: 0L
         }
     }
 
     fun saveProgress(progress: Long, duration: Long, animeTitle: String, episodeTitle: String, thumb: String) {
-        if (episodeId.isEmpty() || animeId.isEmpty()) return
+        val epId = _currentEpisodeId.value
+        if (epId.isEmpty() || animeId.isEmpty()) return
         viewModelScope.launch {
             repository.insertContinueWatching(
                 ContinueWatchingEntity(
-                    episodeId = episodeId,
+                    episodeId = epId,
                     animeId = animeId,
                     animeTitle = animeTitle,
                     episodeTitle = episodeTitle,
@@ -162,14 +178,14 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val currentState = _playerState.value
             if (currentState is PlayerUiState.Success) {
-                _playerState.value = PlayerUiState.Loading
+                // Do NOT set Loading state to prevent destroying Composable tree and releasing player
                 try {
                     val mirrorRes = repository.getMirrorStream(animeId, mirrorId)
                     val newStream = mirrorRes.linkStream ?: mirrorRes.streamLink
                     val updated = currentState.data.copy(linkStream = newStream)
                     _playerState.value = PlayerUiState.Success(updated)
                 } catch (e: Exception) {
-                    _playerState.value = PlayerUiState.Success(currentState.data) // Fallback to original
+                    // fallback
                 }
             }
         }
@@ -179,7 +195,7 @@ class PlayerViewModel @Inject constructor(
         _playbackSpeed.value = speed
     }
 
-    private fun loadNextEpisodeId() {
+    private fun loadNextEpisodeId(epId: String) {
         if (animeId.isEmpty()) return
         viewModelScope.launch {
             try {
@@ -190,16 +206,16 @@ class PlayerViewModel @Inject constructor(
                 _episodes.value = episodes
                 // Find the current episode title by matching episodeId
                 val currentEp = episodes.firstOrNull {
-                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
+                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(epId)
                 }
                 if (currentEp != null) {
                     _currentEpisodeTitle.value = currentEp.title
                 }
                 val currentIndex = episodes.indexOfFirst {
-                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
+                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(epId)
                 }
                 if (currentIndex != -1) {
-                    val currentEpNum = extractEpisodeNumOnly(episodeId)
+                    val currentEpNum = extractEpisodeNumOnly(epId)
                     val nextEp = episodes.firstOrNull {
                         val num = extractEpisodeNumOnly(it.id)
                         num == currentEpNum + 1

@@ -644,16 +644,6 @@ fun ContinueWatchingCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
-        // Episode label (secondary)
-        Text(
-            episodeLabel,
-            color = NeonPurple,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 2.dp)
-        )
     }
 }
 
