@@ -90,7 +90,7 @@ class AnimeRepository @Inject constructor(
         return try {
             directScraper.getGenres()
         } catch (e: Exception) {
-            GenreListResponse("error", emptyList())
+            GenreListResponse(emptyList())
         }
     }
 
