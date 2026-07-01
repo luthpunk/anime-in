@@ -153,15 +153,27 @@ class OtakudesuDirectScraper @Inject constructor(
         val pageUrl = if (normalizedId.startsWith("http")) normalizedId else "$baseUrl$normalizedId"
         val doc = fetchDocument(pageUrl)
         
-        val defaultMirrorContent = doc.select(".mirrorstream a[data-default=true]").first()?.attr("data-content")
-            ?: doc.select(".mirrorstream a[data-content]").first()?.attr("data-content")
-            
-        val iframeUrl = if (!defaultMirrorContent.isNullOrBlank()) {
-            getIframeFromDataContent(defaultMirrorContent)
+        val vidhideAnchor = doc.select("ul.m360p li a, ul.m480p li a, ul.m720p li a").firstOrNull { 
+            it.text().contains("vidhide", ignoreCase = true) || it.text().contains("hide", ignoreCase = true)
+        }
+        val vidhideContent = vidhideAnchor?.attr("data-content")?.ifBlank { vidhideAnchor.attr("href") }
+        
+        val iframeUrl = if (!vidhideContent.isNullOrBlank()) {
+            if (vidhideContent.startsWith("eyJ")) {
+                getIframeFromDataContent(vidhideContent)
+            } else {
+                vidhideContent
+            }
         } else {
-            doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()
-                ?.absUrl("src")
-                ?.ifBlank { doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()?.attr("src") }
+            val defaultMirrorContent = doc.select(".mirrorstream a[data-default=true]").first()?.attr("data-content")
+                ?: doc.select(".mirrorstream a[data-content]").first()?.attr("data-content")
+            if (!defaultMirrorContent.isNullOrBlank()) {
+                getIframeFromDataContent(defaultMirrorContent)
+            } else {
+                doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()
+                    ?.absUrl("src")
+                    ?.ifBlank { doc.select("#lightsVideo #embed_holder iframe, #pembed iframe").first()?.attr("src") }
+            }
         }
 
         EpisodeDetailResponse(
@@ -181,7 +193,7 @@ class OtakudesuDirectScraper @Inject constructor(
         val iframeUrl = if (mirrorId.startsWith("eyJ")) {
             getIframeFromDataContent(mirrorId)
         } else {
-            null
+            mirrorId
         }
         val streamUrl = iframeUrl?.let { extractStreamUrl(it) } ?: "-"
         MirrorResponse(
@@ -387,9 +399,13 @@ class OtakudesuDirectScraper @Inject constructor(
             quality = quality,
             mirrorList = doc.select(selector).mapNotNull { item ->
                 val anchor = item.select("a").first() ?: return@mapNotNull null
+                val host = anchor.text().trim()
+                if (!host.contains("vidhide", ignoreCase = true) && !host.contains("hide", ignoreCase = true)) {
+                    return@mapNotNull null
+                }
                 val id = anchor.attr("data-content").ifBlank { anchor.attr("href") }
                 MirrorItem(
-                    host = anchor.text().trim(),
+                    host = host,
                     id = id
                 )
             }
