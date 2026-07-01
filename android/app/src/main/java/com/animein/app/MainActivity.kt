@@ -1,34 +1,49 @@
 package com.animein.app
 
 import android.content.res.Configuration
-import android.os.Bundle
 import android.net.Uri
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.focus.focusTarget
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.animein.app.ui.screens.animelist.AnimeListScreen
+import com.animein.app.ui.screens.animelist.AnimeListViewModel
 import com.animein.app.ui.screens.detail.DetailScreen
 import com.animein.app.ui.screens.detail.DetailViewModel
 import com.animein.app.ui.screens.genre.GenreScreen
@@ -62,6 +77,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class NavigationItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainApp() {
@@ -72,21 +93,19 @@ fun MainApp() {
         NavigationItem("genres_list", "Genre", Icons.Default.Menu),
         NavigationItem("history", "Koleksi", Icons.Default.List)
     )
-
     var currentRoute by remember { mutableStateOf("home") }
 
-    // Detect Android TV / large screen
     val configuration = LocalConfiguration.current
-    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
     val showNav = currentRoute in listOf("home", "schedule", "genres_list", "history")
 
     if (isTV) {
-        // TV layout: NavigationRail on the left, content fills the rest
+        // ── Android TV layout: NavigationRail on left ──────────────────────
         Row(modifier = Modifier.fillMaxSize()) {
             if (showNav) {
                 NavigationRail(
                     containerColor = DarkSurface,
-                    contentColor = NeonPurple,
                     modifier = Modifier.fillMaxHeight()
                 ) {
                     navItems.forEach { item ->
@@ -97,7 +116,9 @@ fun MainApp() {
                             onClick = {
                                 currentRoute = item.route
                                 navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                    popUpTo(navController.graph.startDestinationId) {
+                                        saveState = true
+                                    }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -107,9 +128,9 @@ fun MainApp() {
                                     imageVector = item.icon,
                                     contentDescription = item.label,
                                     tint = when {
-                                        selected -> NeonPurple
+                                        selected  -> NeonPurple
                                         isFocused -> Color.White
-                                        else -> TextSecondary
+                                        else      -> TextSecondary
                                     }
                                 )
                             },
@@ -117,9 +138,9 @@ fun MainApp() {
                                 Text(
                                     item.label,
                                     color = when {
-                                        selected -> Color.White
+                                        selected  -> Color.White
                                         isFocused -> Color.White
-                                        else -> TextSecondary
+                                        else      -> TextSecondary
                                     }
                                 )
                             },
@@ -131,16 +152,17 @@ fun MainApp() {
                     }
                 }
             }
+            // NavHost fills the remaining space
             NavHost(
                 navController = navController,
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize()
             ) {
-                buildNavGraph(navController) { currentRoute = it }
+                appNavGraph(navController) { currentRoute = it }
             }
         }
     } else {
-        // Phone/Tablet layout: NavigationBar at the bottom
+        // ── Phone / Tablet layout: NavigationBar at bottom ─────────────────
         Scaffold(
             bottomBar = {
                 if (showNav) {
@@ -155,7 +177,9 @@ fun MainApp() {
                                 onClick = {
                                     currentRoute = item.route
                                     navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -189,164 +213,147 @@ fun MainApp() {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                buildNavGraph(navController) { currentRoute = it }
+                appNavGraph(navController) { currentRoute = it }
             }
         }
     }
 }
 
-@Composable
-private fun androidx.navigation.NavGraphBuilder.buildNavGraph(
-    navController: androidx.navigation.NavHostController,
+// ── Shared NavGraph (no NavHost here — only composable destinations) ────────
+private fun NavGraphBuilder.appNavGraph(
+    navController: NavHostController,
     onRouteChange: (String) -> Unit
 ) {
-        NavHost(
-            navController = navController,
-            startDestination = "home",
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
     composable("home") {
-            onRouteChange("home")
-            val viewModel: HomeViewModel = hiltViewModel()
-            HomeScreen(
-                viewModel = viewModel,
-                onAnimeClick = { id -> navigateToDetail(navController, id) },
-                onSeeAllClick = { type, title ->
-                    if (type == "ongoing") {
-                        navController.navigate("schedule") {
-                            popUpTo("home") { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    } else {
-                        navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
-                    }
-                },
-                onEpisodePlay = { episodeId, animeId ->
-                    navigateToPlayer(navController, episodeId, animeId)
-                }
-            )
-        }
-
-        composable("schedule") {
-            onRouteChange("schedule")
-            val viewModel: ScheduleViewModel = hiltViewModel()
-            ScheduleScreen(
-                viewModel = viewModel,
-                onAnimeClick = { id -> navigateToDetail(navController, id) }
-            )
-        }
-
-        composable("genres_list") {
-            onRouteChange("genres_list")
-            val viewModel: GenreListViewModel = hiltViewModel()
-            GenreListScreen(
-                viewModel = viewModel,
-                onGenreClick = { id, name ->
-                    navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
-                }
-            )
-        }
-
-        composable("history") {
-            onRouteChange("history")
-            val viewModel: HistoryViewModel = hiltViewModel()
-            HistoryScreen(
-                viewModel = viewModel,
-                onAnimeClick = { id -> navigateToDetail(navController, id) }
-            )
-        }
-
-        composable(
-            route = "detail/{animeId}",
-            arguments = listOf(navArgument("animeId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            onRouteChange("detail")
-            val viewModel: DetailViewModel = hiltViewModel()
-            DetailScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onEpisodeClick = { episodeId, animeId ->
-                    navigateToPlayer(navController, episodeId, animeId)
-                }
-            )
-        }
-
-        composable(
-            route = "player/{episodeId}/{animeId}",
-            arguments = listOf(
-                navArgument("episodeId") { type = NavType.StringType },
-                navArgument("animeId") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            onRouteChange("player")
-            val viewModel: PlayerViewModel = hiltViewModel()
-            val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
-            PlayerScreen(
-                viewModel = viewModel,
-                onBackClick = {
-                    val encodedAnimeId = java.net.URLEncoder.encode(animeId, "UTF-8")
-                    navController.navigate("detail/$encodedAnimeId") {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+        onRouteChange("home")
+        val viewModel: HomeViewModel = hiltViewModel()
+        HomeScreen(
+            viewModel = viewModel,
+            onAnimeClick = { id -> navigateToDetail(navController, id) },
+            onSeeAllClick = { type, title ->
+                if (type == "ongoing") {
+                    navController.navigate("schedule") {
+                        popUpTo("home") { saveState = true }
                         launchSingleTop = true
+                        restoreState = true
                     }
-                },
-                onEpisodeClick = { nextEpId, aId ->
-                    val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
-                    val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
-                    navController.navigate("player/$encodedEpId/$encodedAnimeId") {
-                        popUpTo("player/{episodeId}/{animeId}") { inclusive = true }
-                    }
+                } else {
+                    navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
                 }
-            )
-        }
+            },
+            onEpisodePlay = { episodeId, animeId ->
+                navigateToPlayer(navController, episodeId, animeId)
+            }
+        )
+    }
 
-        composable(
-            route = "genre/{genreId}/{genreName}",
-            arguments = listOf(
-                navArgument("genreId") { type = NavType.StringType },
-                navArgument("genreName") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            onRouteChange("genre")
-            val viewModel: GenreViewModel = hiltViewModel()
-            GenreScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onAnimeClick = { id -> navigateToDetail(navController, id) }
-            )
-        }
+    composable("schedule") {
+        onRouteChange("schedule")
+        val viewModel: ScheduleViewModel = hiltViewModel()
+        ScheduleScreen(
+            viewModel = viewModel,
+            onAnimeClick = { id -> navigateToDetail(navController, id) }
+        )
+    }
 
-        composable(
-            route = "list/{listType}/{listTitle}",
-            arguments = listOf(
-                navArgument("listType") { type = NavType.StringType },
-                navArgument("listTitle") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            onRouteChange("list")
-            val viewModel: com.animein.app.ui.screens.animelist.AnimeListViewModel = hiltViewModel()
-            com.animein.app.ui.screens.animelist.AnimeListScreen(
-                viewModel = viewModel,
-                onBackClick = { navController.popBackStack() },
-                onAnimeClick = { id -> navigateToDetail(navController, id) }
-            )
-        }
+    composable("genres_list") {
+        onRouteChange("genres_list")
+        val viewModel: GenreListViewModel = hiltViewModel()
+        GenreListScreen(
+            viewModel = viewModel,
+            onGenreClick = { id, name ->
+                navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
+            }
+        )
+    }
+
+    composable("history") {
+        onRouteChange("history")
+        val viewModel: HistoryViewModel = hiltViewModel()
+        HistoryScreen(
+            viewModel = viewModel,
+            onAnimeClick = { id -> navigateToDetail(navController, id) }
+        )
+    }
+
+    composable(
+        route = "detail/{animeId}",
+        arguments = listOf(navArgument("animeId") { type = NavType.StringType })
+    ) {
+        onRouteChange("detail")
+        val viewModel: DetailViewModel = hiltViewModel()
+        DetailScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+            onEpisodeClick = { episodeId, animeId ->
+                navigateToPlayer(navController, episodeId, animeId)
+            }
+        )
+    }
+
+    composable(
+        route = "player/{episodeId}/{animeId}",
+        arguments = listOf(
+            navArgument("episodeId") { type = NavType.StringType },
+            navArgument("animeId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        onRouteChange("player")
+        val viewModel: PlayerViewModel = hiltViewModel()
+        val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
+        PlayerScreen(
+            viewModel = viewModel,
+            onBackClick = {
+                val encodedAnimeId = java.net.URLEncoder.encode(animeId, "UTF-8")
+                navController.navigate("detail/$encodedAnimeId") {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                    launchSingleTop = true
+                }
+            },
+            onEpisodeClick = { nextEpId, aId ->
+                val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
+                val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
+                navController.navigate("player/$encodedEpId/$encodedAnimeId") {
+                    popUpTo("player/{episodeId}/{animeId}") { inclusive = true }
+                }
+            }
+        )
+    }
+
+    composable(
+        route = "genre/{genreId}/{genreName}",
+        arguments = listOf(
+            navArgument("genreId") { type = NavType.StringType },
+            navArgument("genreName") { type = NavType.StringType }
+        )
+    ) {
+        onRouteChange("genre")
+        val viewModel: GenreViewModel = hiltViewModel()
+        GenreScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+            onAnimeClick = { id -> navigateToDetail(navController, id) }
+        )
+    }
+
+    composable(
+        route = "list/{listType}/{listTitle}",
+        arguments = listOf(
+            navArgument("listType") { type = NavType.StringType },
+            navArgument("listTitle") { type = NavType.StringType }
+        )
+    ) {
+        onRouteChange("list")
+        val viewModel: AnimeListViewModel = hiltViewModel()
+        AnimeListScreen(
+            viewModel = viewModel,
+            onBackClick = { navController.popBackStack() },
+            onAnimeClick = { id -> navigateToDetail(navController, id) }
+        )
     }
 }
 
-data class NavigationItem(
-    val route: String,
-    val label: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector
-)
-
-private fun navigateToDetail(
-    navController: androidx.navigation.NavHostController,
-    rawAnimeId: String
-) {
+private fun navigateToDetail(navController: NavHostController, rawAnimeId: String) {
     val animeId = AnimeIdUtils.normalizeAnimeId(rawAnimeId)
     if (animeId.isNotBlank()) {
         navController.navigate("detail/${Uri.encode(animeId)}")
@@ -354,7 +361,7 @@ private fun navigateToDetail(
 }
 
 private fun navigateToPlayer(
-    navController: androidx.navigation.NavHostController,
+    navController: NavHostController,
     rawEpisodeId: String,
     rawAnimeId: String
 ) {
