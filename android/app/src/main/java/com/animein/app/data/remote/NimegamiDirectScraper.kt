@@ -316,11 +316,12 @@ class NimegamiDirectScraper @Inject constructor(
                 .trim()
             val base64Data = el.attr("data")
             if (base64Data.isNotBlank()) {
+                val safeId = base64Data.replace("/", "_").replace("+", "-").replace("=", "")
                 episodes.add(
                     EpisodeItem(
                         title = epTitle,
-                        id = base64Data,
-                        link = base64Data,
+                        id = safeId,
+                        link = safeId,
                         uploadedOn = null
                     )
                 )
@@ -348,7 +349,8 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
-        val decodedJsonStr = String(Base64.decode(episodeId, Base64.DEFAULT), Charsets.UTF_8)
+        val restored = episodeId.replace("_", "/").replace("-", "+")
+        val decodedJsonStr = String(Base64.decode(restored, Base64.DEFAULT), Charsets.UTF_8)
         val jsonArray = JSONArray(decodedJsonStr)
         
         var selectedStreamUrl = "-"
