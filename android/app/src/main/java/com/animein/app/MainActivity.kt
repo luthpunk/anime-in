@@ -5,7 +5,9 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -108,6 +110,8 @@ fun MainApp() {
                     containerColor = DarkSurface,
                     modifier = Modifier.fillMaxHeight()
                 ) {
+                    // Push items to vertical center
+                    Spacer(modifier = Modifier.weight(1f))
                     navItems.forEach { item ->
                         val selected = currentRoute == item.route
                         var isFocused by remember { mutableStateOf(false) }
@@ -150,6 +154,7 @@ fun MainApp() {
                             modifier = Modifier.onFocusChanged { isFocused = it.isFocused }
                         )
                     }
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
             // NavHost fills the remaining space

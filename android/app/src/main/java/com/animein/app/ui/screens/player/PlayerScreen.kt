@@ -30,6 +30,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.style.TextOverflow
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -79,10 +81,14 @@ fun PlayerScreen(
     val isVideoLoading by viewModel.isVideoLoading.collectAsState()
     val context = LocalContext.current
 
-    var isFullscreen by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+
+    var isFullscreen by remember { mutableStateOf(isTV) }
 
     BackHandler(enabled = true) {
-        if (isFullscreen) {
+        if (isFullscreen && !isTV) {
             isFullscreen = false
         } else {
             onBackClick()
