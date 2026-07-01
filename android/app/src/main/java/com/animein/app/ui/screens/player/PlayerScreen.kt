@@ -73,6 +73,7 @@ fun PlayerScreen(
     val savedProgress by viewModel.savedProgress.collectAsState()
     val episodes by viewModel.episodes.collectAsState()
     val animeTitle by viewModel.animeTitle.collectAsState()
+    val animeSynopsis by viewModel.animeSynopsis.collectAsState()
     val currentEpisodeTitle by viewModel.currentEpisodeTitle.collectAsState()
     val currentEpisodeId by viewModel.currentEpisodeId.collectAsState()
     val isVideoLoading by viewModel.isVideoLoading.collectAsState()
@@ -155,8 +156,8 @@ fun PlayerScreen(
                             }
                             var selectedResolution by remember(allMirrors) {
                                 mutableStateOf(
-                                    allMirrors.firstOrNull { detail.linkStream?.contains(it.resolution) == true }?.resolution
-                                        ?: allMirrors.lastOrNull()?.resolution ?: "720p"
+                                    allMirrors.firstOrNull { it.resolution == "480p" }?.resolution
+                                        ?: allMirrors.firstOrNull()?.resolution ?: "480p"
                                 )
                             }
 
@@ -293,33 +294,6 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Custom auto-resolution downgrade on long buffering
-                            LaunchedEffect(isBuffering) {
-                                if (isBuffering) {
-                                    delay(6000) // if buffering continues for 6 seconds
-                                    if (isBuffering) {
-                                        val currentResRank = when (selectedResolution) {
-                                            "720p" -> 3
-                                            "480p" -> 2
-                                            "360p" -> 1
-                                            else -> 0
-                                        }
-                                        if (currentResRank > 1) {
-                                            val targetRank = currentResRank - 1
-                                            val targetRes = when (targetRank) {
-                                                2 -> "480p"
-                                                1 -> "360p"
-                                                else -> ""
-                                            }
-                                            val lowerMirror = allMirrors.firstOrNull { it.resolution == targetRes }
-                                            if (lowerMirror != null) {
-                                                selectedResolution = lowerMirror.resolution
-                                                viewModel.switchMirror(lowerMirror.id)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
 
                             // Set playback speed
                             LaunchedEffect(speed) {
@@ -903,6 +877,39 @@ fun PlayerScreen(
                                 )
                             } else {
                                 Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
+                        // Synopsis block
+                        if (animeSynopsis.isNotBlank()) {
+                            item {
+                                var synopsisExpanded by remember { mutableStateOf(false) }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "Sinopsis",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    animeSynopsis,
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    lineHeight = 20.sp,
+                                    maxLines = if (synopsisExpanded) Int.MAX_VALUE else 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    if (synopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
+                                    color = NeonPurple,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
 

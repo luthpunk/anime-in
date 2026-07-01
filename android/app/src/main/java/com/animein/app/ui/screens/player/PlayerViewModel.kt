@@ -57,6 +57,8 @@ class PlayerViewModel @Inject constructor(
     private val _animeThumb = MutableStateFlow("")
     private val _animeTitle = MutableStateFlow("")
     val animeTitle: StateFlow<String> = _animeTitle
+    private val _animeSynopsis = MutableStateFlow("")
+    val animeSynopsis: StateFlow<String> = _animeSynopsis
     private val _currentEpisodeTitle = MutableStateFlow("")
     val currentEpisodeTitle: StateFlow<String> = _currentEpisodeTitle
 
@@ -221,6 +223,7 @@ class PlayerViewModel @Inject constructor(
                 val detail = repository.getAnimeDetail(animeId)
                 _animeThumb.value = detail.thumb ?: ""
                 _animeTitle.value = detail.title
+                _animeSynopsis.value = detail.synopsis ?: ""
                 val episodesList = detail.episodeList ?: emptyList()
                 _episodes.value = episodesList
 
