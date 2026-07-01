@@ -374,6 +374,25 @@ fun OngoingAnimeCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            if (anime.isUpdated != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(
+                            color = if (anime.isUpdated) Color(0xFF2E7D32).copy(alpha = 0.9f) else Color(0xFF757575).copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (anime.isUpdated) "Updated" else "Belum Update",
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(

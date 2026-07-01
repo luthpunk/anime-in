@@ -88,7 +88,7 @@ class NimegamiDirectScraper @Inject constructor(
         // 1. .eps class (shows current uploaded episode like "Eps. 11")
         // 2. li item containing "Episode:" from info list (e.g. <li><strong>Episode:</strong> 16</li>)
         // 3. anchorTitle suffix fallback
-        val epsClass = item.select(".eps").text().trim()
+        val epsClass = item.select(".eps, .eps_ongo").text().trim()
         val liEpisode = item.select("li").firstOrNull { it.text().contains("Episode", ignoreCase = true) }
         val liEpisodeVal = liEpisode?.text()?.substringAfter("Episode:")?.trim() ?: ""
         
@@ -116,12 +116,12 @@ class NimegamiDirectScraper @Inject constructor(
         val ongoingList = mutableListOf<AnimeOngoing>()
         val completedList = mutableListOf<AnimeCompleted>()
 
-        // 1. Fetch Ongoing List from https://nimegami.id/anime-terbaru-sub-indo/ (first 10 items)
+        // 1. Fetch Ongoing List from https://nimegami.id/anime-terbaru-sub-indo/ (fetch up to 20 to sort)
         try {
             val docOngoing = fetchDocument("${BASE_URL}anime-terbaru-sub-indo/")
             val articlesOngoing = docOngoing.select("article")
             articlesOngoing.forEach { item ->
-                if (ongoingList.size >= 10) return@forEach
+                if (ongoingList.size >= 20) return@forEach
                 val anchor = item.select("a").first() ?: return@forEach
                 val link = anchor.absUrl("href")
                 val id = AnimeIdUtils.normalizeAnimeId(link)
@@ -137,6 +137,8 @@ class NimegamiDirectScraper @Inject constructor(
                     else -> "Ongoing"
                 }
 
+                val isUpdated = item.select(".ongoing_updated").hasClass("updated_yes")
+
                 ongoingList.add(
                     AnimeOngoing(
                         title = title,
@@ -145,7 +147,8 @@ class NimegamiDirectScraper @Inject constructor(
                         episode = displayEpisode,
                         uploadedOn = null,
                         dayUpdated = null,
-                        link = link
+                        link = link,
+                        isUpdated = isUpdated
                     )
                 )
             }
@@ -215,9 +218,11 @@ class NimegamiDirectScraper @Inject constructor(
             currentPage++
         }
 
+        val sortedOngoing = (ongoingList.filter { it.isUpdated == true } + ongoingList.filter { it.isUpdated != true }).take(10)
+
         HomeResponse(
             status = "success",
-            home = HomeData(ongoing = ongoingList, complete = completedList)
+            home = HomeData(ongoing = sortedOngoing, complete = completedList)
         )
     }
 
@@ -668,6 +673,27 @@ class NimegamiDirectScraper @Inject constructor(
 
     suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
         try {
+            // 1. Fetch ongoing details list
+            val ongoingDetails = mutableMapOf<String, Triple<String, String, Boolean>>() // id -> (thumb, episode, isUpdated)
+            try {
+                val docOngoing = fetchDocument("${BASE_URL}anime-terbaru-sub-indo/")
+                docOngoing.select("article").forEach { item ->
+                    val anchor = item.select("a").first() ?: return@forEach
+                    val link = anchor.absUrl("href")
+                    val id = AnimeIdUtils.normalizeAnimeId(link)
+                    val thumb = item.select("img").first()?.absUrl("src") ?: ""
+                    
+                    val (_, episodeLabel, _) = parseArticleInfo(item)
+                    val displayEpisode = if (episodeLabel.isNotBlank()) episodeLabel else "Ongoing"
+                    
+                    val isUpdated = item.select(".ongoing_updated").hasClass("updated_yes")
+                    ongoingDetails[id] = Triple(thumb, displayEpisode, isUpdated)
+                }
+            } catch (e: Exception) {
+                // ignore ongoing list error
+            }
+
+            // 2. Fetch schedule list and merge details
             val url = "${BASE_URL}jadwal-rilis/"
             val doc = fetchDocument(url)
             val scheduleList = mutableListOf<ScheduleItem>()
@@ -680,7 +706,22 @@ class NimegamiDirectScraper @Inject constructor(
                     val name = a.text().trim()
                     val link = a.absUrl("href")
                     val id = AnimeIdUtils.normalizeAnimeId(link)
-                    animeItems.add(ScheduleAnimeItem(animeName = name, id = id, link = link))
+                    
+                    val detail = ongoingDetails[id]
+                    val thumb = detail?.first
+                    val episode = detail?.second
+                    val isUpdated = detail?.third
+                    
+                    animeItems.add(
+                        ScheduleAnimeItem(
+                            animeName = name,
+                            id = id,
+                            link = link,
+                            thumb = thumb,
+                            episode = episode,
+                            isUpdated = isUpdated
+                        )
+                    )
                 }
                 
                 if (day.isNotBlank() && animeItems.isNotEmpty()) {

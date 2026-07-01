@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.animein.app.data.model.ScheduleItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
@@ -194,34 +196,97 @@ fun DayScheduleSection(
                 } else {
                     item.animeList.forEachIndexed { index, anime ->
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onAnimeClick(anime.id) }
-                                .padding(horizontal = 16.dp, vertical = 11.dp)
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Index number
-                            Text(
-                                text = "${index + 1}",
-                                color = if (isToday) Color(0xFF4CAF50) else TextSecondary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.width(22.dp)
-                            )
-                            Text(
-                                text = anime.animeName,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
+                            // 1. Thumbnail Box with Episode Badge
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 90.dp, height = 54.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black)
+                            ) {
+                                if (!anime.thumb.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = anime.thumb,
+                                        contentDescription = anime.animeName,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.White.copy(alpha = 0.05f))
+                                    )
+                                }
+                                
+                                // Episode badge
+                                val epText = anime.episode ?: "Ongoing"
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .background(
+                                            color = Color.Black.copy(alpha = 0.75f),
+                                            shape = RoundedCornerShape(topEnd = 6.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = epText,
+                                        color = Color.White,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            // 2. Info Column (Title + Update Status Badge)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = anime.animeName,
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                
+                                // Update status badge
+                                val isUpdated = anime.isUpdated ?: false
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            color = if (isUpdated) Color(0xFF2E7D32).copy(alpha = 0.15f) else Color(0xFF757575).copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isUpdated) Color(0xFF4CAF50).copy(alpha = 0.5f) else Color(0xFF757575).copy(alpha = 0.5f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (isUpdated) "Updated" else "Belum Update",
+                                        color = if (isUpdated) Color(0xFF81C784) else Color(0xFFB0BEC5),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = if (isToday) Color(0xFF4CAF50).copy(alpha = 0.7f) else TextSecondary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                         if (index < item.animeList.size - 1) {

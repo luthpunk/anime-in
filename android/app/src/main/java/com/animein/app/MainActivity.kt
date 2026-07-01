@@ -128,7 +128,15 @@ fun MainApp() {
                         navigateToDetail(navController, id)
                     },
                     onSeeAllClick = { type, title ->
-                        navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
+                        if (type == "ongoing") {
+                            navController.navigate("schedule") {
+                                popUpTo("home") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else {
+                            navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
+                        }
                     },
                     onEpisodePlay = { episodeId, animeId ->
                         navigateToPlayer(navController, episodeId, animeId)

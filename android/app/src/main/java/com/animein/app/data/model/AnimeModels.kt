@@ -20,7 +20,8 @@ data class AnimeOngoing(
     @SerializedName("episode") val episode: String,
     @SerializedName("uploaded_on") val uploadedOn: String?,
     @SerializedName("day_updated") val dayUpdated: String?,
-    @SerializedName("link") val link: String?
+    @SerializedName("link") val link: String?,
+    @SerializedName("is_updated") val isUpdated: Boolean? = null
 )
 
 data class AnimeCompleted(
@@ -178,5 +179,8 @@ data class ScheduleItem(
 data class ScheduleAnimeItem(
     @SerializedName("anime_name") val animeName: String,
     @SerializedName("id") val id: String,
-    @SerializedName("link") val link: String
+    @SerializedName("link") val link: String,
+    @SerializedName("thumb") val thumb: String? = null,
+    @SerializedName("episode") val episode: String? = null,
+    @SerializedName("is_updated") val isUpdated: Boolean? = null
 )
