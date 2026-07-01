@@ -473,9 +473,18 @@ fun ContinueWatchingCard(
     modifier: Modifier = Modifier
 ) {
     val progressPercent = if (item.duration > 0) item.progress.toFloat() / item.duration.toFloat() else 0f
-    val episodeNumber = remember(item.episodeTitle) {
-        val matches = Regex("\\d+").findAll(item.episodeTitle).map { it.value }.toList()
-        if (matches.isNotEmpty()) "Ep ${matches.last()}" else "Tonton"
+    val episodeLabel = remember(item.episodeTitle) {
+        // Try to get "Episode X" from episodeTitle (e.g. "[Nimegami] AnimeTitle_Episode_01_(720p)")
+        val cleaned = item.episodeTitle
+            .replace(Regex("\\[.*?\\]"), "")
+            .replace(Regex("\\(\\d+p\\)"), "")
+            .replace("_", " ").trim()
+        val epMatch = Regex("(?i)(?:episode|ep)[_ ]*(\\d+)").find(cleaned)
+        if (epMatch != null) "Ep ${epMatch.groupValues[1]}"
+        else {
+            val nums = Regex("\\d+").findAll(cleaned).map { it.value.toIntOrNull() ?: 0 }.filter { it in 1..999 }.toList()
+            if (nums.isNotEmpty()) "Ep ${nums.last()}" else "Tonton"
+        }
     }
     var showDeleteOverlay by remember { mutableStateOf(false) }
 
@@ -549,22 +558,19 @@ fun ContinueWatchingCard(
                     )
                 }
             }
-            // Episode overlay at bottom
+            // Episode badge at bottom-left
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .padding(bottom = 3.dp) // Leave room for progress bar
-                    .fillMaxWidth()
+                    .background(NeonPurple.copy(alpha = 0.85f), RoundedCornerShape(topEnd = 6.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = episodeNumber,
+                    text = episodeLabel,
                     color = Color.White,
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             }
             // Progress bar at bottom
@@ -629,18 +635,21 @@ fun ContinueWatchingCard(
             }
         }
         Spacer(modifier = Modifier.height(6.dp))
+        // Anime title (primary, larger)
         Text(
-            item.episodeTitle,
+            item.animeTitle.ifBlank { "Anime" },
             color = Color.White,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+        // Episode label (secondary)
         Text(
-            item.animeTitle,
-            color = TextSecondary,
+            episodeLabel,
+            color = NeonPurple,
             fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp)

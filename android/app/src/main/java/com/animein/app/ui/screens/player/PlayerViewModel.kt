@@ -46,6 +46,10 @@ class PlayerViewModel @Inject constructor(
     val episodes: StateFlow<List<com.animein.app.data.model.EpisodeItem>> = _episodes
 
     private val _animeThumb = MutableStateFlow("")
+    private val _animeTitle = MutableStateFlow("")
+    val animeTitle: StateFlow<String> = _animeTitle
+    private val _currentEpisodeTitle = MutableStateFlow("")
+    val currentEpisodeTitle: StateFlow<String> = _currentEpisodeTitle
 
     init {
         fetchEpisodeDetail()
@@ -181,8 +185,16 @@ class PlayerViewModel @Inject constructor(
             try {
                 val detail = repository.getAnimeDetail(animeId)
                 _animeThumb.value = detail.thumb ?: ""
+                _animeTitle.value = detail.title
                 val episodes = detail.episodeList ?: emptyList()
                 _episodes.value = episodes
+                // Find the current episode title by matching episodeId
+                val currentEp = episodes.firstOrNull {
+                    AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
+                }
+                if (currentEp != null) {
+                    _currentEpisodeTitle.value = currentEp.title
+                }
                 val currentIndex = episodes.indexOfFirst {
                     AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(episodeId)
                 }

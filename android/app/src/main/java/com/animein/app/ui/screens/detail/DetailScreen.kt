@@ -240,7 +240,7 @@ fun DetailScreen(
                             Text("Daftar Episode", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(10.dp))
                             
-                            val episodes = detail.episodeList ?: emptyList()
+                            val episodes = (detail.episodeList ?: emptyList()).reversed()
                             if (episodes.isEmpty()) {
                                 Text("Episode belum tersedia", color = TextSecondary, fontSize = 14.sp)
                             } else {

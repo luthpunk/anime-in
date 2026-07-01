@@ -323,22 +323,30 @@ class NimegamiDirectScraper @Inject constructor(
         val url = if (page <= 1) "${BASE_URL}category/$genreId/" else "${BASE_URL}category/$genreId/page/$page/"
         val doc = fetchDocument(url)
         val articles = doc.select("article")
-        
+
         val list = articles.mapNotNull { item ->
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
-            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            
+
+            val (title, episodeLabel, score) = parseArticleInfo(item)
+            val isMovie = title.contains("Movie", ignoreCase = true) ||
+                anchor.attr("title").contains("Movie", ignoreCase = true)
+
+            val episode = when {
+                isMovie -> "Movie"
+                episodeLabel.isNotBlank() -> episodeLabel
+                else -> ""
+            }
+
             AnimeListItem(
                 title = title,
                 animeName = title,
                 id = id,
                 thumb = thumb,
-                episode = "Anime",
-                score = null,
+                episode = episode,
+                score = score,
                 studio = null,
                 releaseDate = null,
                 genreList = null

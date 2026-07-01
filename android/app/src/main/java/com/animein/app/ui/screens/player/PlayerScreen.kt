@@ -70,6 +70,8 @@ fun PlayerScreen(
     val uiState by viewModel.playerState.collectAsState()
     val savedProgress by viewModel.savedProgress.collectAsState()
     val episodes by viewModel.episodes.collectAsState()
+    val animeTitle by viewModel.animeTitle.collectAsState()
+    val currentEpisodeTitle by viewModel.currentEpisodeTitle.collectAsState()
     val context = LocalContext.current
 
     var isFullscreen by remember { mutableStateOf(false) }
@@ -332,8 +334,8 @@ fun PlayerScreen(
                                         viewModel.saveProgress(
                                             progress = progress,
                                             duration = dur,
-                                            animeTitle = detail.title.split("Episode")[0].trim(),
-                                            episodeTitle = detail.title,
+                                            animeTitle = animeTitle.ifBlank { viewModel.animeId },
+                                            episodeTitle = currentEpisodeTitle.ifBlank { "Episode" },
                                             thumb = ""
                                         )
                                     }
@@ -353,8 +355,8 @@ fun PlayerScreen(
                                                 viewModel.saveProgress(
                                                     progress = progress,
                                                     duration = dur,
-                                                    animeTitle = detail.title.split("Episode")[0].trim(),
-                                                    episodeTitle = detail.title,
+                                                    animeTitle = animeTitle.ifBlank { viewModel.animeId },
+                                                    episodeTitle = currentEpisodeTitle.ifBlank { "Episode" },
                                                     thumb = ""
                                                 )
                                             }
@@ -629,7 +631,7 @@ fun PlayerScreen(
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 12.dp, vertical = 2.dp)
                                         ) {
-                                            // Row 1: Speed + Next episode + Fullscreen
+                                            // Row 1: Quality chips + Speed + Fullscreen
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -637,6 +639,7 @@ fun PlayerScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
+                                                // Speed button
                                                 var showSpeedDialog by remember { mutableStateOf(false) }
                                                 Box {
                                                     TextButton(
@@ -667,6 +670,43 @@ fun PlayerScreen(
                                                     }
                                                 }
 
+                                                // Quality chips (center)
+                                                val allMirrors = remember(detail) {
+                                                    (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
+                                                    (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
+                                                    (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
+                                                }
+                                                var selectedResolution by remember { mutableStateOf("") }
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    allMirrors.forEach { mirror ->
+                                                        val isSelected = selectedResolution == mirror.resolution
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .background(
+                                                                    if (isSelected) NeonPurple
+                                                                    else Color.White.copy(alpha = 0.15f)
+                                                                )
+                                                                .clickable {
+                                                                    selectedResolution = mirror.resolution
+                                                                    viewModel.switchMirror(mirror.id)
+                                                                }
+                                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = mirror.resolution,
+                                                                color = Color.White,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                // Next episode + Fullscreen
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     val nextEpId by viewModel.nextEpisodeId.collectAsState()
                                                     if (nextEpId != null) {
@@ -681,7 +721,7 @@ fun PlayerScreen(
                                                                 modifier = Modifier.size(24.dp)
                                                             )
                                                         }
-                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
                                                     }
                                                     IconButton(
                                                         onClick = { isFullscreen = !isFullscreen },
@@ -744,75 +784,26 @@ fun PlayerScreen(
                                 .padding(16.dp)
                         ) {
                         item {
+                            // Judul anime & episode yang sedang diputar
                             Text(
-                                detail.title,
+                                animeTitle.ifBlank { "Memuat..." },
                                 color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Mirror Dropdown Button
-                            val mirrors = (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
-                                          (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
-                                          (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
-
-                            var showMirrorDropdown by remember { mutableStateOf(false) }
-
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                Button(
-                                    onClick = { showMirrorDropdown = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                                    shape = RoundedCornerShape(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Pilih Server", fontWeight = FontWeight.Bold)
-                                }
-                                DropdownMenu(
-                                    expanded = showMirrorDropdown,
-                                    onDismissRequest = { showMirrorDropdown = false },
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.9f)
-                                        .background(DarkSurface)
-                                ) {
-                                    if (mirrors.isEmpty()) {
-                                        DropdownMenuItem(
-                                            text = { Text("Tidak ada server tersedia", color = TextSecondary) },
-                                            onClick = { showMirrorDropdown = false }
-                                        )
-                                    } else {
-                                        mirrors.forEach { mirror ->
-                                            DropdownMenuItem(
-                                                text = {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Text(
-                                                            "Stream via: ${mirror.host} (${mirror.resolution})",
-                                                            color = Color.White,
-                                                            fontSize = 13.sp
-                                                        )
-                                                        Text(
-                                                            "Putar",
-                                                            color = NeonPurple,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                },
-                                                onClick = {
-                                                    viewModel.switchMirror(mirror.id)
-                                                    showMirrorDropdown = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
+                            if (currentEpisodeTitle.isNotBlank()) {
+                                val epNum = extractEpisodeNumber(currentEpisodeTitle)
+                                Text(
+                                    if (epNum.isNotBlank()) "Episode $epNum" else currentEpisodeTitle,
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
-
-                            Spacer(modifier = Modifier.height(16.dp))
                         }
 
                         // Collect and render episode grid selection

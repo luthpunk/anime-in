@@ -1,5 +1,6 @@
 package com.animein.app.ui.screens.schedule
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -107,6 +108,21 @@ fun DayScheduleSection(
     onAnimeClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Detect today's day in Indonesian
+    val calendar = java.util.Calendar.getInstance()
+    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+    val todayName = when (dayOfWeek) {
+        java.util.Calendar.MONDAY -> "Senin"
+        java.util.Calendar.TUESDAY -> "Selasa"
+        java.util.Calendar.WEDNESDAY -> "Rabu"
+        java.util.Calendar.THURSDAY -> "Kamis"
+        java.util.Calendar.FRIDAY -> "Jumat"
+        java.util.Calendar.SATURDAY -> "Sabtu"
+        java.util.Calendar.SUNDAY -> "Minggu"
+        else -> ""
+    }
+    val isToday = item.day.contains(todayName, ignoreCase = true)
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -115,22 +131,53 @@ fun DayScheduleSection(
             Icon(
                 imageVector = Icons.Default.DateRange,
                 contentDescription = null,
-                tint = NeonPurple,
+                tint = if (isToday) Color(0xFF4CAF50) else NeonPurple,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = item.day,
-                color = Color.White,
+                color = if (isToday) Color(0xFF4CAF50) else Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
+            if (isToday) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF4CAF50), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        "Hari Ini",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            // Anime count badge
+            if (item.animeList.isNotEmpty()) {
+                Text(
+                    "${item.animeList.size} anime",
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+            }
         }
-        
+
         Card(
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isToday) DarkSurface.copy(alpha = 0.9f) else DarkSurface
+            ),
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (isToday) Modifier.border(1.dp, Color(0xFF4CAF50).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    else Modifier
+                )
         ) {
             Column(
                 modifier = Modifier
@@ -151,8 +198,16 @@ fun DayScheduleSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onAnimeClick(anime.id) }
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .padding(horizontal = 16.dp, vertical = 11.dp)
                         ) {
+                            // Index number
+                            Text(
+                                text = "${index + 1}",
+                                color = if (isToday) Color(0xFF4CAF50) else TextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.width(22.dp)
+                            )
                             Text(
                                 text = anime.animeName,
                                 color = Color.White,
@@ -165,13 +220,13 @@ fun DayScheduleSection(
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = TextSecondary,
+                                tint = if (isToday) Color(0xFF4CAF50).copy(alpha = 0.7f) else TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                         if (index < item.animeList.size - 1) {
                             Divider(
-                                color = Color.White.copy(alpha = 0.08f),
+                                color = Color.White.copy(alpha = 0.06f),
                                 thickness = 1.dp,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
