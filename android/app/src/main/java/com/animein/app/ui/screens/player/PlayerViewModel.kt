@@ -42,6 +42,12 @@ class PlayerViewModel @Inject constructor(
     private val _nextEpisodeId = MutableStateFlow<String?>(null)
     val nextEpisodeId: StateFlow<String?> = _nextEpisodeId
 
+    private val _prevEpisodeId = MutableStateFlow<String?>(null)
+    val prevEpisodeId: StateFlow<String?> = _prevEpisodeId
+
+    private val _isVideoLoading = MutableStateFlow(false)
+    val isVideoLoading: StateFlow<Boolean> = _isVideoLoading
+
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed
 
@@ -60,7 +66,7 @@ class PlayerViewModel @Inject constructor(
                 if (epId.isNotEmpty()) {
                     fetchEpisodeDetail(epId)
                     loadSavedProgress(epId)
-                    loadNextEpisodeId(epId)
+                    loadAdjacentEpisodes(epId)
                 }
             }
         }
@@ -78,14 +84,27 @@ class PlayerViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            _playerState.value = PlayerUiState.Loading
+            val currentState = _playerState.value
+            if (currentState is PlayerUiState.Success) {
+                _isVideoLoading.value = true
+                val updatedData = currentState.data.copy(linkStream = null)
+                _playerState.value = PlayerUiState.Success(updatedData)
+            } else {
+                _playerState.value = PlayerUiState.Loading
+            }
             try {
                 val response = repository.getEpisodeDetail(epId)
                 // Selalu coba resolve vidhide terlebih dahulu
                 val finalResponse = autoResolveVidhideOrFallback(response)
                 _playerState.value = PlayerUiState.Success(finalResponse)
             } catch (e: Exception) {
-                _playerState.value = PlayerUiState.Error(e.localizedMessage ?: "Gagal memuat video episode")
+                if (_playerState.value is PlayerUiState.Success) {
+                    // stay in success but show error or stop spinner
+                } else {
+                    _playerState.value = PlayerUiState.Error(e.localizedMessage ?: "Gagal memuat video episode")
+                }
+            } finally {
+                _isVideoLoading.value = false
             }
         }
     }
@@ -195,39 +214,39 @@ class PlayerViewModel @Inject constructor(
         _playbackSpeed.value = speed
     }
 
-    private fun loadNextEpisodeId(epId: String = _currentEpisodeId.value) {
+    private fun loadAdjacentEpisodes(epId: String = _currentEpisodeId.value) {
         if (animeId.isEmpty()) return
         viewModelScope.launch {
             try {
                 val detail = repository.getAnimeDetail(animeId)
                 _animeThumb.value = detail.thumb ?: ""
                 _animeTitle.value = detail.title
-                val episodes = detail.episodeList ?: emptyList()
-                _episodes.value = episodes
+                val episodesList = detail.episodeList ?: emptyList()
+                _episodes.value = episodesList
+
                 // Find the current episode title by matching episodeId
-                val currentEp = episodes.firstOrNull {
+                val currentEp = episodesList.firstOrNull {
                     AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(epId)
                 }
                 if (currentEp != null) {
                     _currentEpisodeTitle.value = currentEp.title
                 }
-                val currentIndex = episodes.indexOfFirst {
+                val currentIndex = episodesList.indexOfFirst {
                     AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(epId)
                 }
-                if (currentIndex != -1) {
-                    val currentEpNum = extractEpisodeNumOnly(epId)
-                    val nextEp = episodes.firstOrNull {
-                        val num = extractEpisodeNumOnly(it.id)
-                        num == currentEpNum + 1
-                    }
-                    if (nextEp != null) {
-                        _nextEpisodeId.value = nextEp.id
-                    } else {
-                        // Fallback: index - 1
-                        if (currentIndex - 1 >= 0) {
-                            _nextEpisodeId.value = episodes[currentIndex - 1].id
-                        }
-                    }
+                if (currentIndex != -1 && episodesList.size > 1) {
+                    val firstNum = extractEpisodeNumFromTitle(episodesList.first().title)
+                    val lastNum = extractEpisodeNumFromTitle(episodesList.last().title)
+                    val isAsc = firstNum < lastNum
+
+                    val nextIndex = if (isAsc) currentIndex + 1 else currentIndex - 1
+                    val prevIndex = if (isAsc) currentIndex - 1 else currentIndex + 1
+
+                    _nextEpisodeId.value = if (nextIndex in episodesList.indices) episodesList[nextIndex].id else null
+                    _prevEpisodeId.value = if (prevIndex in episodesList.indices) episodesList[prevIndex].id else null
+                } else {
+                    _nextEpisodeId.value = null
+                    _prevEpisodeId.value = null
                 }
             } catch (e: Exception) {
                 // ignore
@@ -235,8 +254,12 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun extractEpisodeNumOnly(id: String): Int {
-        val matches = Regex("\\d+").findAll(id).map { it.value }.toList()
+    private fun extractEpisodeNumFromTitle(title: String): Int {
+        val cleaned = title
+            .replace(Regex("\\[.*?\\]"), "")
+            .replace(Regex("\\(\\d+p\\)"), "")
+            .replace("_", " ")
+        val matches = Regex("\\d+").findAll(cleaned).map { it.value }.toList()
         return if (matches.isNotEmpty()) matches.last().toIntOrNull() ?: 0 else 0
     }
 }

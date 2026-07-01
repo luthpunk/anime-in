@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Arrangement
@@ -74,6 +75,7 @@ fun PlayerScreen(
     val animeTitle by viewModel.animeTitle.collectAsState()
     val currentEpisodeTitle by viewModel.currentEpisodeTitle.collectAsState()
     val currentEpisodeId by viewModel.currentEpisodeId.collectAsState()
+    val isVideoLoading by viewModel.isVideoLoading.collectAsState()
     val context = LocalContext.current
 
     var isFullscreen by remember { mutableStateOf(false) }
@@ -473,6 +475,17 @@ fun PlayerScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
+                                if (isVideoLoading || isBuffering) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.5f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(color = NeonPurple)
+                                    }
+                                }
+
                                 // Double-tap visual feedback overlays
                                 if (doubleTapFeedbackLeft) {
                                     Box(
@@ -597,14 +610,32 @@ fun PlayerScreen(
                                             }
                                         }
 
-                                        // 2. Center row: Play/Pause only (seek is handled by double-tap)
+                                        // 2. Center row: Previous Ep + Play/Pause + Next Ep
                                         Row(
                                             modifier = Modifier
                                                 .align(Alignment.Center)
                                                 .fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.Center,
+                                            horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            val prevEpId by viewModel.prevEpisodeId.collectAsState()
+                                            val nextEpId by viewModel.nextEpisodeId.collectAsState()
+
+                                            // Previous Episode Button
+                                            IconButton(
+                                                onClick = { if (prevEpId != null) viewModel.selectEpisode(prevEpId!!) },
+                                                enabled = prevEpId != null,
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = SkipPreviousIcon,
+                                                    contentDescription = "Episode Sebelumnya",
+                                                    tint = if (prevEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                            }
+
+                                            // Play/Pause Button
                                             IconButton(
                                                 onClick = {
                                                     if (exoPlayer.isPlaying) {
@@ -624,55 +655,36 @@ fun PlayerScreen(
                                                     modifier = Modifier.size(32.dp)
                                                 )
                                             }
+
+                                            // Next Episode Button
+                                            IconButton(
+                                                onClick = { if (nextEpId != null) viewModel.selectEpisode(nextEpId!!) },
+                                                enabled = nextEpId != null,
+                                                modifier = Modifier.size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = SkipNextIcon,
+                                                    contentDescription = "Episode Selanjutnya",
+                                                    tint = if (nextEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
+                                                    modifier = Modifier.size(28.dp)
+                                                )
+                                            }
                                         }
 
-                                        // 3. Bottom controls — speed/nav di atas, seekbar di paling bawah
+                                        // 3. Bottom controls — settings & fullscreen on top, seekbar below
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 12.dp, vertical = 2.dp)
                                         ) {
-                                            // Row 1: Quality chips + Speed + Fullscreen
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(bottom = 2.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                horizontalArrangement = Arrangement.End,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Speed button
-                                                var showSpeedDialog by remember { mutableStateOf(false) }
-                                                Box {
-                                                    TextButton(
-                                                        onClick = { showSpeedDialog = true },
-                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "${speed}x",
-                                                            color = Color.White,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                    DropdownMenu(
-                                                        expanded = showSpeedDialog,
-                                                        onDismissRequest = { showSpeedDialog = false },
-                                                        modifier = Modifier.background(DarkSurface)
-                                                    ) {
-                                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
-                                                            DropdownMenuItem(
-                                                                text = { Text("${value}x", color = Color.White) },
-                                                                onClick = {
-                                                                    viewModel.setPlaybackSpeed(value)
-                                                                    showSpeedDialog = false
-                                                                }
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
-                                                // Quality Dropdown (center)
                                                 val allMirrors = remember(detail) {
                                                     (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
                                                     (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
@@ -684,85 +696,97 @@ fun PlayerScreen(
                                                             ?: allMirrors.lastOrNull()?.resolution ?: "720p"
                                                     )
                                                 }
-                                                var showResolutionDropdown by remember { mutableStateOf(false) }
+
+                                                // Settings dropdown menu containing speed and resolution
+                                                var showSettingsDropdown by remember { mutableStateOf(false) }
 
                                                 Box {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(Color.White.copy(alpha = 0.15f))
-                                                            .clickable { showResolutionDropdown = true }
-                                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    IconButton(
+                                                        onClick = { showSettingsDropdown = true },
+                                                        modifier = Modifier.size(36.dp)
                                                     ) {
-                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Text(
-                                                                text = selectedResolution,
-                                                                color = Color.White,
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                            Spacer(modifier = Modifier.width(3.dp))
-                                                            Icon(
-                                                                imageVector = Icons.Default.ArrowDropDown,
-                                                                contentDescription = null,
-                                                                tint = Color.White,
-                                                                modifier = Modifier.size(14.dp)
-                                                            )
-                                                        }
+                                                        Icon(
+                                                            imageVector = Icons.Default.Settings,
+                                                            contentDescription = "Pengaturan",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
                                                     }
+
                                                     DropdownMenu(
-                                                        expanded = showResolutionDropdown,
-                                                        onDismissRequest = { showResolutionDropdown = false },
+                                                        expanded = showSettingsDropdown,
+                                                        onDismissRequest = { showSettingsDropdown = false },
                                                         modifier = Modifier.background(DarkSurface)
                                                     ) {
+                                                        // 1. Resolutions
+                                                        Text(
+                                                            text = "Kualitas Video",
+                                                            color = Color.Gray,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                                        )
                                                         allMirrors.forEach { mirror ->
+                                                            val isSelected = selectedResolution == mirror.resolution
                                                             DropdownMenuItem(
                                                                 text = {
                                                                     Text(
                                                                         text = mirror.resolution,
-                                                                        color = if (selectedResolution == mirror.resolution) NeonPurple else Color.White,
-                                                                        fontSize = 12.sp,
-                                                                        fontWeight = FontWeight.Bold
+                                                                        color = if (isSelected) NeonPurple else Color.White,
+                                                                        fontSize = 13.sp,
+                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                     )
                                                                 },
                                                                 onClick = {
                                                                     selectedResolution = mirror.resolution
                                                                     viewModel.switchMirror(mirror.id)
-                                                                    showResolutionDropdown = false
+                                                                    showSettingsDropdown = false
+                                                                }
+                                                            )
+                                                        }
+
+                                                        Divider(color = Color.White.copy(alpha = 0.1f), thickness = 1.dp)
+
+                                                        // 2. Playback Speed
+                                                        Text(
+                                                            text = "Kecepatan Pemutaran",
+                                                            color = Color.Gray,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                                        )
+                                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                                            val isSelected = speed == value
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = "${value}x",
+                                                                        color = if (isSelected) NeonPurple else Color.White,
+                                                                        fontSize = 13.sp,
+                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    viewModel.setPlaybackSpeed(value)
+                                                                    showSettingsDropdown = false
                                                                 }
                                                             )
                                                         }
                                                     }
                                                 }
 
-                                                // Next episode + Fullscreen
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    val nextEpId by viewModel.nextEpisodeId.collectAsState()
-                                                    if (nextEpId != null) {
-                                                        IconButton(
-                                                            onClick = { viewModel.selectEpisode(nextEpId!!) },
-                                                            modifier = Modifier.size(36.dp)
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = SkipNextIcon,
-                                                                contentDescription = "Episode Selanjutnya",
-                                                                tint = Color.White,
-                                                                modifier = Modifier.size(24.dp)
-                                                            )
-                                                        }
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                    }
-                                                    IconButton(
-                                                        onClick = { isFullscreen = !isFullscreen },
-                                                        modifier = Modifier.size(36.dp)
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
-                                                            contentDescription = "Fullscreen",
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
-                                                    }
+                                                Spacer(modifier = Modifier.width(8.dp))
+
+                                                IconButton(
+                                                    onClick = { isFullscreen = !isFullscreen },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                                        contentDescription = "Fullscreen",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
                                                 }
                                             }
 
@@ -1066,6 +1090,27 @@ val SkipNextIcon: ImageVector
         lineTo(16f, 18f)
         lineTo(18f, 18f)
         lineTo(18f, 6f)
+        close()
+    }.build()
+
+val SkipPreviousIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "SkipPrevious",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = androidx.compose.ui.graphics.SolidColor(Color.White)
+    ) {
+        moveTo(18f, 18f)
+        lineTo(9.5f, 12f)
+        lineTo(18f, 6f)
+        close()
+        moveTo(8f, 6f)
+        lineTo(8f, 18f)
+        lineTo(6f, 18f)
+        lineTo(6f, 6f)
         close()
     }.build()
 
