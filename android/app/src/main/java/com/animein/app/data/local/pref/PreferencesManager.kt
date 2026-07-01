@@ -16,9 +16,7 @@ class PreferencesManager(private val context: Context) {
 
     companion object {
         val DARK_MODE_KEY = stringPreferencesKey("dark_mode")
-        val HOME_CACHE_KEY = stringPreferencesKey("home_cache_v2") // v2: invalidates old cache
-        private const val CACHE_VERSION = "2"
-        val CACHE_VERSION_KEY = stringPreferencesKey("cache_version")
+        val HOME_CACHE_KEY = stringPreferencesKey("home_cache")
     }
 
     enum class ThemeMode {
@@ -42,23 +40,12 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun getHomeCache(): String? {
         val preferences = context.dataStore.data.first()
-        // Return null if cache version doesn't match (forces refresh)
-        val version = preferences[CACHE_VERSION_KEY]
-        if (version != CACHE_VERSION) return null
         return preferences[HOME_CACHE_KEY]
     }
 
     suspend fun saveHomeCache(json: String) {
         context.dataStore.edit { preferences ->
             preferences[HOME_CACHE_KEY] = json
-            preferences[CACHE_VERSION_KEY] = CACHE_VERSION
-        }
-    }
-
-    suspend fun clearHomeCache() {
-        context.dataStore.edit { preferences ->
-            preferences.remove(HOME_CACHE_KEY)
-            preferences.remove(CACHE_VERSION_KEY)
         }
     }
 }
