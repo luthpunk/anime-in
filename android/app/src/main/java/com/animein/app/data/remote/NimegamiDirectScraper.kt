@@ -116,12 +116,36 @@ class NimegamiDirectScraper @Inject constructor(
         val ongoingList = mutableListOf<AnimeOngoing>()
         val completedList = mutableListOf<AnimeCompleted>()
 
-        // 1. Fetch Ongoing List from https://nimegami.id/anime-terbaru-sub-indo/ (fetch up to 20 to sort)
+        // 1. Fetch schedule to map days
+        val animeDayMap = mutableMapOf<String, String>()
+        try {
+            val docSchedule = fetchDocument("${BASE_URL}jadwal-rilis/")
+            docSchedule.select(".jadwalrilis .rilis2").forEach { rilisDiv ->
+                val day = rilisDiv.select("h2").text().trim()
+                rilisDiv.select("ul li a").forEach { a ->
+                    val link = a.absUrl("href")
+                    val id = AnimeIdUtils.normalizeAnimeId(link)
+                    animeDayMap[id] = day
+                }
+            }
+        } catch (e: Exception) {
+            // ignore schedule fetch failure
+        }
+
+        // Calculate allowed days: today, yesterday, and day before yesterday
+        val calendar = java.util.Calendar.getInstance()
+        val dayNames = listOf("Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
+        val todayIdx = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1
+        val todayDay = dayNames[todayIdx]
+        val yesterdayDay = dayNames[(todayIdx + 6) % 7]
+        val dayBeforeDay = dayNames[(todayIdx + 5) % 7]
+
+        // 2. Fetch Ongoing List from https://nimegami.id/anime-terbaru-sub-indo/
         try {
             val docOngoing = fetchDocument("${BASE_URL}anime-terbaru-sub-indo/")
             val articlesOngoing = docOngoing.select("article")
             articlesOngoing.forEach { item ->
-                if (ongoingList.size >= 20) return@forEach
+                if (ongoingList.size >= 10) return@forEach
                 val anchor = item.select("a").first() ?: return@forEach
                 val link = anchor.absUrl("href")
                 val id = AnimeIdUtils.normalizeAnimeId(link)
@@ -138,6 +162,22 @@ class NimegamiDirectScraper @Inject constructor(
                 }
 
                 val isUpdated = item.select(".ongoing_updated").hasClass("updated_yes")
+
+                val animeDay = animeDayMap[id]
+                if (animeDay != null) {
+                    val isAllowedDay = animeDay.contains(todayDay, ignoreCase = true) ||
+                        animeDay.contains(yesterdayDay, ignoreCase = true) ||
+                        animeDay.contains(dayBeforeDay, ignoreCase = true)
+                    
+                    if (animeDay.contains(todayDay, ignoreCase = true) && !isUpdated) {
+                        // Skip today's not yet updated
+                        return@forEach
+                    }
+                    if (!isAllowedDay) {
+                        // Skip if it doesn't belong to today, yesterday, or day before yesterday
+                        return@forEach
+                    }
+                }
 
                 ongoingList.add(
                     AnimeOngoing(
@@ -156,7 +196,7 @@ class NimegamiDirectScraper @Inject constructor(
             // ignore ongoing fetch failure
         }
 
-        // 2. Fetch Completed List from home page (loop pages if needed to get 10 items)
+        // 3. Fetch Completed List from home page (loop pages if needed to get 10 items)
         var currentPage = 1
         val seenCompletedIds = mutableSetOf<String>()
         while (completedList.size < 10 && currentPage <= 3) {
@@ -218,11 +258,9 @@ class NimegamiDirectScraper @Inject constructor(
             currentPage++
         }
 
-        val sortedOngoing = (ongoingList.filter { it.isUpdated == true } + ongoingList.filter { it.isUpdated != true }).take(10)
-
         HomeResponse(
             status = "success",
-            home = HomeData(ongoing = sortedOngoing, complete = completedList)
+            home = HomeData(ongoing = ongoingList, complete = completedList)
         )
     }
 
@@ -697,6 +735,20 @@ class NimegamiDirectScraper @Inject constructor(
             val url = "${BASE_URL}jadwal-rilis/"
             val doc = fetchDocument(url)
             val scheduleList = mutableListOf<ScheduleItem>()
+
+            // Detect today name for sorting
+            val calendar = java.util.Calendar.getInstance()
+            val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+            val todayName = when (dayOfWeek) {
+                java.util.Calendar.MONDAY -> "Senin"
+                java.util.Calendar.TUESDAY -> "Selasa"
+                java.util.Calendar.WEDNESDAY -> "Rabu"
+                java.util.Calendar.THURSDAY -> "Kamis"
+                java.util.Calendar.FRIDAY -> "Jumat"
+                java.util.Calendar.SATURDAY -> "Sabtu"
+                java.util.Calendar.SUNDAY -> "Minggu"
+                else -> ""
+            }
             
             doc.select(".jadwalrilis .rilis2").forEach { rilisDiv ->
                 val day = rilisDiv.select("h2").text().trim()
@@ -725,6 +777,11 @@ class NimegamiDirectScraper @Inject constructor(
                 }
                 
                 if (day.isNotBlank() && animeItems.isNotEmpty()) {
+                    val isToday = day.contains(todayName, ignoreCase = true)
+                    if (isToday) {
+                        // Sort today's anime items: isUpdated == true first, then the rest
+                        animeItems.sortWith(compareByDescending { it.isUpdated == true })
+                    }
                     scheduleList.add(ScheduleItem(day = day, animeList = animeItems))
                 }
             }

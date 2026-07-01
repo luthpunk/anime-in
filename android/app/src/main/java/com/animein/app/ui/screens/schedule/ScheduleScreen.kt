@@ -258,27 +258,29 @@ fun DayScheduleSection(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 
-                                // Update status badge
-                                val isUpdated = anime.isUpdated ?: false
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            color = if (isUpdated) Color(0xFF2E7D32).copy(alpha = 0.15f) else Color(0xFF757575).copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(4.dp)
+                                // Update status badge (only for today)
+                                if (isToday) {
+                                    val isUpdated = anime.isUpdated ?: false
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = if (isUpdated) Color(0xFF2E7D32).copy(alpha = 0.15f) else Color(0xFF757575).copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .border(
+                                                width = 1.dp,
+                                                color = if (isUpdated) Color(0xFF4CAF50).copy(alpha = 0.5f) else Color(0xFF757575).copy(alpha = 0.5f),
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isUpdated) "Updated" else "Belum Update",
+                                            color = if (isUpdated) Color(0xFF81C784) else Color(0xFFB0BEC5),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
                                         )
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isUpdated) Color(0xFF4CAF50).copy(alpha = 0.5f) else Color(0xFF757575).copy(alpha = 0.5f),
-                                            shape = RoundedCornerShape(4.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = if (isUpdated) "Updated" else "Belum Update",
-                                        color = if (isUpdated) Color(0xFF81C784) else Color(0xFFB0BEC5),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    }
                                 }
                             }
                             
