@@ -456,8 +456,9 @@ class NimegamiDirectScraper @Inject constructor(
             // Try 1: Static source tag
             val src = doc.select("video source").attr("abs:src").trim()
             if (src.startsWith("http")) {
-                debugLog("Try 1 Success: $src")
-                return@withContext src
+                val encodedSrc = src.replace(" ", "%20")
+                debugLog("Try 1 Success: $encodedSrc")
+                return@withContext encodedSrc
             }
             
             // Try 2: Dynamic STREAM_URL_API from JavaScript
@@ -474,7 +475,7 @@ class NimegamiDirectScraper @Inject constructor(
                 debugLog("Try 2 API Response: $jsonStr")
                 val json = JSONObject(jsonStr)
                 if (json.optBoolean("ok", false)) {
-                    val streamUrl = json.getString("url")
+                    val streamUrl = json.getString("url").replace(" ", "%20")
                     if (streamUrl.startsWith("http")) {
                         debugLog("Try 2 Success: $streamUrl")
                         return@withContext streamUrl
