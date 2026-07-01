@@ -52,24 +52,54 @@ class AnimeRepository @Inject constructor(
         }
     }
 
+    // In-memory caches for list pages
+    private var inMemoryOngoing: AnimeListResponse? = null
+    private var inMemoryCompleted: AnimeListResponse? = null
+
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse {
-        return directScraper.getOngoingAnimeList(page)
+        return try {
+            val result = directScraper.getOngoingAnimeList(page)
+            if (page == 1) inMemoryOngoing = result
+            result
+        } catch (e: Exception) {
+            if (page == 1) inMemoryOngoing ?: AnimeListResponse("error", emptyList())
+            else AnimeListResponse("error", emptyList())
+        }
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse {
-        return directScraper.getCompletedAnimeList(page)
+        return try {
+            val result = directScraper.getCompletedAnimeList(page)
+            if (page == 1) inMemoryCompleted = result
+            result
+        } catch (e: Exception) {
+            if (page == 1) inMemoryCompleted ?: AnimeListResponse("error", emptyList())
+            else AnimeListResponse("error", emptyList())
+        }
     }
 
     suspend fun searchAnime(query: String): SearchResponse {
-        return directScraper.searchAnime(query)
+        return try {
+            directScraper.searchAnime(query)
+        } catch (e: Exception) {
+            SearchResponse("error", emptyList())
+        }
     }
 
     suspend fun getGenres(): GenreListResponse {
-        return directScraper.getGenres()
+        return try {
+            directScraper.getGenres()
+        } catch (e: Exception) {
+            GenreListResponse("error", emptyList())
+        }
     }
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
-        return directScraper.getAnimeByGenre(genreId, page)
+        return try {
+            directScraper.getAnimeByGenre(genreId, page)
+        } catch (e: Exception) {
+            AnimeListResponse("error", emptyList())
+        }
     }
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
