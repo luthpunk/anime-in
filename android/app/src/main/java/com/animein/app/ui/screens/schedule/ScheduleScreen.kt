@@ -202,87 +202,15 @@ fun DayScheduleSection(
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 1. Thumbnail Box with Episode Badge
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 90.dp, height = 54.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.Black)
-                            ) {
-                                if (!anime.thumb.isNullOrBlank()) {
-                                    AsyncImage(
-                                        model = anime.thumb,
-                                        contentDescription = anime.animeName,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.White.copy(alpha = 0.05f))
-                                    )
-                                }
-                                
-                                // Episode badge
-                                val epText = anime.episode ?: "Ongoing"
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .background(
-                                            color = Color.Black.copy(alpha = 0.75f),
-                                            shape = RoundedCornerShape(topEnd = 6.dp)
-                                        )
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = epText,
-                                        color = Color.White,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.width(12.dp))
-                            
-                            // 2. Info Column (Title + Update Status Badge)
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = anime.animeName,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                
-                                // Update status badge (only for today)
-                                if (isToday) {
-                                    val isUpdated = anime.isUpdated ?: false
-                                    Box(
-                                        modifier = Modifier
-                                            .background(
-                                                color = if (isUpdated) Color(0xFF2E7D32).copy(alpha = 0.15f) else Color(0xFF757575).copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            )
-                                            .border(
-                                                width = 1.dp,
-                                                color = if (isUpdated) Color(0xFF4CAF50).copy(alpha = 0.5f) else Color(0xFF757575).copy(alpha = 0.5f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isUpdated) "Updated" else "Belum Update",
-                                            color = if (isUpdated) Color(0xFF81C784) else Color(0xFFB0BEC5),
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = anime.animeName,
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
                             
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
