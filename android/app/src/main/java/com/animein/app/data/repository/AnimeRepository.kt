@@ -8,7 +8,7 @@ import com.animein.app.data.local.pref.PreferencesManager
 import com.animein.app.data.model.*
 import com.animein.app.data.remote.AnimeApiService
 import com.animein.app.data.remote.MirrorRequest
-import com.animein.app.data.remote.OtakudesuDirectScraper
+import com.animein.app.data.remote.NimegamiDirectScraper
 import com.animein.app.util.AnimeIdUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -20,7 +20,7 @@ class AnimeRepository @Inject constructor(
     private val apiService: AnimeApiService,
     private val animeDao: AnimeDao,
     private val preferencesManager: PreferencesManager,
-    private val directScraper: OtakudesuDirectScraper
+    private val directScraper: NimegamiDirectScraper
 ) {
     private val gson = Gson()
     private var inMemoryHome: HomeResponse? = null
