@@ -43,6 +43,15 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -147,6 +156,15 @@ fun PlayerScreen(
                         ) {
                             var playPosition by remember { mutableLongStateOf(savedProgress) }
                             var showControls by remember { mutableStateOf(true) }
+                            val playPauseFocusRequester = remember { FocusRequester() }
+
+                            LaunchedEffect(showControls) {
+                                if (showControls && isTV) {
+                                    try {
+                                        playPauseFocusRequester.requestFocus()
+                                    } catch (e: Exception) {}
+                                }
+                            }
                             var isPlaying by remember { mutableStateOf(true) }
                             var isBuffering by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
@@ -408,6 +426,18 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .onKeyEvent { keyEvent ->
+                                        if (isTV) {
+                                            if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key != Key.Back) {
+                                                if (!showControls) {
+                                                    showControls = true
+                                                    true // consume key event so it only shows controls first
+                                                } else {
+                                                    false // let normal D-pad traversal process it
+                                                }
+                                            } else false
+                                        } else false
+                                    }
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
                                         detectTapGestures(
@@ -660,11 +690,24 @@ fun PlayerScreen(
                                             val prevEpId by viewModel.prevEpisodeId.collectAsState()
                                             val nextEpId by viewModel.nextEpisodeId.collectAsState()
 
+                                            var isPrevFocused by remember { mutableStateOf(false) }
+                                            var isPlayFocused by remember { mutableStateOf(false) }
+                                            var isNextFocused by remember { mutableStateOf(false) }
+                                            var isSettingsFocused by remember { mutableStateOf(false) }
+                                            var isFullscreenBtnFocused by remember { mutableStateOf(false) }
+
                                             // Previous Episode Button
                                             IconButton(
                                                 onClick = { if (prevEpId != null) viewModel.selectEpisode(prevEpId!!) },
                                                 enabled = prevEpId != null,
-                                                modifier = Modifier.size(48.dp)
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .onFocusChanged { isPrevFocused = it.isFocused }
+                                                    .focusable()
+                                                    .background(
+                                                        if (isPrevFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                        RoundedCornerShape(24.dp)
+                                                    )
                                             ) {
                                                 Icon(
                                                     imageVector = SkipPreviousIcon,
@@ -685,7 +728,13 @@ fun PlayerScreen(
                                                 },
                                                 modifier = Modifier
                                                     .size(56.dp)
-                                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(28.dp))
+                                                    .focusRequester(playPauseFocusRequester)
+                                                    .onFocusChanged { isPlayFocused = it.isFocused }
+                                                    .focusable()
+                                                    .background(
+                                                        if (isPlayFocused) NeonPurple else Color.White.copy(alpha = 0.2f),
+                                                        RoundedCornerShape(28.dp)
+                                                    )
                                             ) {
                                                 Icon(
                                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
@@ -699,7 +748,14 @@ fun PlayerScreen(
                                             IconButton(
                                                 onClick = { if (nextEpId != null) viewModel.selectEpisode(nextEpId!!) },
                                                 enabled = nextEpId != null,
-                                                modifier = Modifier.size(48.dp)
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .onFocusChanged { isNextFocused = it.isFocused }
+                                                    .focusable()
+                                                    .background(
+                                                        if (isNextFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                        RoundedCornerShape(24.dp)
+                                                    )
                                             ) {
                                                 Icon(
                                                     imageVector = SkipNextIcon,
@@ -725,12 +781,17 @@ fun PlayerScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 // Settings dropdown menu containing speed and resolution
-                                                // (States showSettingsDropdown, allMirrors and selectedResolution are lifted to parent)
-
                                                 Box {
                                                     IconButton(
                                                         onClick = { showSettingsDropdown = true },
-                                                        modifier = Modifier.size(36.dp)
+                                                        modifier = Modifier
+                                                            .size(36.dp)
+                                                            .onFocusChanged { isSettingsFocused = it.isFocused }
+                                                            .focusable()
+                                                            .background(
+                                                                if (isSettingsFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                                RoundedCornerShape(18.dp)
+                                                            )
                                                     ) {
                                                         Icon(
                                                             imageVector = Icons.Default.Settings,
@@ -806,7 +867,14 @@ fun PlayerScreen(
 
                                                 IconButton(
                                                     onClick = { isFullscreen = !isFullscreen },
-                                                    modifier = Modifier.size(36.dp)
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .onFocusChanged { isFullscreenBtnFocused = it.isFocused }
+                                                        .focusable()
+                                                        .background(
+                                                            if (isFullscreenBtnFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                            RoundedCornerShape(18.dp)
+                                                        )
                                                 ) {
                                                     Icon(
                                                         imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
@@ -836,7 +904,8 @@ fun PlayerScreen(
                                                     valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
                                                     modifier = Modifier
                                                         .weight(1f)
-                                                        .padding(horizontal = 6.dp),
+                                                        .padding(horizontal = 6.dp)
+                                                        .focusable(),
                                                     colors = SliderDefaults.colors(
                                                         thumbColor = NeonPurple,
                                                         activeTrackColor = NeonPurple,

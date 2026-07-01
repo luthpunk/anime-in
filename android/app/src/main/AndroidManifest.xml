@@ -22,8 +22,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AnimeIn"
         android:usesCleartextTraffic="true"
-        android:hardwareAccelerated="true"
-        android:banner="@drawable/ic_tv_banner">
+        android:hardwareAccelerated="true">
 
         <activity
             android:name=".MainActivity"
