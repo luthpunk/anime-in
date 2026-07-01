@@ -1,8 +1,10 @@
 package com.animein.app.data.remote
 
+import android.content.Context
 import android.util.Base64
 import com.animein.app.data.model.*
 import com.animein.app.util.AnimeIdUtils
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -16,7 +18,8 @@ import javax.inject.Singleton
 
 @Singleton
 class NimegamiDirectScraper @Inject constructor(
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    @ApplicationContext private val context: Context
 ) {
     companion object {
         private const val BASE_URL = "https://nimegami.id/"
@@ -316,7 +319,8 @@ class NimegamiDirectScraper @Inject constructor(
                 .trim()
             val base64Data = el.attr("data")
             if (base64Data.isNotBlank()) {
-                val safeId = base64Data.replace("/", "_").replace("+", "-").replace("=", "")
+                val decodedBytes = Base64.decode(base64Data, Base64.DEFAULT)
+                val safeId = Base64.encodeToString(decodedBytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
                 episodes.add(
                     EpisodeItem(
                         title = epTitle,
@@ -350,7 +354,8 @@ class NimegamiDirectScraper @Inject constructor(
 
     private fun debugLog(message: String) {
         try {
-            val file = java.io.File("/data/data/com.termux/files/home/anime-in/resolved_stream.txt")
+            val dir = context.getExternalFilesDir(null)
+            val file = java.io.File(dir, "resolved_stream.txt")
             file.appendText("[${java.util.Date()}] $message\n")
         } catch (e: Exception) {
             // Ignore logging failures
@@ -359,63 +364,75 @@ class NimegamiDirectScraper @Inject constructor(
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
         debugLog("getEpisodeDetail called with episodeId: $episodeId")
-        val restored = episodeId.replace("_", "/").replace("-", "+")
-        debugLog("restored episodeId: $restored")
-        val decodedJsonStr = String(Base64.decode(restored, Base64.DEFAULT), Charsets.UTF_8)
-        debugLog("decodedJsonStr: $decodedJsonStr")
-        val jsonArray = JSONArray(decodedJsonStr)
-        
-        var selectedStreamUrl = "-"
-        var currentPriority = -1
-        val mirrorList = mutableListOf<MirrorItem>()
+        try {
+            val decodedBytes = Base64.decode(episodeId, Base64.URL_SAFE)
+            val decodedJsonStr = String(decodedBytes, Charsets.UTF_8)
+            debugLog("decodedJsonStr: $decodedJsonStr")
+            val jsonArray = JSONArray(decodedJsonStr)
+            
+            var selectedStreamUrl = "-"
+            var currentPriority = -1
+            val mirrorList = mutableListOf<MirrorItem>()
 
-        for (i in 0 until jsonArray.length()) {
-            val obj = jsonArray.getJSONObject(i)
-            val format = obj.getString("format").lowercase()
-            val urls = obj.getJSONArray("url")
-            if (urls.length() > 0) {
-                val streamPageUrl = urls.getString(0)
-                mirrorList.add(MirrorItem(host = "Berkasdrive - $format", id = streamPageUrl))
-                
-                // Priority mapping: 720p (4) > 480p (3) > 1080p (2) > 360p (1)
-                val priority = when {
-                    format.contains("720p") -> 4
-                    format.contains("480p") -> 3
-                    format.contains("1080p") -> 2
-                    format.contains("360p") -> 1
-                    else -> 0
-                }
-                
-                if (priority > currentPriority) {
-                    selectedStreamUrl = streamPageUrl
-                    currentPriority = priority
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val format = obj.getString("format").lowercase()
+                val urls = obj.getJSONArray("url")
+                if (urls.length() > 0) {
+                    val streamPageUrl = urls.getString(0)
+                    mirrorList.add(MirrorItem(host = "Berkasdrive - $format", id = streamPageUrl))
+                    
+                    // Priority mapping: 720p (4) > 480p (3) > 1080p (2) > 360p (1)
+                    val priority = when {
+                        format.contains("720p") -> 4
+                        format.contains("480p") -> 3
+                        format.contains("1080p") -> 2
+                        format.contains("360p") -> 1
+                        else -> 0
+                    }
+                    
+                    if (priority > currentPriority) {
+                        selectedStreamUrl = streamPageUrl
+                        currentPriority = priority
+                    }
                 }
             }
+            
+            debugLog("selectedStreamUrl: $selectedStreamUrl")
+
+            val directStreamUrl = if (selectedStreamUrl != "-") {
+                resolveBerkasdriveStream(selectedStreamUrl)
+            } else {
+                "-"
+            }
+            
+            debugLog("resolved directStreamUrl: $directStreamUrl")
+
+            val mirror1 = if (mirrorList.size > 0) MirrorQuality("Berkasdrive", listOf(mirrorList[0])) else null
+            val mirror2 = if (mirrorList.size > 1) MirrorQuality("Berkasdrive", listOf(mirrorList[1])) else null
+            val mirror3 = if (mirrorList.size > 2) MirrorQuality("Berkasdrive", listOf(mirrorList[2])) else null
+
+            EpisodeDetailResponse(
+                title = "Streaming Video",
+                id = episodeId,
+                linkStream = directStreamUrl,
+                mirror1 = mirror1,
+                mirror2 = mirror2,
+                mirror3 = mirror3,
+                quality = null
+            )
+        } catch (e: Exception) {
+            debugLog("Error in getEpisodeDetail: ${e.message}")
+            EpisodeDetailResponse(
+                title = "Streaming Video",
+                id = episodeId,
+                linkStream = "-",
+                mirror1 = null,
+                mirror2 = null,
+                mirror3 = null,
+                quality = null
+            )
         }
-        
-        debugLog("selectedStreamUrl: $selectedStreamUrl")
-
-        val directStreamUrl = if (selectedStreamUrl != "-") {
-            resolveBerkasdriveStream(selectedStreamUrl)
-        } else {
-            "-"
-        }
-        
-        debugLog("resolved directStreamUrl: $directStreamUrl")
-
-        val mirror1 = if (mirrorList.size > 0) MirrorQuality("Berkasdrive", listOf(mirrorList[0])) else null
-        val mirror2 = if (mirrorList.size > 1) MirrorQuality("Berkasdrive", listOf(mirrorList[1])) else null
-        val mirror3 = if (mirrorList.size > 2) MirrorQuality("Berkasdrive", listOf(mirrorList[2])) else null
-
-        EpisodeDetailResponse(
-            title = "Streaming Video",
-            id = episodeId,
-            linkStream = directStreamUrl,
-            mirror1 = mirror1,
-            mirror2 = mirror2,
-            mirror3 = mirror3,
-            quality = null
-        )
     }
 
     suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
