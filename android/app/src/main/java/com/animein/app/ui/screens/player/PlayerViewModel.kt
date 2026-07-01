@@ -72,7 +72,7 @@ class PlayerViewModel @Inject constructor(
         _currentEpisodeId.value = cleanEpId
     }
 
-    fun fetchEpisodeDetail(epId: String) {
+    fun fetchEpisodeDetail(epId: String = _currentEpisodeId.value) {
         if (epId.isEmpty()) {
             _playerState.value = PlayerUiState.Error("ID Episode tidak valid")
             return
@@ -149,7 +149,7 @@ class PlayerViewModel @Inject constructor(
         return response
     }
 
-    private fun loadSavedProgress(epId: String) {
+    private fun loadSavedProgress(epId: String = _currentEpisodeId.value) {
         viewModelScope.launch {
             val saved = repository.getContinueWatchingForEpisode(epId)
             _savedProgress.value = saved?.progress ?: 0L
@@ -195,7 +195,7 @@ class PlayerViewModel @Inject constructor(
         _playbackSpeed.value = speed
     }
 
-    private fun loadNextEpisodeId(epId: String) {
+    private fun loadNextEpisodeId(epId: String = _currentEpisodeId.value) {
         if (animeId.isEmpty()) return
         viewModelScope.launch {
             try {
