@@ -634,14 +634,18 @@ fun PlayerScreen(
                                             modifier = Modifier.size(48.dp)
                                         )
                                     }
-                                }
-
                                  if (showControls) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .background(Color.Black.copy(alpha = 0.6f))
                                     ) {
+                                        var isPrevFocused by remember { mutableStateOf(false) }
+                                        var isPlayFocused by remember { mutableStateOf(false) }
+                                        var isNextFocused by remember { mutableStateOf(false) }
+                                        var isSettingsFocused by remember { mutableStateOf(false) }
+                                        var isFullscreenBtnFocused by remember { mutableStateOf(false) }
+
                                         // 1. Top row: Fullscreen Title & Episode
                                         if (isFullscreen) {
                                             Row(
@@ -689,12 +693,6 @@ fun PlayerScreen(
                                         ) {
                                             val prevEpId by viewModel.prevEpisodeId.collectAsState()
                                             val nextEpId by viewModel.nextEpisodeId.collectAsState()
-
-                                            var isPrevFocused by remember { mutableStateOf(false) }
-                                            var isPlayFocused by remember { mutableStateOf(false) }
-                                            var isNextFocused by remember { mutableStateOf(false) }
-                                            var isSettingsFocused by remember { mutableStateOf(false) }
-                                            var isFullscreenBtnFocused by remember { mutableStateOf(false) }
 
                                             // Previous Episode Button
                                             IconButton(
