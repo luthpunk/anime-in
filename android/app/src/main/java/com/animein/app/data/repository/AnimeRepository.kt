@@ -128,10 +128,6 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getSchedule(): ScheduleResponse {
-        return try {
-            apiService.getSchedule()
-        } catch (e: Exception) {
-            directScraper.getSchedule()
-        }
+        return directScraper.getSchedule()
     }
 }

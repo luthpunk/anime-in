@@ -60,7 +60,7 @@ class NimegamiDirectScraper @Inject constructor(
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
             
-            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
             val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
@@ -108,7 +108,7 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
             val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
             val episode = item.select(".eps-archive, .eps_ongo").text().trim()
@@ -141,7 +141,7 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
             val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
@@ -170,18 +170,25 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".post-2-title, .title").text().ifBlank { anchor.attr("title") }
+            
+            val titleText = item.select("h2[itemprop=name] a, h2 a").text().trim()
+                .ifBlank { item.select(".title-post2, .post-2-title, .title").text().trim() }
+                .ifBlank { anchor.attr("title") }
             val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
-            val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            val isComplete = item.select(".post-2-complete").isNotEmpty()
-            val status = if (isComplete) "Completed" else "Ongoing"
+            val thumb = item.select(".thumbnail img, img").first()?.absUrl("src") ?: ""
+            
+            val scoreText = item.select(".rating-archive").text().trim().replace("★", "").trim()
+            val score = if (scoreText.isBlank()) null else scoreText
+            
+            val statusText = item.select(".term_tag-a").text().trim()
+            val status = if (statusText.contains("Complete", ignoreCase = true)) "Completed" else "Ongoing"
 
             SearchItem(
                 title = title,
                 id = id,
                 thumb = thumb,
                 status = status,
-                score = null,
+                score = score,
                 genreList = null
             )
         }
@@ -228,7 +235,7 @@ class NimegamiDirectScraper @Inject constructor(
             val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val titleText = item.select(".title-post2, .post-2-title").text().ifBlank { anchor.attr("title") }
             val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
             val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
@@ -289,16 +296,16 @@ class NimegamiDirectScraper @Inject constructor(
             val value = valueEl?.text()?.trim()
             if (value != null) {
                 when (label.lowercase()) {
-                    "japanese" -> japanese = value
+                    "japanese", "judul alternatif" -> japanese = value
                     "rating" -> score = value
                     "produser" -> producer = value
                     "type" -> type = value
                     "status" -> status = value
                     "episode" -> totalEpisode = value
-                    "durasi" -> duration = value
-                    "tanggal rilis" -> releaseDate = value
+                    "durasi", "durasi per episode" -> duration = value
+                    "tanggal rilis", "musim / rilis" -> releaseDate = value
                     "studio" -> studio = value
-                    "genre" -> {
+                    "genre", "kategori" -> {
                         valueEl.select("a").forEach { a ->
                             val genreName = a.text().trim()
                             val genreLink = a.absUrl("href")
@@ -332,6 +339,16 @@ class NimegamiDirectScraper @Inject constructor(
             }
         }
 
+        // Heuristic status and total episode inference
+        val inferredStatus = when {
+            type?.contains("Movie", ignoreCase = true) == true -> "Completed"
+            title.contains("(End)", ignoreCase = true) || title.contains("Complete", ignoreCase = true) || title.contains("Tamat", ignoreCase = true) -> "Completed"
+            status?.isNotBlank() == true -> status
+            episodes.isNotEmpty() && episodes.first().title.contains("End", ignoreCase = true) -> "Completed"
+            else -> "Ongoing"
+        }
+        val inferredTotalEpisode = if (totalEpisode.isNullOrBlank()) episodes.size.toString() else totalEpisode
+
         DetailResponse(
             thumb = thumb,
             animeId = cleanId,
@@ -341,8 +358,8 @@ class NimegamiDirectScraper @Inject constructor(
             score = score,
             producer = producer,
             type = type,
-            status = status,
-            totalEpisode = totalEpisode,
+            status = inferredStatus,
+            totalEpisode = inferredTotalEpisode,
             duration = duration,
             releaseDate = releaseDate,
             studio = studio,
@@ -492,7 +509,31 @@ class NimegamiDirectScraper @Inject constructor(
         }
     }
 
-    suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.Default) {
-        ScheduleResponse(emptyList())
+    suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
+        try {
+            val url = "${BASE_URL}jadwal-rilis/"
+            val doc = fetchDocument(url)
+            val scheduleList = mutableListOf<ScheduleItem>()
+            
+            doc.select(".jadwalrilis .rilis2").forEach { rilisDiv ->
+                val day = rilisDiv.select("h2").text().trim()
+                val animeItems = mutableListOf<ScheduleAnimeItem>()
+                
+                rilisDiv.select("ul li a").forEach { a ->
+                    val name = a.text().trim()
+                    val link = a.absUrl("href")
+                    val id = AnimeIdUtils.normalizeAnimeId(link)
+                    animeItems.add(ScheduleAnimeItem(animeName = name, id = id, link = link))
+                }
+                
+                if (day.isNotBlank() && animeItems.isNotEmpty()) {
+                    scheduleList.add(ScheduleItem(day = day, animeList = animeItems))
+                }
+            }
+            
+            ScheduleResponse(scheduleList)
+        } catch (e: Exception) {
+            ScheduleResponse(emptyList())
+        }
     }
 }
