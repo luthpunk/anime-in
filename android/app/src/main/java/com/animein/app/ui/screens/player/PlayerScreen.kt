@@ -920,7 +920,6 @@ fun PlayerScreen(
                                     }
                                 }
                             }
-                    }
 
                     if (!isFullscreen) {
                         // Metadata & Mirrors Dropdown
