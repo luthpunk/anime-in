@@ -147,6 +147,19 @@ fun PlayerScreen(
                             val speed by viewModel.playbackSpeed.collectAsState()
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
 
+                            var showSettingsDropdown by remember { mutableStateOf(false) }
+                            val allMirrors = remember(detail) {
+                                (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
+                                (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
+                                (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
+                            }
+                            var selectedResolution by remember(allMirrors) {
+                                mutableStateOf(
+                                    allMirrors.firstOrNull { detail.linkStream?.contains(it.resolution) == true }?.resolution
+                                        ?: allMirrors.lastOrNull()?.resolution ?: "720p"
+                                )
+                            }
+
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }
                             val coroutineScope = rememberCoroutineScope()
@@ -265,11 +278,46 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Hide controls after 3.5 seconds
-                            LaunchedEffect(showControls, isPlaying) {
-                                if (showControls && isPlaying) {
+                            // Hide controls after 3.5 seconds, unless settings dropdown is open
+                            LaunchedEffect(showControls, isPlaying, showSettingsDropdown) {
+                                if (showControls && isPlaying && !showSettingsDropdown) {
                                     delay(3500)
                                     showControls = false
+                                }
+                            }
+
+                            // Dismiss settings dropdown when controls are hidden
+                            LaunchedEffect(showControls) {
+                                if (!showControls) {
+                                    showSettingsDropdown = false
+                                }
+                            }
+
+                            // Custom auto-resolution downgrade on long buffering
+                            LaunchedEffect(isBuffering) {
+                                if (isBuffering) {
+                                    delay(6000) // if buffering continues for 6 seconds
+                                    if (isBuffering) {
+                                        val currentResRank = when (selectedResolution) {
+                                            "720p" -> 3
+                                            "480p" -> 2
+                                            "360p" -> 1
+                                            else -> 0
+                                        }
+                                        if (currentResRank > 1) {
+                                            val targetRank = currentResRank - 1
+                                            val targetRes = when (targetRank) {
+                                                2 -> "480p"
+                                                1 -> "360p"
+                                                else -> ""
+                                            }
+                                            val lowerMirror = allMirrors.firstOrNull { it.resolution == targetRes }
+                                            if (lowerMirror != null) {
+                                                selectedResolution = lowerMirror.resolution
+                                                viewModel.switchMirror(lowerMirror.id)
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -599,7 +647,12 @@ fun PlayerScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
-                                                    text = detail.title,
+                                                    text = if (animeTitle.isNotBlank()) {
+                                                        if (currentEpisodeTitle.isNotBlank()) "$animeTitle — $currentEpisodeTitle"
+                                                        else animeTitle
+                                                    } else {
+                                                        detail.title
+                                                    },
                                                     color = Color.White,
                                                     fontSize = 16.sp,
                                                     fontWeight = FontWeight.Bold,
@@ -685,20 +738,8 @@ fun PlayerScreen(
                                                 horizontalArrangement = Arrangement.End,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                val allMirrors = remember(detail) {
-                                                    (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
-                                                    (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
-                                                    (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
-                                                }
-                                                var selectedResolution by remember(allMirrors) {
-                                                    mutableStateOf(
-                                                        allMirrors.firstOrNull { detail.linkStream?.contains(it.resolution) == true }?.resolution
-                                                            ?: allMirrors.lastOrNull()?.resolution ?: "720p"
-                                                    )
-                                                }
-
                                                 // Settings dropdown menu containing speed and resolution
-                                                var showSettingsDropdown by remember { mutableStateOf(false) }
+                                                // (States showSettingsDropdown, allMirrors and selectedResolution are lifted to parent)
 
                                                 Box {
                                                     IconButton(
