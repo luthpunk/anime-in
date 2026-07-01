@@ -1,10 +1,13 @@
 package com.animein.app
 
+import android.content.res.Configuration
 import android.os.Bundle
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -16,7 +19,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -60,7 +66,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainApp() {
     val navController = rememberNavController()
-    val bottomNavItems = listOf(
+    val navItems = listOf(
         NavigationItem("home", "Home", Icons.Default.Home),
         NavigationItem("schedule", "Jadwal", Icons.Default.DateRange),
         NavigationItem("genres_list", "Genre", Icons.Default.Menu),
@@ -69,23 +75,29 @@ fun MainApp() {
 
     var currentRoute by remember { mutableStateOf("home") }
 
-    Scaffold(
-        bottomBar = {
-            if (currentRoute in listOf("home", "schedule", "genres_list", "history")) {
-                NavigationBar(
+    // Detect Android TV / large screen
+    val configuration = LocalConfiguration.current
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK == Configuration.UI_MODE_TYPE_TELEVISION
+    val showNav = currentRoute in listOf("home", "schedule", "genres_list", "history")
+
+    if (isTV) {
+        // TV layout: NavigationRail on the left, content fills the rest
+        Row(modifier = Modifier.fillMaxSize()) {
+            if (showNav) {
+                NavigationRail(
                     containerColor = DarkSurface,
-                    contentColor = NeonPurple
+                    contentColor = NeonPurple,
+                    modifier = Modifier.fillMaxHeight()
                 ) {
-                    bottomNavItems.forEach { item ->
+                    navItems.forEach { item ->
                         val selected = currentRoute == item.route
-                        NavigationBarItem(
+                        var isFocused by remember { mutableStateOf(false) }
+                        NavigationRailItem(
                             selected = selected,
                             onClick = {
                                 currentRoute = item.route
                                 navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
-                                    }
+                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -94,24 +106,100 @@ fun MainApp() {
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
-                                    tint = if (selected) NeonPurple else TextSecondary
+                                    tint = when {
+                                        selected -> NeonPurple
+                                        isFocused -> Color.White
+                                        else -> TextSecondary
+                                    }
                                 )
                             },
                             label = {
                                 Text(
                                     item.label,
-                                    color = if (selected) Color.White else TextSecondary
+                                    color = when {
+                                        selected -> Color.White
+                                        isFocused -> Color.White
+                                        else -> TextSecondary
+                                    }
                                 )
                             },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent
-                            )
+                            colors = NavigationRailItemDefaults.colors(
+                                indicatorColor = NeonPurple.copy(alpha = 0.15f)
+                            ),
+                            modifier = Modifier.onFocusChanged { isFocused = it.isFocused }
                         )
                     }
                 }
             }
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize()
+            ) {
+                buildNavGraph(navController) { currentRoute = it }
+            }
         }
-    ) { innerPadding ->
+    } else {
+        // Phone/Tablet layout: NavigationBar at the bottom
+        Scaffold(
+            bottomBar = {
+                if (showNav) {
+                    NavigationBar(
+                        containerColor = DarkSurface,
+                        contentColor = NeonPurple
+                    ) {
+                        navItems.forEach { item ->
+                            val selected = currentRoute == item.route
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    currentRoute = item.route
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.label,
+                                        tint = if (selected) NeonPurple else TextSecondary
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        item.label,
+                                        color = if (selected) Color.White else TextSecondary
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = Color.Transparent
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                buildNavGraph(navController) { currentRoute = it }
+            }
+        }
+    }
+}
+
+@Composable
+private fun androidx.navigation.NavGraphBuilder.buildNavGraph(
+    navController: androidx.navigation.NavHostController,
+    onRouteChange: (String) -> Unit
+) {
         NavHost(
             navController = navController,
             startDestination = "home",
@@ -119,147 +207,132 @@ fun MainApp() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable("home") {
-                currentRoute = "home"
-                val viewModel: HomeViewModel = hiltViewModel()
-                HomeScreen(
-                    viewModel = viewModel,
-                    onAnimeClick = { id ->
-                        navigateToDetail(navController, id)
-                    },
-                    onSeeAllClick = { type, title ->
-                        if (type == "ongoing") {
-                            navController.navigate("schedule") {
-                                popUpTo("home") { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        } else {
-                            navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
-                        }
-                    },
-                    onEpisodePlay = { episodeId, animeId ->
-                        navigateToPlayer(navController, episodeId, animeId)
-                    }
-                )
-            }
-
-            composable("schedule") {
-                currentRoute = "schedule"
-                val viewModel: ScheduleViewModel = hiltViewModel()
-                ScheduleScreen(
-                    viewModel = viewModel,
-                    onAnimeClick = { id ->
-                        navigateToDetail(navController, id)
-                    }
-                )
-            }
-
-            composable("genres_list") {
-                currentRoute = "genres_list"
-                val viewModel: GenreListViewModel = hiltViewModel()
-                GenreListScreen(
-                    viewModel = viewModel,
-                    onGenreClick = { id, name ->
-                        navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
-                    }
-                )
-            }
-
-            composable("history") {
-                currentRoute = "history"
-                val viewModel: HistoryViewModel = hiltViewModel()
-                HistoryScreen(
-                    viewModel = viewModel,
-                    onAnimeClick = { id ->
-                        navigateToDetail(navController, id)
-                    }
-                )
-            }
-
-            composable(
-                route = "detail/{animeId}",
-                arguments = listOf(
-                    navArgument("animeId") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                currentRoute = "detail"
-                val viewModel: DetailViewModel = hiltViewModel()
-                DetailScreen(
-                    viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() },
-                    onEpisodeClick = { episodeId, animeId ->
-                        navigateToPlayer(navController, episodeId, animeId)
-                    }
-                )
-            }
-
-            composable(
-                route = "player/{episodeId}/{animeId}",
-                arguments = listOf(
-                    navArgument("episodeId") { type = NavType.StringType },
-                    navArgument("animeId") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                currentRoute = "player"
-                val viewModel: PlayerViewModel = hiltViewModel()
-                val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
-                PlayerScreen(
-                    viewModel = viewModel,
-                    onBackClick = {
-                        val encodedAnimeId = java.net.URLEncoder.encode(animeId, "UTF-8")
-                        navController.navigate("detail/$encodedAnimeId") {
-                            // Bersihkan player dari backstack, kembali ke home terlebih dahulu
-                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+    composable("home") {
+            onRouteChange("home")
+            val viewModel: HomeViewModel = hiltViewModel()
+            HomeScreen(
+                viewModel = viewModel,
+                onAnimeClick = { id -> navigateToDetail(navController, id) },
+                onSeeAllClick = { type, title ->
+                    if (type == "ongoing") {
+                        navController.navigate("schedule") {
+                            popUpTo("home") { saveState = true }
                             launchSingleTop = true
+                            restoreState = true
                         }
-                    },
-                    onEpisodeClick = { nextEpId, aId ->
-                        val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
-                        val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
-                        navController.navigate("player/$encodedEpId/$encodedAnimeId") {
-                            // Bersihkan player saat ini agar tidak menumpuk backstack
-                            popUpTo("player/{episodeId}/{animeId}") { inclusive = true }
-                        }
+                    } else {
+                        navController.navigate("list/${Uri.encode(type)}/${Uri.encode(title)}")
                     }
-                )
-            }
+                },
+                onEpisodePlay = { episodeId, animeId ->
+                    navigateToPlayer(navController, episodeId, animeId)
+                }
+            )
+        }
 
-            composable(
-                route = "genre/{genreId}/{genreName}",
-                arguments = listOf(
-                    navArgument("genreId") { type = NavType.StringType },
-                    navArgument("genreName") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                currentRoute = "genre"
-                val viewModel: GenreViewModel = hiltViewModel()
-                GenreScreen(
-                    viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() },
-                    onAnimeClick = { id ->
-                        navigateToDetail(navController, id)
-                    }
-                )
-            }
+        composable("schedule") {
+            onRouteChange("schedule")
+            val viewModel: ScheduleViewModel = hiltViewModel()
+            ScheduleScreen(
+                viewModel = viewModel,
+                onAnimeClick = { id -> navigateToDetail(navController, id) }
+            )
+        }
 
-            composable(
-                route = "list/{listType}/{listTitle}",
-                arguments = listOf(
-                    navArgument("listType") { type = NavType.StringType },
-                    navArgument("listTitle") { type = NavType.StringType }
-                )
-            ) { backStackEntry ->
-                currentRoute = "list"
-                val viewModel: com.animein.app.ui.screens.animelist.AnimeListViewModel = hiltViewModel()
-                com.animein.app.ui.screens.animelist.AnimeListScreen(
-                    viewModel = viewModel,
-                    onBackClick = { navController.popBackStack() },
-                    onAnimeClick = { id ->
-                        navigateToDetail(navController, id)
+        composable("genres_list") {
+            onRouteChange("genres_list")
+            val viewModel: GenreListViewModel = hiltViewModel()
+            GenreListScreen(
+                viewModel = viewModel,
+                onGenreClick = { id, name ->
+                    navController.navigate("genre/${Uri.encode(id)}/${Uri.encode(name)}")
+                }
+            )
+        }
+
+        composable("history") {
+            onRouteChange("history")
+            val viewModel: HistoryViewModel = hiltViewModel()
+            HistoryScreen(
+                viewModel = viewModel,
+                onAnimeClick = { id -> navigateToDetail(navController, id) }
+            )
+        }
+
+        composable(
+            route = "detail/{animeId}",
+            arguments = listOf(navArgument("animeId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            onRouteChange("detail")
+            val viewModel: DetailViewModel = hiltViewModel()
+            DetailScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onEpisodeClick = { episodeId, animeId ->
+                    navigateToPlayer(navController, episodeId, animeId)
+                }
+            )
+        }
+
+        composable(
+            route = "player/{episodeId}/{animeId}",
+            arguments = listOf(
+                navArgument("episodeId") { type = NavType.StringType },
+                navArgument("animeId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            onRouteChange("player")
+            val viewModel: PlayerViewModel = hiltViewModel()
+            val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
+            PlayerScreen(
+                viewModel = viewModel,
+                onBackClick = {
+                    val encodedAnimeId = java.net.URLEncoder.encode(animeId, "UTF-8")
+                    navController.navigate("detail/$encodedAnimeId") {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        launchSingleTop = true
                     }
-                )
-            }
+                },
+                onEpisodeClick = { nextEpId, aId ->
+                    val encodedEpId = java.net.URLEncoder.encode(nextEpId, "UTF-8")
+                    val encodedAnimeId = java.net.URLEncoder.encode(aId, "UTF-8")
+                    navController.navigate("player/$encodedEpId/$encodedAnimeId") {
+                        popUpTo("player/{episodeId}/{animeId}") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = "genre/{genreId}/{genreName}",
+            arguments = listOf(
+                navArgument("genreId") { type = NavType.StringType },
+                navArgument("genreName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            onRouteChange("genre")
+            val viewModel: GenreViewModel = hiltViewModel()
+            GenreScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onAnimeClick = { id -> navigateToDetail(navController, id) }
+            )
+        }
+
+        composable(
+            route = "list/{listType}/{listTitle}",
+            arguments = listOf(
+                navArgument("listType") { type = NavType.StringType },
+                navArgument("listTitle") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            onRouteChange("list")
+            val viewModel: com.animein.app.ui.screens.animelist.AnimeListViewModel = hiltViewModel()
+            com.animein.app.ui.screens.animelist.AnimeListScreen(
+                viewModel = viewModel,
+                onBackClick = { navController.popBackStack() },
+                onAnimeClick = { id -> navigateToDetail(navController, id) }
+            )
         }
     }
 }
