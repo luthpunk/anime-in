@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
+import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import javax.inject.Inject
@@ -20,7 +21,7 @@ class NimegamiDirectScraper @Inject constructor(
     companion object {
         private const val BASE_URL = "https://nimegami.id/"
         private const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
     private suspend fun fetchHtml(url: String, referer: String = BASE_URL): String = withContext(Dispatchers.IO) {
@@ -46,17 +47,19 @@ class NimegamiDirectScraper @Inject constructor(
 
     suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         val doc = fetchDocument(BASE_URL)
-        val articles = doc.select(".post-article article")
+        val articles = doc.select("article")
         
         val ongoingList = mutableListOf<AnimeOngoing>()
         val completedList = mutableListOf<AnimeCompleted>()
 
         articles.forEach { item ->
-            val anchor = item.select(".thumb a").first() ?: return@forEach
+            val anchor = item.select("a").first() ?: return@forEach
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val title = anchor.attr("title").replace("Sub Indo", "").trim()
-            val thumb = anchor.select("img").first()?.absUrl("src") ?: ""
+            
+            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
             // Check if completed or ongoing
             val isComplete = item.select(".post-2-complete").isNotEmpty()
@@ -99,12 +102,13 @@ class NimegamiDirectScraper @Inject constructor(
         val doc = fetchDocument(url)
         val articles = doc.select("article")
         val list = articles.mapNotNull { item ->
-            val anchor = item.select(".thumb a").first() ?: return@mapNotNull null
+            val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val title = anchor.attr("title").replace("Sub Indo", "").trim()
-            val thumb = anchor.select("img").first()?.absUrl("src") ?: ""
-            val episode = item.select(".eps_ongo").text().trim()
+            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
+            val episode = item.select(".eps-archive, .eps_ongo").text().trim()
             
             AnimeListItem(
                 title = title,
@@ -123,20 +127,20 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
-        // Scrapes page feed and filters only completed ones
         val url = if (page <= 1) BASE_URL else "${BASE_URL}page/$page/"
         val doc = fetchDocument(url)
-        val articles = doc.select(".post-article article")
+        val articles = doc.select("article")
         
         val list = articles.mapNotNull { item ->
             val isComplete = item.select(".post-2-complete").isNotEmpty()
             if (!isComplete) return@mapNotNull null
             
-            val anchor = item.select(".thumb a").first() ?: return@mapNotNull null
+            val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val title = anchor.attr("title").replace("Sub Indo", "").trim()
-            val thumb = anchor.select("img").first()?.absUrl("src") ?: ""
+            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
             AnimeListItem(
                 title = title,
@@ -160,11 +164,12 @@ class NimegamiDirectScraper @Inject constructor(
         val articles = doc.select("article")
         
         val list = articles.mapNotNull { item ->
-            val anchor = item.select(".thumb a").first() ?: return@mapNotNull null
+            val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val title = anchor.attr("title").replace("Sub Indo", "").trim()
-            val thumb = anchor.select("img").first()?.absUrl("src") ?: ""
+            val titleText = item.select(".post-2-title, .title").text().ifBlank { anchor.attr("title") }
+            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
             val isComplete = item.select(".post-2-complete").isNotEmpty()
             val status = if (isComplete) "Completed" else "Ongoing"
 
@@ -182,7 +187,6 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getGenres(): GenreListResponse = withContext(Dispatchers.Default) {
-        // Static genres for Nimegami for speed and reliability
         val staticGenres = listOf(
             Pair("Action", "action"),
             Pair("Adventure", "adventure"),
@@ -218,11 +222,12 @@ class NimegamiDirectScraper @Inject constructor(
         val articles = doc.select("article")
         
         val list = articles.mapNotNull { item ->
-            val anchor = item.select(".thumb a").first() ?: return@mapNotNull null
+            val anchor = item.select("a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href")
             val id = AnimeIdUtils.normalizeAnimeId(link)
-            val title = anchor.attr("title").replace("Sub Indo", "").trim()
-            val thumb = anchor.select("img").first()?.absUrl("src") ?: ""
+            val titleText = item.select(".post-2-title").text().ifBlank { anchor.attr("title") }
+            val title = titleText.replace("Sub Indo", "").replace("Subtitle Indonesia", "").trim()
+            val thumb = item.select("img").first()?.absUrl("src") ?: ""
             
             AnimeListItem(
                 title = title,
@@ -303,7 +308,8 @@ class NimegamiDirectScraper @Inject constructor(
         }
 
         val episodes = mutableListOf<EpisodeItem>()
-        doc.select(".list_eps_stream li.select-eps").forEach { el ->
+        // Select any li.select-eps directly to bypass Jsoup HTML tree-building issues
+        doc.select("li.select-eps").forEach { el ->
             val epTitle = el.attr("title").ifBlank { el.text() }
                 .replace("Sub Indo", "")
                 .replace("Subtitle Indonesia", "")
@@ -313,7 +319,7 @@ class NimegamiDirectScraper @Inject constructor(
                 episodes.add(
                     EpisodeItem(
                         title = epTitle,
-                        id = base64Data, // We pass Base64 data directly as the ID
+                        id = base64Data,
                         link = base64Data,
                         uploadedOn = null
                     )
@@ -348,7 +354,6 @@ class NimegamiDirectScraper @Inject constructor(
         var selectedStreamUrl = "-"
         val mirrorList = mutableListOf<MirrorItem>()
 
-        // Maps base64 data to mirrors
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.getJSONObject(i)
             val format = obj.getString("format")
@@ -357,7 +362,6 @@ class NimegamiDirectScraper @Inject constructor(
                 val streamPageUrl = urls.getString(0)
                 mirrorList.add(MirrorItem(host = "Berkasdrive - $format", id = streamPageUrl))
                 
-                // Select 720p or 480p as the default stream if available, otherwise fallback to first resolution
                 if (selectedStreamUrl == "-" || format == "720p" || (format == "480p" && selectedStreamUrl.contains("_360p_"))) {
                     selectedStreamUrl = streamPageUrl
                 }
@@ -370,7 +374,6 @@ class NimegamiDirectScraper @Inject constructor(
             "-"
         }
 
-        // Divide mirrorList to match the model
         val mirror1 = if (mirrorList.size > 0) MirrorQuality("Berkasdrive", listOf(mirrorList[0])) else null
         val mirror2 = if (mirrorList.size > 1) MirrorQuality("Berkasdrive", listOf(mirrorList[1])) else null
         val mirror3 = if (mirrorList.size > 2) MirrorQuality("Berkasdrive", listOf(mirrorList[2])) else null
@@ -398,14 +401,35 @@ class NimegamiDirectScraper @Inject constructor(
 
     private suspend fun resolveBerkasdriveStream(pageUrl: String): String = withContext(Dispatchers.IO) {
         try {
-            val doc = fetchDocument(pageUrl, BASE_URL)
-            // Parse <source src="..."> directly from HTML
-            val src = doc.select("video source").attr("src").trim()
+            val html = fetchHtml(pageUrl, BASE_URL)
+            val doc = Jsoup.parse(html, pageUrl)
+            
+            // Try 1: Static source tag
+            val src = doc.select("video source").attr("abs:src").trim()
             if (src.startsWith("http")) {
-                src
-            } else {
-                "-"
+                return@withContext src
             }
+            
+            // Try 2: Dynamic STREAM_URL_API from JavaScript
+            val apiRegex = Regex("const\\s+STREAM_URL_API\\s*=\\s*[\"']([^\"']+)[\"']")
+            val match = apiRegex.find(html)
+            if (match != null) {
+                val apiPath = match.groupValues[1]
+                val uri = java.net.URI(pageUrl)
+                val hostUrl = "${uri.scheme}://${uri.host}"
+                val apiUrl = if (apiPath.startsWith("http")) apiPath else "$hostUrl$apiPath"
+                
+                val jsonStr = fetchHtml(apiUrl, pageUrl)
+                val json = JSONObject(jsonStr)
+                if (json.optBoolean("ok", false)) {
+                    val streamUrl = json.getString("url")
+                    if (streamUrl.startsWith("http")) {
+                        return@withContext streamUrl
+                    }
+                }
+            }
+            
+            "-"
         } catch (e: Exception) {
             android.util.Log.e("NimegamiScraper", "Failed to resolve Berkasdrive URL: $pageUrl", e)
             "-"
@@ -413,6 +437,6 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.Default) {
-        ScheduleResponse(emptyList()) // Nimegami does not have a schedule page, return empty list
+        ScheduleResponse(emptyList())
     }
 }

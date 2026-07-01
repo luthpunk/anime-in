@@ -48,79 +48,33 @@ class AnimeRepository @Inject constructor(
             preferencesManager.saveHomeCache(gson.toJson(response))
             response
         } catch (e: Exception) {
-            try {
-                val response = apiService.getHome()
-                inMemoryHome = response
-                preferencesManager.saveHomeCache(gson.toJson(response))
-                response
-            } catch (apiEx: Exception) {
-                inMemoryHome ?: throw apiEx
-            }
+            inMemoryHome ?: throw e
         }
     }
 
     suspend fun getOngoingAnimeList(page: Int): AnimeListResponse {
-        return try {
-            apiService.getOngoingAnimeList(page)
-        } catch (e: Exception) {
-            directScraper.getOngoingAnimeList(page)
-        }
+        return directScraper.getOngoingAnimeList(page)
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse {
-        return try {
-            apiService.getCompletedAnimeList(page)
-        } catch (e: Exception) {
-            directScraper.getCompletedAnimeList(page)
-        }
+        return directScraper.getCompletedAnimeList(page)
     }
 
     suspend fun searchAnime(query: String): SearchResponse {
-        return try {
-            val apiRes = apiService.searchAnime(query)
-            if (apiRes.searchResults.isNullOrEmpty()) {
-                directScraper.searchAnime(query)
-            } else {
-                apiRes
-            }
-        } catch (e: Exception) {
-            directScraper.searchAnime(query)
-        }
+        return directScraper.searchAnime(query)
     }
 
     suspend fun getGenres(): GenreListResponse {
-        return try {
-            val apiRes = apiService.getGenres()
-            if (apiRes.genreList.isNullOrEmpty()) {
-                directScraper.getGenres()
-            } else {
-                apiRes
-            }
-        } catch (e: Exception) {
-            directScraper.getGenres()
-        }
+        return directScraper.getGenres()
     }
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
-        return try {
-            apiService.getAnimeByGenre(genreId, page)
-        } catch (e: Exception) {
-            directScraper.getAnimeByGenre(genreId, page)
-        }
+        return directScraper.getAnimeByGenre(genreId, page)
     }
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
         val normalizedAnimeId = AnimeIdUtils.normalizeAnimeId(animeId)
-        val detail = try {
-            val apiDetail = apiService.getAnimeDetail(normalizedAnimeId)
-            if (apiDetail.episodeList.isNullOrEmpty()) {
-                directScraper.getAnimeDetail(normalizedAnimeId)
-            } else {
-                apiDetail
-            }
-        } catch (e: Exception) {
-            directScraper.getAnimeDetail(normalizedAnimeId)
-        }
+        val detail = directScraper.getAnimeDetail(normalizedAnimeId)
         // Add to history
         val history = HistoryEntity(
             id = normalizedAnimeId,
@@ -133,29 +87,11 @@ class AnimeRepository @Inject constructor(
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
         val normalizedEpisodeId = AnimeIdUtils.normalizeEpisodeId(episodeId)
-        return try {
-            val apiDetail = apiService.getEpisodeDetail(normalizedEpisodeId)
-            if (apiDetail.linkStream.isNullOrBlank() || apiDetail.linkStream == "-") {
-                directScraper.getEpisodeDetail(normalizedEpisodeId)
-            } else {
-                apiDetail
-            }
-        } catch (e: Exception) {
-            directScraper.getEpisodeDetail(normalizedEpisodeId)
-        }
+        return directScraper.getEpisodeDetail(normalizedEpisodeId)
     }
 
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {
-        return try {
-            val apiRes = apiService.getMirrorStream(AnimeIdUtils.normalizeAnimeId(animeId), MirrorRequest(mirrorId))
-            if (apiRes.linkStream.isNullOrBlank() || apiRes.linkStream == "-") {
-                directScraper.getMirrorStream(mirrorId)
-            } else {
-                apiRes
-            }
-        } catch (e: Exception) {
-            directScraper.getMirrorStream(mirrorId)
-        }
+        return directScraper.getMirrorStream(mirrorId)
     }
 
     // Local DB operations
