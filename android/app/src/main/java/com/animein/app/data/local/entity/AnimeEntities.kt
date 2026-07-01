@@ -33,3 +33,11 @@ data class ContinueWatchingEntity(
     val duration: Long,
     val lastWatchedAt: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "cache_table")
+data class CacheEntity(
+    @PrimaryKey val cacheKey: String,
+    val jsonResponse: String,
+    val lastUpdated: Long = System.currentTimeMillis()
+)
+

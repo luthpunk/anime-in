@@ -33,14 +33,14 @@ class AnimeListViewModel @Inject constructor(
         fetchAnimeList()
     }
 
-    fun fetchAnimeList() {
+    fun fetchAnimeList(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = AnimeListUiState.Loading
             try {
                 val response = if (listType == "ongoing") {
-                    repository.getOngoingAnimeList(1)
+                    repository.getOngoingAnimeList(1, forceRefresh)
                 } else {
-                    repository.getCompletedAnimeList(1)
+                    repository.getCompletedAnimeList(1, forceRefresh)
                 }
                 _uiState.value = AnimeListUiState.Success(response.animeList)
             } catch (e: Exception) {
@@ -49,3 +49,4 @@ class AnimeListViewModel @Inject constructor(
         }
     }
 }
+

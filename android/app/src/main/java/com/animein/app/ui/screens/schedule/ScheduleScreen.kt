@@ -90,7 +90,7 @@ fun ScheduleScreen(
                         Text(state.message, color = Color.Red, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { viewModel.fetchSchedule() },
+                            onClick = { viewModel.fetchSchedule(forceRefresh = true) },
                             colors = ButtonDefaults.buttonColors(containerColor = NeonPurple)
                         ) {
                             Text("Coba Lagi", color = Color.White)

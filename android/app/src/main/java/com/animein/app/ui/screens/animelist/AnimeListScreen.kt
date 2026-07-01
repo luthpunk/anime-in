@@ -95,7 +95,7 @@ fun AnimeListScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(state.message, color = Color.Red)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.fetchAnimeList() }) {
+                            Button(onClick = { viewModel.fetchAnimeList(forceRefresh = true) }) {
                                 Text("Coba Lagi")
                             }
                         }

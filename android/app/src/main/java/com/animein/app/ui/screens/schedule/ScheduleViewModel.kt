@@ -22,11 +22,11 @@ class ScheduleViewModel @Inject constructor(
         fetchSchedule()
     }
 
-    fun fetchSchedule() {
+    fun fetchSchedule(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _scheduleState.value = ScheduleUiState.Loading
             try {
-                val response = repository.getSchedule()
+                val response = repository.getSchedule(forceRefresh)
                 _scheduleState.value = ScheduleUiState.Success(response.scheduleList)
             } catch (e: Exception) {
                 _scheduleState.value = ScheduleUiState.Error(e.localizedMessage ?: "Gagal memuat jadwal rilis")
@@ -34,6 +34,7 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 }
+
 
 sealed interface ScheduleUiState {
     data object Loading : ScheduleUiState

@@ -1,6 +1,7 @@
 package com.animein.app.data.local.dao
 
 import androidx.room.*
+import com.animein.app.data.local.entity.CacheEntity
 import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.local.entity.FavoriteEntity
 import com.animein.app.data.local.entity.HistoryEntity
@@ -49,4 +50,15 @@ interface AnimeDao {
 
     @Query("DELETE FROM continue_watching WHERE episodeId = :episodeId")
     suspend fun deleteContinueWatching(episodeId: String)
+
+    // General Cache Table
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCache(cache: CacheEntity)
+
+    @Query("SELECT * FROM cache_table WHERE cacheKey = :cacheKey")
+    suspend fun getCache(cacheKey: String): CacheEntity?
+
+    @Query("DELETE FROM cache_table WHERE cacheKey = :cacheKey")
+    suspend fun deleteCache(cacheKey: String)
 }
+
