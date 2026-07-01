@@ -125,12 +125,21 @@ class NimegamiDirectScraper @Inject constructor(
             val isMovie = title.contains("Movie", ignoreCase = true) ||
                 anchorTitle.contains("Movie", ignoreCase = true)
 
-            // Completed: has .post-2-complete OR anchor title ends with (End) AND no ongoing eps selector
-            val hasCompleteClass = item.select(".post-2-complete").isNotEmpty()
+            // Completed detection strategy:
+            // 1. If it has tag containing "on-going", it's ongoing (false).
+            // 2. If it has complete class, it's completed (true).
+            // 3. Otherwise, fall back to title containing (End) or being a movie.
+            val hasCompleteClass = item.select(".post-2-complete").text().contains("Complete", ignoreCase = true)
+            val hasOngoingTag = item.select("a[href*=on-going]").isNotEmpty()
             val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
-            // On home page, stiky_post articles are "featured" - don't assume completed from (End) alone
-            val isStickyPost = item.hasClass("stiky_post")
-            val isComplete = hasCompleteClass || (anchorEndsWithEnd && !isStickyPost) || isMovie
+            
+            val isComplete = when {
+                hasOngoingTag -> false
+                hasCompleteClass -> true
+                isMovie -> true
+                else -> anchorEndsWithEnd
+            }
+
 
             val displayEpisode = when {
                 isMovie -> "Movie"

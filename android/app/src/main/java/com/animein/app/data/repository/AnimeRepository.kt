@@ -48,16 +48,41 @@ class AnimeRepository @Inject constructor(
             }
         }
         val result = fetcher()
-        try {
-            animeDao.insertCache(
-                com.animein.app.data.local.entity.CacheEntity(
-                    cacheKey = cacheKey,
-                    jsonResponse = gson.toJson(result),
-                    lastUpdated = System.currentTimeMillis()
+        var shouldCache = true
+        when (result) {
+            is HomeResponse -> {
+                if (result.home.ongoing.isEmpty() && result.home.complete.isEmpty()) {
+                    shouldCache = false
+                }
+            }
+            is AnimeListResponse -> {
+                if (result.status == "error" || result.animeList.isEmpty()) {
+                    shouldCache = false
+                }
+            }
+            is ScheduleResponse -> {
+                if (result.scheduleList.isEmpty()) {
+                    shouldCache = false
+                }
+            }
+            is GenreListResponse -> {
+                if (result.genreList.isEmpty()) {
+                    shouldCache = false
+                }
+            }
+        }
+        if (shouldCache) {
+            try {
+                animeDao.insertCache(
+                    com.animein.app.data.local.entity.CacheEntity(
+                        cacheKey = cacheKey,
+                        jsonResponse = gson.toJson(result),
+                        lastUpdated = System.currentTimeMillis()
+                    )
                 )
-            )
-        } catch (e: Exception) {
-            // ignore cache write errors
+            } catch (e: Exception) {
+                // ignore cache write errors
+            }
         }
         return result
     }
