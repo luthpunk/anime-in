@@ -648,8 +648,14 @@ fun PlayerScreen(
                                             ) {
                                                 Text(
                                                     text = if (animeTitle.isNotBlank()) {
-                                                        if (currentEpisodeTitle.isNotBlank()) "$animeTitle — $currentEpisodeTitle"
-                                                        else animeTitle
+                                                        val epNum = extractEpisodeNumber(currentEpisodeTitle)
+                                                        if (epNum.isNotBlank()) "$animeTitle — Episode $epNum"
+                                                        else {
+                                                            val cleanedEp = currentEpisodeTitle.replace(animeTitle, "", ignoreCase = true)
+                                                                .trim().trimStart('-', '—').trim()
+                                                            if (cleanedEp.isNotBlank()) "$animeTitle — $cleanedEp"
+                                                            else animeTitle
+                                                        }
                                                     } else {
                                                         detail.title
                                                     },

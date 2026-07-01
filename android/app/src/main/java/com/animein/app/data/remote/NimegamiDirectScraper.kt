@@ -113,73 +113,91 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
-        val doc = fetchDocument(BASE_URL)
-        val articles = doc.select("article")
-
         val ongoingList = mutableListOf<AnimeOngoing>()
         val completedList = mutableListOf<AnimeCompleted>()
+        
+        var currentPage = 1
+        val seenIds = mutableSetOf<String>()
 
-        articles.forEach { item ->
-            val anchor = item.select("a").first() ?: return@forEach
-            val link = anchor.absUrl("href")
-            val id = AnimeIdUtils.normalizeAnimeId(link)
-            val thumb = item.select("img").first()?.absUrl("src") ?: ""
-            val anchorTitle = anchor.attr("title")
+        while ((ongoingList.size < 10 || completedList.size < 10) && currentPage <= 3) {
+            val url = if (currentPage == 1) BASE_URL else "${BASE_URL}page/$currentPage/"
+            try {
+                val doc = fetchDocument(url)
+                val articles = doc.select("article")
+                if (articles.isEmpty()) break
 
-            val (title, episodeLabel, score) = parseArticleInfo(item)
+                articles.forEach { item ->
+                    val anchor = item.select("a").first() ?: return@forEach
+                    val link = anchor.absUrl("href")
+                    val id = AnimeIdUtils.normalizeAnimeId(link)
+                    if (seenIds.contains(id)) return@forEach
+                    seenIds.add(id)
 
-            // Movie: title or link contains "Movie"
-            val isMovie = title.contains("Movie", ignoreCase = true) ||
-                anchorTitle.contains("Movie", ignoreCase = true)
+                    val thumb = item.select("img").first()?.absUrl("src") ?: ""
+                    val anchorTitle = anchor.attr("title")
 
-            // Completed detection strategy:
-            // 1. If it has tag containing "on-going", it's ongoing (false).
-            // 2. If it has complete class, it's completed (true).
-            // 3. Otherwise, fall back to title containing (End) or being a movie.
-            val hasCompleteClass = item.select(".post-2-complete").text().contains("Complete", ignoreCase = true)
-            val hasOngoingTag = item.select("a[href*=on-going]").isNotEmpty()
-            val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
-            
-            val isComplete = when {
-                hasOngoingTag -> false
-                hasCompleteClass -> true
-                isMovie -> true
-                else -> anchorEndsWithEnd
+                    val (title, episodeLabel, score) = parseArticleInfo(item)
+
+                    // Movie: title or link contains "Movie"
+                    val isMovie = title.contains("Movie", ignoreCase = true) ||
+                        anchorTitle.contains("Movie", ignoreCase = true)
+
+                    // Completed detection strategy:
+                    // 1. If it has tag containing "on-going", it's ongoing (false).
+                    // 2. If it has complete class, it's completed (true).
+                    // 3. Otherwise, fall back to title containing (End) or being a movie.
+                    val hasCompleteClass = item.select(".post-2-complete").text().contains("Complete", ignoreCase = true)
+                    val hasOngoingTag = item.select("a[href*=on-going]").isNotEmpty()
+                    val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
+                    
+                    val isComplete = when {
+                        hasOngoingTag -> false
+                        hasCompleteClass -> true
+                        isMovie -> true
+                        else -> anchorEndsWithEnd
+                    }
+
+                    val displayEpisode = when {
+                        isMovie -> "Movie"
+                        isComplete -> "Tamat"
+                        episodeLabel.isNotBlank() -> episodeLabel
+                        else -> "Ongoing"
+                    }
+
+                    if (isComplete) {
+                        if (completedList.size < 10) {
+                            completedList.add(
+                                AnimeCompleted(
+                                    title = title,
+                                    id = id,
+                                    thumb = thumb,
+                                    episode = displayEpisode,
+                                    uploadedOn = null,
+                                    score = score,
+                                    link = link
+                                )
+                            )
+                        }
+                    } else {
+                        if (ongoingList.size < 10) {
+                            ongoingList.add(
+                                AnimeOngoing(
+                                    title = title,
+                                    id = id,
+                                    thumb = thumb,
+                                    episode = displayEpisode,
+                                    uploadedOn = null,
+                                    dayUpdated = null,
+                                    link = link
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                break
             }
-
-
-            val displayEpisode = when {
-                isMovie -> "Movie"
-                episodeLabel.isNotBlank() -> episodeLabel
-                isComplete -> "Tamat"
-                else -> "Ongoing"
-            }
-
-            if (isComplete) {
-                completedList.add(
-                    AnimeCompleted(
-                        title = title,
-                        id = id,
-                        thumb = thumb,
-                        episode = displayEpisode,
-                        uploadedOn = null,
-                        score = score,
-                        link = link
-                    )
-                )
-            } else {
-                ongoingList.add(
-                    AnimeOngoing(
-                        title = title,
-                        id = id,
-                        thumb = thumb,
-                        episode = displayEpisode,
-                        uploadedOn = null,
-                        dayUpdated = null,
-                        link = link
-                    )
-                )
-            }
+            currentPage++
         }
 
         HomeResponse(
@@ -226,7 +244,6 @@ class NimegamiDirectScraper @Inject constructor(
     }
 
     suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
-        // Nimegami home page contains a mix; filter by (End) in anchor title or .post-2-complete
         val url = if (page <= 1) BASE_URL else "${BASE_URL}page/$page/"
         val doc = fetchDocument(url)
         val articles = doc.select("article")
@@ -241,15 +258,22 @@ class NimegamiDirectScraper @Inject constructor(
             val (title, episodeLabel, score) = parseArticleInfo(item)
             val isMovie = title.contains("Movie", ignoreCase = true) ||
                 anchorTitle.contains("Movie", ignoreCase = true)
-            val hasCompleteClass = item.select(".post-2-complete").isNotEmpty()
+            val hasCompleteClass = item.select(".post-2-complete").text().contains("Complete", ignoreCase = true)
+            val hasOngoingTag = item.select("a[href*=on-going]").isNotEmpty()
             val anchorEndsWithEnd = anchorTitle.trimEnd().endsWith("(End)")
-            val isStickyPost = item.hasClass("stiky_post")
-            val isComplete = hasCompleteClass || (anchorEndsWithEnd && !isStickyPost) || isMovie
+            
+            val isComplete = when {
+                hasOngoingTag -> false
+                hasCompleteClass -> true
+                isMovie -> true
+                else -> anchorEndsWithEnd
+            }
 
             if (!isComplete) return@mapNotNull null
 
             val episode = when {
                 isMovie -> "Movie"
+                isComplete -> "Tamat"
                 episodeLabel.isNotBlank() -> episodeLabel
                 else -> "Tamat"
             }
@@ -377,19 +401,15 @@ class NimegamiDirectScraper @Inject constructor(
         val url = "$BASE_URL$cleanId/"
         val doc = fetchDocument(url)
         
-        var title = doc.select("h1.title").text()
-            .replace("Sub Indo", "")
-            .replace("Subtitle Indonesia", "")
+        val rawTitle = doc.select("h1.title").text().ifBlank {
+            doc.select("meta[property=og:title]").attr("content")
+        }
+
+        var title = rawTitle
+            .replace("Sub Indo", "", ignoreCase = true)
+            .replace("Subtitle Indonesia", "", ignoreCase = true)
             .substringBefore(":")
             .trim()
-        
-        if (title.isBlank()) {
-            title = doc.select("meta[property=og:title]").attr("content")
-                .replace("Sub Indo", "")
-                .replace("Subtitle Indonesia", "")
-                .substringBefore(":")
-                .trim()
-        }
 
         val thumb = doc.select("meta[property=og:image]").attr("content")
             .ifBlank { doc.select(".stiky_post .thumb img").attr("src") }
@@ -459,9 +479,8 @@ class NimegamiDirectScraper @Inject constructor(
         // Heuristic status and total episode inference
         val inferredStatus = when {
             type?.contains("Movie", ignoreCase = true) == true -> "Completed"
-            title.contains("(End)", ignoreCase = true) || title.contains("Complete", ignoreCase = true) || title.contains("Tamat", ignoreCase = true) -> "Completed"
+            rawTitle.contains("(End)", ignoreCase = true) || rawTitle.contains("Complete", ignoreCase = true) || rawTitle.contains("Tamat", ignoreCase = true) -> "Completed"
             status?.isNotBlank() == true -> status
-            episodes.isNotEmpty() && episodes.first().title.contains("End", ignoreCase = true) -> "Completed"
             else -> "Ongoing"
         }
         val inferredTotalEpisode = if (totalEpisode.isNullOrBlank()) episodes.size.toString() else totalEpisode
