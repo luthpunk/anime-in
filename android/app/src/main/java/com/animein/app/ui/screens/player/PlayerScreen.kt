@@ -46,6 +46,7 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.hls.HlsMediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import android.app.Activity
 import android.content.pm.ActivityInfo
@@ -182,10 +183,9 @@ fun PlayerScreen(
                                     .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
                             }
 
-                            // HlsMediaSource.Factory — konfigurasi HLS optimal
-                            val hlsMediaSourceFactory = remember {
-                                HlsMediaSource.Factory(cacheDataSourceFactory)
-                                    .setAllowChunklessPreparation(true) // mulai lebih cepat, skip baca semua chunk
+                            // DefaultMediaSourceFactory — mendukung HLS (.m3u8) dan Progressive (.mp4) secara otomatis
+                            val mediaSourceFactory = remember {
+                                DefaultMediaSourceFactory(cacheDataSourceFactory)
                             }
 
                             val loadControl = remember {
@@ -201,7 +201,7 @@ fun PlayerScreen(
 
                             val exoPlayer = remember {
                                 ExoPlayer.Builder(context)
-                                    .setMediaSourceFactory(hlsMediaSourceFactory)
+                                    .setMediaSourceFactory(mediaSourceFactory)
                                     .setLoadControl(loadControl)
                                     .build().apply {
                                         playWhenReady = true
@@ -292,6 +292,10 @@ fun PlayerScreen(
                                         streamUrl.contains("filelion", ignoreCase = true) ||
                                         streamUrl.contains("lion", ignoreCase = true) ->
                                             "https://filelion.to/"
+                                        streamUrl.contains("halahgan", ignoreCase = true) ||
+                                        streamUrl.contains("berkasdrive", ignoreCase = true) ||
+                                        streamUrl.contains("nimegami", ignoreCase = true) ->
+                                            "https://nimegami.id/"
                                         else -> "https://otakudesu.blog/"
                                     }
 
