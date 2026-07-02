@@ -209,6 +209,11 @@ class AnimeRepository @Inject constructor(
 
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
+        val targetSource = if (animeId.all { it.isDigit() }) "animeinweb" else "otakudesu"
+        val currentSource = preferencesManager.getActiveSource()
+        if (currentSource != targetSource) {
+            preferencesManager.setActiveSource(targetSource)
+        }
         val scraper = getActiveScraper()
         // Determine whether to normalize ID depending on active source (AnimeInWeb has numeric IDs, Otakudesu needs normalization)
         val isAnimeInWeb = preferencesManager.getActiveSource() == "animeinweb"
@@ -226,9 +231,16 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
+        val targetSource = if (episodeId.all { it.isDigit() }) "episodeId".let { episodeId.all { it.isDigit() } } else false
+        val cleanEpisodeId = episodeId
+        val finalTargetSource = if (cleanEpisodeId.all { it.isDigit() }) "animeinweb" else "otakudesu"
+        val currentSource = preferencesManager.getActiveSource()
+        if (currentSource != finalTargetSource) {
+            preferencesManager.setActiveSource(finalTargetSource)
+        }
         val scraper = getActiveScraper()
         val isAnimeInWeb = preferencesManager.getActiveSource() == "animeinweb"
-        val normalizedEpisodeId = if (isAnimeInWeb) episodeId else AnimeIdUtils.normalizeEpisodeId(episodeId)
+        val normalizedEpisodeId = if (isAnimeInWeb) cleanEpisodeId else AnimeIdUtils.normalizeEpisodeId(cleanEpisodeId)
         return scraper.getEpisodeDetail(normalizedEpisodeId)
     }
 
