@@ -55,7 +55,8 @@ class AnimeInWebScraper @Inject constructor(
             }
 
             val data = apiResponse.data
-            val ongoingList = (data?.today ?: emptyList()).map { item ->
+            val ongoingSource = if (!data?.today.isNullOrEmpty()) data?.today else data?.hot
+            val ongoingList = (ongoingSource ?: emptyList()).map { item ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",

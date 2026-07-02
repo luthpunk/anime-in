@@ -333,7 +333,6 @@ fun PlayerScreen(
                                     if (currentPos > 0 && exoPlayer.playbackState != Player.STATE_IDLE) {
                                         playPosition = currentPos
                                     }
-
                                     val referer = when {
                                         streamUrl.contains("vidhide", ignoreCase = true) ->
                                             "https://vidhide.com/"
@@ -346,10 +345,11 @@ fun PlayerScreen(
                                         streamUrl.contains("filelion", ignoreCase = true) ||
                                         streamUrl.contains("lion", ignoreCase = true) ->
                                             "https://filelion.to/"
-                                        streamUrl.contains("halahgan", ignoreCase = true) ||
-                                        streamUrl.contains("berkasdrive", ignoreCase = true) ||
                                         streamUrl.contains("nimegami", ignoreCase = true) ->
                                             "https://nimegami.id/"
+                                        streamUrl.contains("animein", ignoreCase = true) ||
+                                        streamUrl.contains("storages", ignoreCase = true) ->
+                                            "https://animeinweb.com/"
                                         else -> "https://otakudesu.blog/"
                                     }
 
