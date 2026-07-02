@@ -342,48 +342,35 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/home/data")
-            val type = object : TypeToken<WebResponse<WebHomeData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebHomeData>>(json, type)
-
-            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
-                return@withContext ScheduleResponse(emptyList())
-            }
-
-            val daysMap = mutableMapOf<String, MutableList<ScheduleAnimeItem>>()
             val daysList = listOf("SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU")
+            val scheduleItems = mutableListOf<ScheduleItem>()
 
-            daysList.forEach { daysMap[it] = mutableListOf() }
+            for (day in daysList) {
+                try {
+                    val json = makeGetRequest("3/2/schedule/data", mapOf("day" to day))
+                    val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+                    val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
-            val allOngoing = mutableListOf<WebMovieItem>()
-            apiResponse.data.hot?.let { allOngoing.addAll(it) }
-            apiResponse.data.today?.let { allOngoing.addAll(it) }
+                    val animeList = if (apiResponse?.error == false && apiResponse.status == 200) {
+                        (apiResponse.data?.movie ?: emptyList()).map { movie ->
+                            ScheduleAnimeItem(
+                                animeName = movie.title ?: "Tanpa Judul",
+                                id = movie.id ?: "",
+                                link = "",
+                                thumb = movie.image_poster,
+                                episode = "Update",
+                                isUpdated = false
+                            )
+                        }
+                    } else emptyList()
 
-            val uniqueOngoing = allOngoing.distinctBy { it.id }
-
-            uniqueOngoing.forEach { movie ->
-                val rawDay = movie.day?.uppercase() ?: "RANDOM"
-                if (daysMap.containsKey(rawDay) && movie.id != null) {
-                    daysMap[rawDay]?.add(
-                        ScheduleAnimeItem(
-                            animeName = movie.title ?: "Tanpa Judul",
-                            id = movie.id,
-                            link = "",
-                            thumb = movie.image_poster,
-                            episode = "Update",
-                            isUpdated = false
-                        )
-                    )
+                    scheduleItems.add(ScheduleItem(day = day, animeList = animeList))
+                } catch (e: Exception) {
+                    scheduleItems.add(ScheduleItem(day = day, animeList = emptyList()))
                 }
             }
 
-            val list = daysList.map { day ->
-                ScheduleItem(
-                    day = day,
-                    animeList = daysMap[day] ?: emptyList()
-                )
-            }
-            ScheduleResponse(list)
+            ScheduleResponse(scheduleItems)
         } catch (e: Exception) {
             ScheduleResponse(emptyList())
         }
