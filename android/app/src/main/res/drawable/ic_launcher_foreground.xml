@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    AnimeIn launcher foreground — stylized anime eye
-    Canvas: 108×108 dp (standard adaptive icon safe zone: ~72×72 dp centered)
-    The eye artwork is placed roughly between x=18..90, y=28..80
+    AnimeIn launcher foreground — persegi panjang hitam + play kuning
+    Canvas: 108×108 dp (safe zone: ~72×72 dp di tengah)
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -10,115 +9,18 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- ── Outer eye white (almond shape) ── -->
+    <!-- Rounded rectangle hitam (latar icon) -->
     <path
-        android:pathData="M18,54
-            C24,38 84,38 90,54
-            C84,70 24,70 18,54 Z"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.95" />
+        android:pathData="M20,30 Q20,22 28,22 L80,22 Q88,22 88,30 L88,78 Q88,86 80,86 L28,86 Q20,86 20,78 Z"
+        android:fillColor="#000000" />
 
-    <!-- ── Upper eyelid shadow gradient fill ── -->
+    <!-- Segitiga play kuning di tengah -->
     <path
-        android:pathData="M18,54
-            C24,38 84,38 90,54
-            C74,44 34,44 18,54 Z"
-        android:fillColor="#8B5CF6"
-        android:fillAlpha="0.40" />
-
-    <!-- ── Iris (large circle, neon purple) ── -->
-    <path
-        android:pathData="M54,54
-            m-18,0
-            a18,18 0,1,0 36,0
-            a18,18 0,1,0 -36,0"
-        android:fillColor="#7C3AED" />
-
-    <!-- ── Iris inner rim (lighter) ── -->
-    <path
-        android:pathData="M54,54
-            m-13,0
-            a13,13 0,1,0 26,0
-            a13,13 0,1,0 -26,0"
-        android:fillColor="#9F67FF" />
-
-    <!-- ── Pupil (black centre) ── -->
-    <path
-        android:pathData="M54,54
-            m-9,0
-            a9,9 0,1,0 18,0
-            a9,9 0,1,0 -18,0"
-        android:fillColor="#0D0620" />
-
-    <!-- ── Highlight sparkle (top-right) ── -->
-    <path
-        android:pathData="M60,44
-            m-3,0
-            a3,3 0,1,0 6,0
-            a3,3 0,1,0 -6,0"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.90" />
-
-    <!-- ── Small secondary sparkle ── -->
-    <path
-        android:pathData="M64,49
-            m-1.5,0
-            a1.5,1.5 0,1,0 3,0
-            a1.5,1.5 0,1,0 -3,0"
-        android:fillColor="#FFFFFF"
-        android:fillAlpha="0.70" />
-
-    <!-- ── Upper eyelashes (bold curved strokes) ── -->
-    <!-- Centre-left lash -->
-    <path
-        android:pathData="M40,42 C38,34 36,28 34,24"
-        android:strokeColor="#C084FC"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-    <!-- Centre lash -->
-    <path
-        android:pathData="M54,40 C54,32 54,26 54,22"
-        android:strokeColor="#C084FC"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-    <!-- Centre-right lash -->
-    <path
-        android:pathData="M68,42 C70,34 72,28 74,24"
-        android:strokeColor="#C084FC"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-    <!-- Far-left lash -->
-    <path
-        android:pathData="M28,49 C24,43 22,38 20,33"
-        android:strokeColor="#A855F7"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-    <!-- Far-right lash -->
-    <path
-        android:pathData="M80,49 C84,43 86,38 88,33"
-        android:strokeColor="#A855F7"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-
-    <!-- ── Lower lid outline ── -->
-    <path
-        android:pathData="M18,54 C24,70 84,70 90,54"
-        android:strokeColor="#7C3AED"
+        android:pathData="M44,38 L44,70 L74,54 Z"
+        android:fillColor="#FFD700"
+        android:strokeColor="#FFD700"
         android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
-
-    <!-- ── Upper lid outline ── -->
-    <path
-        android:pathData="M18,54 C24,38 84,38 90,54"
-        android:strokeColor="#DDD6FE"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:fillColor="@android:color/transparent" />
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
 
 </vector>

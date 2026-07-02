@@ -419,20 +419,59 @@ fun PlayerScreen(
                                 }
                             }
 
+                            val prevEpIdBox by viewModel.prevEpisodeId.collectAsState()
+                            val nextEpIdBox by viewModel.nextEpisodeId.collectAsState()
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .focusable()
                                     .onKeyEvent { keyEvent ->
-                                        if (isTV) {
-                                            if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key != Key.Back) {
+                                        if (!isTV) return@onKeyEvent false
+                                        if (keyEvent.type != KeyEventType.KeyDown) return@onKeyEvent false
+                                        when (keyEvent.key) {
+                                            Key.Back -> false // let BackHandler handle it
+                                            // Any key when controls hidden → show controls
+                                            Key.DirectionCenter, Key.Enter,
+                                            Key.DirectionLeft, Key.DirectionRight,
+                                            Key.DirectionUp, Key.DirectionDown -> {
                                                 if (!showControls) {
                                                     showControls = true
-                                                    true // consume key event so it only shows controls first
+                                                    true
                                                 } else {
-                                                    false // let normal D-pad traversal process it
+                                                    // Controls visible — D-Pad actions
+                                                    when (keyEvent.key) {
+                                                        Key.DirectionCenter, Key.Enter -> {
+                                                            if (exoPlayer.isPlaying) exoPlayer.pause()
+                                                            else exoPlayer.play()
+                                                            true
+                                                        }
+                                                        Key.DirectionLeft -> {
+                                                            val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                                                            exoPlayer.seekTo(target)
+                                                            currentPosition = target
+                                                            true
+                                                        }
+                                                        Key.DirectionRight -> {
+                                                            val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                                                            exoPlayer.seekTo(target)
+                                                            currentPosition = target
+                                                            true
+                                                        }
+                                                        Key.DirectionUp -> {
+                                                            if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
+                                                            true
+                                                        }
+                                                        Key.DirectionDown -> {
+                                                            if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
+                                                            true
+                                                        }
+                                                        else -> false
+                                                    }
                                                 }
-                                            } else false
-                                        } else false
+                                            }
+                                            else -> false
+                                        }
                                     }
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
