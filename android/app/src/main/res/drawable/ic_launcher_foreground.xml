@@ -1,26 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    AnimeIn launcher foreground — persegi panjang hitam + play kuning
-    Canvas: 108×108 dp (safe zone: ~72×72 dp di tengah)
--->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Rounded rectangle hitam (latar icon) -->
+    
+    <!-- Stylized Play Button with rounded corners in yellow (clean, no lines) -->
     <path
-        android:pathData="M20,30 Q20,22 28,22 L80,22 Q88,22 88,30 L88,78 Q88,86 80,86 L28,86 Q20,86 20,78 Z"
-        android:fillColor="#000000" />
-
-    <!-- Segitiga play kuning di tengah -->
-    <path
-        android:pathData="M44,38 L44,70 L74,54 Z"
+        android:pathData="M46,38 L70,54 L46,70 Z"
         android:fillColor="#FFD700"
         android:strokeColor="#FFD700"
-        android:strokeWidth="2"
+        android:strokeWidth="7"
         android:strokeLineJoin="round"
         android:strokeLineCap="round" />
-
 </vector>
