@@ -18,7 +18,7 @@
 const axios = require('axios')
 
 const REMOTE_CONFIG_URL =
-  'https://raw.githubusercontent.com/luthpunk/anime-in/main/config/domain.json'
+  'https://gist.githubusercontent.com/luthpunk/6e2772f4a5240b6f481455c0c6e497ff/raw/'
 
 const DEFAULT_BASE_URL = 'https://otakudesu.blog/'
 const FALLBACK_DOMAINS = ['https://otakudesu.cloud/', 'https://otakudesu.lol/']

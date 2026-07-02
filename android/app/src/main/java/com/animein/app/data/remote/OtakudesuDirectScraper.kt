@@ -29,7 +29,7 @@ class OtakudesuDirectScraper @Inject constructor(
 ) : AnimeDataSource {
     companion object {
         private const val REMOTE_CONFIG_URL =
-            "https://raw.githubusercontent.com/luthpunk/anime-in/main/config/domain.json"
+            "https://gist.githubusercontent.com/luthpunk/6e2772f4a5240b6f481455c0c6e497ff/raw/"
         private const val DEFAULT_BASE_URL = "https://otakudesu.blog/"
         private val FALLBACK_DOMAINS = listOf("https://otakudesu.cloud/", "https://otakudesu.lol/")
         private const val CACHE_TTL_MS = 60 * 60 * 1000L // 1 jam

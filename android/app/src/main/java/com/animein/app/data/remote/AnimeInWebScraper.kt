@@ -18,13 +18,49 @@ class AnimeInWebScraper @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) : AnimeDataSource {
 
+    companion object {
+        private const val REMOTE_CONFIG_URL =
+            "https://gist.githubusercontent.com/luthpunk/6e2772f4a5240b6f481455c0c6e497ff/raw/"
+        private const val DEFAULT_BASE_URL = "https://animeinweb.com/api/proxy/"
+        private const val CACHE_TTL_MS = 60 * 60 * 1000L // 1 jam
+
+        @Volatile private var cachedDomain: String = DEFAULT_BASE_URL
+        @Volatile private var lastFetchedAt: Long = 0L
+    }
+
     private val gson = Gson()
-    private val baseUrl = "https://animeinweb.com/api/proxy/"
     private val proxySecret = "animein-secure-proxy-key-123"
     private val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+    private suspend fun getBaseUrl(): String = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (now - lastFetchedAt < CACHE_TTL_MS) return@withContext cachedDomain
+
+        try {
+            val req = Request.Builder()
+                .url(REMOTE_CONFIG_URL)
+                .header("Cache-Control", "no-cache")
+                .build()
+            val body = okHttpClient.newCall(req).execute().use { it.body?.string() ?: "" }
+            val domain = org.json.JSONObject(body)
+                .getJSONObject("animeinweb")
+                .getString("baseUrl")
+            if (domain.startsWith("http")) {
+                cachedDomain = domain
+                lastFetchedAt = now
+                android.util.Log.d("AnimeInWebDomainConfig", "Domain aktif: $domain")
+                return@withContext domain
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AnimeInWebDomainConfig", "Gagal fetch remote config: ${e.message}")
+        }
+
+        DEFAULT_BASE_URL
+    }
+
     private suspend fun makeGetRequest(path: String, queryParams: Map<String, String> = emptyMap()): String = withContext(Dispatchers.IO) {
-        val urlBuilder = (baseUrl + path).toHttpUrlOrNull()?.newBuilder()
+        val activeBaseUrl = getBaseUrl()
+        val urlBuilder = (activeBaseUrl + path).toHttpUrlOrNull()?.newBuilder()
             ?: throw IOException("Invalid URL path: $path")
 
         queryParams.forEach { (key, value) ->
