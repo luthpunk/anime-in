@@ -76,7 +76,7 @@ class AnimeInWebScraper @Inject constructor(
             }
 
             // Fetch popular anime for completed section
-            val homeJson = makeGetRequest("3/2/home/data")
+            val homeJson = makeGetRequest("3/2/home/data", mapOf("limit" to "16"))
             val homeType = object : TypeToken<WebResponse<WebHomeData>>() {}.type
             val homeResponse = gson.fromJson<WebResponse<WebHomeData>>(homeJson, homeType)
             val completedList = (homeResponse?.data?.popular ?: emptyList()).map { item ->

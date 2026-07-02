@@ -612,6 +612,7 @@ fun PlayerScreen(
                                         PlayerView(ctx).apply {
                                             player = exoPlayer
                                             useController = false
+                                            keepScreenOn = true
                                             layoutParams = ViewGroup.LayoutParams(
                                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                                 ViewGroup.LayoutParams.MATCH_PARENT
