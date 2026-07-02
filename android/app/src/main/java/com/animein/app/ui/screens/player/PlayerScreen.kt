@@ -634,6 +634,7 @@ fun PlayerScreen(
                                             modifier = Modifier.size(48.dp)
                                         )
                                     }
+                                }
                                  if (showControls) {
                                     Box(
                                         modifier = Modifier
@@ -1056,6 +1057,7 @@ fun PlayerScreen(
             }
         }
     }
+}
 }
 
 val FullscreenIcon: ImageVector
