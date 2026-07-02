@@ -390,7 +390,8 @@ class AnimeInWebScraper @Inject constructor(
         val favorites: String?,
         val aired_start: String?,
         val genre: String?,
-        val time: String?
+        val time: String?,
+        val studio: String?
     )
 
     private data class WebGenreData(

@@ -21,6 +21,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -120,9 +122,7 @@ fun HomeScreen(
                                     else -> DarkSurface
                                 }
                             ),
-                            border = AssistChipDefaults.assistChipBorder(
-                                borderColor = if (isSelected || isFocused) NeonPurple else Color.White.copy(alpha = 0.15f)
-                            ),
+                            border = if (isSelected || isFocused) BorderStroke(1.dp, NeonPurple) else BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier
                                 .padding(end = 8.dp)
