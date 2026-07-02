@@ -102,7 +102,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf("otakudesu" to "Otakudesu", "animeinweb" to "AnimeInWeb").forEach { (id, label) ->
+                    listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
                         val isSelected = activeSource == id
                         var isFocused by remember { mutableStateOf(false) }
                         AssistChip(

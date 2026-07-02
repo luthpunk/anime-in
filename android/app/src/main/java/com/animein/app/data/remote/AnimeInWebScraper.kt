@@ -319,15 +319,15 @@ class AnimeInWebScraper @Inject constructor(
 
         val mirror1 = servers.filter { it.quality == "360p" || it.quality == "360" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("360p", list.map { MirrorItem(it.name ?: "Server 360p", it.link ?: "") })
+            else MirrorQuality("360p", list.map { MirrorItem("${it.quality} - ${it.name ?: "Server 360p"}", it.link ?: "") })
         }
         val mirror2 = servers.filter { it.quality == "480p" || it.quality == "480" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("480p", list.map { MirrorItem(it.name ?: "Server 480p", it.link ?: "") })
+            else MirrorQuality("480p", list.map { MirrorItem("${it.quality} - ${it.name ?: "Server 480p"}", it.link ?: "") })
         }
         val mirror3 = servers.filter { it.quality == "720p" || it.quality == "1080p" || it.quality == "720" || it.quality == "1080" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("720p", list.map { MirrorItem(it.name ?: "Server HD", it.link ?: "") })
+            else MirrorQuality("720p", list.map { MirrorItem("${it.quality} - ${it.name ?: "Server HD"}", it.link ?: "") })
         }
 
         EpisodeDetailResponse(

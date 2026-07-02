@@ -172,9 +172,18 @@ fun PlayerScreen(
 
                             var showSettingsDropdown by remember { mutableStateOf(false) }
                             val allMirrors = remember(detail) {
-                                (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, "360p") } ?: emptyList()) +
-                                (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, "480p") } ?: emptyList()) +
-                                (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, "720p") } ?: emptyList())
+                                val parseResolution = { host: String, fallback: String ->
+                                    when {
+                                        host.contains("1080") -> "1080p"
+                                        host.contains("720") -> "720p"
+                                        host.contains("480") -> "480p"
+                                        host.contains("360") -> "360p"
+                                        else -> fallback
+                                    }
+                                }
+                                (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "360p")) } ?: emptyList()) +
+                                (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "480p")) } ?: emptyList()) +
+                                (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "720p")) } ?: emptyList())
                             }
                             var selectedResolution by remember(allMirrors) {
                                 mutableStateOf(
@@ -900,8 +909,14 @@ fun PlayerScreen(
                                                             val isSelected = selectedResolution == mirror.resolution
                                                             DropdownMenuItem(
                                                                 text = {
+                                                                    val labelText = if (mirror.host.contains(mirror.resolution, ignoreCase = true) || 
+                                                                                        mirror.host.contains(mirror.resolution.removeSuffix("p"), ignoreCase = true)) {
+                                                                        mirror.host
+                                                                    } else {
+                                                                        "${mirror.resolution} (${mirror.host})"
+                                                                    }
                                                                     Text(
-                                                                        text = mirror.resolution,
+                                                                        text = labelText,
                                                                         color = if (isSelected) NeonPurple else Color.White,
                                                                         fontSize = 13.sp,
                                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
