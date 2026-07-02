@@ -9,6 +9,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -46,29 +47,39 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/home/data")
-            val type = object : TypeToken<WebResponse<WebHomeData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebHomeData>>(json, type)
-
-            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
-                throw IOException(apiResponse?.message ?: "API error in getHome")
+            // Determine today's day name in Indonesian
+            val todayDay = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+                Calendar.MONDAY -> "SENIN"
+                Calendar.TUESDAY -> "SELASA"
+                Calendar.WEDNESDAY -> "RABU"
+                Calendar.THURSDAY -> "KAMIS"
+                Calendar.FRIDAY -> "JUMAT"
+                Calendar.SATURDAY -> "SABTU"
+                Calendar.SUNDAY -> "MINGGU"
+                else -> "SENIN"
             }
 
-            val data = apiResponse.data
-            val ongoingSource = if (!data?.today.isNullOrEmpty()) data?.today else data?.hot
-            val ongoingList = (ongoingSource ?: emptyList()).map { item ->
+            // Fetch today's anime from schedule endpoint (Anime Hari Ini)
+            val schedJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
+            val schedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+            val schedResponse = gson.fromJson<WebResponse<WebExploreData>>(schedJson, schedType)
+            val ongoingList = (schedResponse?.data?.movie ?: emptyList()).map { item ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
                     episode = "Update",
                     uploadedOn = item.aired_start ?: "",
-                    dayUpdated = item.day ?: "",
+                    dayUpdated = item.day ?: todayDay,
                     link = ""
                 )
             }
 
-            val completedList = (data?.popular ?: emptyList()).map { item ->
+            // Fetch popular anime for completed section
+            val homeJson = makeGetRequest("3/2/home/data")
+            val homeType = object : TypeToken<WebResponse<WebHomeData>>() {}.type
+            val homeResponse = gson.fromJson<WebResponse<WebHomeData>>(homeJson, homeType)
+            val completedList = (homeResponse?.data?.popular ?: emptyList()).map { item ->
                 AnimeCompleted(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",

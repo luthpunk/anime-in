@@ -50,8 +50,10 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.input.key.*
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
+import okhttp3.OkHttpClient
+import okhttp3.Interceptor
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.hls.HlsMediaSource
@@ -208,12 +210,36 @@ fun PlayerScreen(
                                 volumePercent = current.toFloat() / maxVolume.toFloat()
                             }
                             
+                            // Build OkHttpClient with Referer interceptor — reads URL at request
+                            // time so the correct Referer is always sent for each domain
                             val httpDataSourceFactory = remember {
-                                DefaultHttpDataSource.Factory()
-                                    .setUserAgent("Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
-                                    .setAllowCrossProtocolRedirects(true)
-                                    .setConnectTimeoutMs(15000)
-                                    .setReadTimeoutMs(20000)
+                                val okHttpClient = OkHttpClient.Builder()
+                                    .addNetworkInterceptor(Interceptor { chain ->
+                                        val req = chain.request()
+                                        val url = req.url.toString()
+                                        val referer = when {
+                                            url.contains("animein", ignoreCase = true) ||
+                                            url.contains("storages", ignoreCase = true) ->
+                                                "https://animeinweb.com/"
+                                            url.contains("vidhide", ignoreCase = true) ->
+                                                "https://vidhide.com/"
+                                            url.contains("streamwish", ignoreCase = true) ||
+                                            url.contains("awish", ignoreCase = true) ->
+                                                "https://streamwish.to/"
+                                            url.contains("nimegami", ignoreCase = true) ->
+                                                "https://nimegami.id/"
+                                            else -> "https://otakudesu.blog/"
+                                        }
+                                        chain.proceed(
+                                            req.newBuilder()
+                                                .header("Referer", referer)
+                                                .header("Origin", referer.trimEnd('/'))
+                                                .header("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+                                                .build()
+                                        )
+                                    })
+                                    .build()
+                                OkHttpDataSource.Factory(okHttpClient)
                             }
 
                             val cacheDataSourceFactory = remember {
@@ -327,34 +353,6 @@ fun PlayerScreen(
                                     if (currentPos > 0 && exoPlayer.playbackState != Player.STATE_IDLE) {
                                         playPosition = currentPos
                                     }
-                                    val referer = when {
-                                        streamUrl.contains("vidhide", ignoreCase = true) ->
-                                            "https://vidhide.com/"
-                                        streamUrl.contains("desustream", ignoreCase = true) ||
-                                        streamUrl.contains("desu", ignoreCase = true) ->
-                                            "https://otakudesu.blog/"
-                                        streamUrl.contains("streamwish", ignoreCase = true) ||
-                                        streamUrl.contains("awish", ignoreCase = true) ->
-                                            "https://streamwish.to/"
-                                        streamUrl.contains("filelion", ignoreCase = true) ||
-                                        streamUrl.contains("lion", ignoreCase = true) ->
-                                            "https://filelion.to/"
-                                        streamUrl.contains("nimegami", ignoreCase = true) ->
-                                            "https://nimegami.id/"
-                                        streamUrl.contains("animein", ignoreCase = true) ||
-                                        streamUrl.contains("storages", ignoreCase = true) ->
-                                            "https://animeinweb.com/"
-                                        else -> "https://otakudesu.blog/"
-                                    }
-
-                                    // Set Referer langsung di MediaItem.RequestMetadata
-                                    // agar setiap URL punya header yang tepat dan tidak saling override
-                                    httpDataSourceFactory.setDefaultRequestProperties(
-                                        mapOf(
-                                            "Referer" to referer,
-                                            "Origin" to referer.trimEnd('/')
-                                        )
-                                    )
 
                                     val mediaItem = MediaItem.Builder()
                                         .setUri(streamUrl)
