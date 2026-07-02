@@ -47,11 +47,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.focusable
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.*
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -703,6 +699,7 @@ fun PlayerScreen(
                                                     .size(48.dp)
                                                     .onFocusChanged { isPrevFocused = it.isFocused }
                                                     .focusable()
+                                                    .handleRemoteClick { if (prevEpId != null) viewModel.selectEpisode(prevEpId!!) }
                                                     .background(
                                                         if (isPrevFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
                                                         RoundedCornerShape(24.dp)
@@ -730,6 +727,7 @@ fun PlayerScreen(
                                                     .focusRequester(playPauseFocusRequester)
                                                     .onFocusChanged { isPlayFocused = it.isFocused }
                                                     .focusable()
+                                                    .handleRemoteClick { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() }
                                                     .background(
                                                         if (isPlayFocused) NeonPurple else Color.White.copy(alpha = 0.2f),
                                                         RoundedCornerShape(28.dp)
@@ -751,6 +749,7 @@ fun PlayerScreen(
                                                     .size(48.dp)
                                                     .onFocusChanged { isNextFocused = it.isFocused }
                                                     .focusable()
+                                                    .handleRemoteClick { if (nextEpId != null) viewModel.selectEpisode(nextEpId!!) }
                                                     .background(
                                                         if (isNextFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
                                                         RoundedCornerShape(24.dp)
@@ -787,6 +786,7 @@ fun PlayerScreen(
                                                             .size(36.dp)
                                                             .onFocusChanged { isSettingsFocused = it.isFocused }
                                                             .focusable()
+                                                            .handleRemoteClick { showSettingsDropdown = true }
                                                             .background(
                                                                 if (isSettingsFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
                                                                 RoundedCornerShape(18.dp)
@@ -870,6 +870,7 @@ fun PlayerScreen(
                                                         .size(36.dp)
                                                         .onFocusChanged { isFullscreenBtnFocused = it.isFocused }
                                                         .focusable()
+                                                        .handleRemoteClick { isFullscreen = !isFullscreen }
                                                         .background(
                                                             if (isFullscreenBtnFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
                                                             RoundedCornerShape(18.dp)
@@ -1059,6 +1060,18 @@ fun PlayerScreen(
         }
 }
 }
+
+// Helper extension: handle Android TV remote D-Pad Center / Enter key
+private fun Modifier.handleRemoteClick(onClick: () -> Unit): Modifier = this.then(
+    Modifier.onKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown &&
+            (event.key == Key.Enter || event.key == Key.DirectionCenter)
+        ) {
+            onClick()
+            true
+        } else false
+    }
+)
 
 val FullscreenIcon: ImageVector
     get() = ImageVector.Builder(

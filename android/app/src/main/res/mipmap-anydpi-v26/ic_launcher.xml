@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Dark neon-purple background (#0F0A19 from colors.xml) -->
     <background android:drawable="@color/ic_launcher_background" />
+    <!-- Anime-eye foreground vector -->
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- Monochrome for themed icons (Android 13+) -->
     <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
