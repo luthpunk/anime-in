@@ -117,8 +117,13 @@ object AppModule {
         @ApplicationContext context: Context,
         simpleCache: SimpleCache
     ): CacheDataSource.Factory {
+        val defaultRequestProperties = mapOf(
+            "Referer" to "https://animeinweb.com/",
+            "Origin" to "https://animeinweb.com"
+        )
         val httpDataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+            .setDefaultRequestProperties(defaultRequestProperties)
             .setAllowCrossProtocolRedirects(true)
             
         return CacheDataSource.Factory()

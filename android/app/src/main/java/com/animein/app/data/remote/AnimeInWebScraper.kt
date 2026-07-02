@@ -50,29 +50,30 @@ class AnimeInWebScraper @Inject constructor(
             val type = object : TypeToken<WebResponse<WebHomeData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebHomeData>>(json, type)
 
-            if (apiResponse.error || apiResponse.status != 200) {
-                throw IOException(apiResponse.message ?: "API error in getHome")
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                throw IOException(apiResponse?.message ?: "API error in getHome")
             }
 
-            val ongoingList = (apiResponse.data.hot ?: emptyList()).map { item ->
+            val data = apiResponse.data
+            val ongoingList = (data?.hot ?: emptyList()).map { item ->
                 AnimeOngoing(
-                    title = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster ?: "",
                     episode = "Update",
-                    uploadedOn = item.aired_start,
-                    dayUpdated = item.day,
+                    uploadedOn = item.aired_start ?: "",
+                    dayUpdated = item.day ?: "",
                     link = ""
                 )
             }
 
-            val completedList = (apiResponse.data.new ?: emptyList()).map { item ->
+            val completedList = (data?.new ?: emptyList()).map { item ->
                 AnimeCompleted(
-                    title = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster ?: "",
                     episode = "Tamat",
-                    uploadedOn = item.aired_start,
+                    uploadedOn = item.aired_start ?: "",
                     score = null,
                     link = ""
                 )
@@ -86,16 +87,19 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            // explore/movie sorted by latest returns ongoing + new items
             val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "latest", "page" to page.toString()))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
-            val list = (apiResponse.data.movie ?: emptyList()).map { item ->
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext AnimeListResponse("error", emptyList())
+            }
+
+            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
                 AnimeListItem(
-                    title = item.title,
-                    animeName = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    animeName = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster,
                     episode = "Update",
                     score = null,
@@ -112,16 +116,19 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            // Filter completed from explore/movie by getting popular or sorted
             val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "views", "page" to page.toString()))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
-            val list = (apiResponse.data.movie ?: emptyList()).map { item ->
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext AnimeListResponse("error", emptyList())
+            }
+
+            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
                 AnimeListItem(
-                    title = item.title,
-                    animeName = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    animeName = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster,
                     episode = "Tamat",
                     score = null,
@@ -142,10 +149,14 @@ class AnimeInWebScraper @Inject constructor(
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
-            val list = (apiResponse.data.movie ?: emptyList()).map { item ->
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext SearchResponse("error", emptyList())
+            }
+
+            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
                 SearchItem(
-                    title = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster,
                     status = item.status,
                     score = null,
@@ -164,10 +175,14 @@ class AnimeInWebScraper @Inject constructor(
             val type = object : TypeToken<WebResponse<WebGenreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebGenreData>>(json, type)
 
-            val list = (apiResponse.data.genre ?: emptyList()).map { item ->
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext GenreListResponse(emptyList())
+            }
+
+            val list = (apiResponse.data?.genre ?: emptyList()).map { item ->
                 GenreItem(
-                    genreName = item.name,
-                    id = item.id,
+                    genreName = item.name ?: "Unknown",
+                    id = item.id ?: "",
                     link = "",
                     imageLink = item.image
                 )
@@ -184,11 +199,15 @@ class AnimeInWebScraper @Inject constructor(
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
-            val list = (apiResponse.data.movie ?: emptyList()).map { item ->
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext AnimeListResponse("error", emptyList())
+            }
+
+            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
                 AnimeListItem(
-                    title = item.title,
-                    animeName = item.title,
-                    id = item.id,
+                    title = item.title ?: "Tanpa Judul",
+                    animeName = item.title ?: "Tanpa Judul",
+                    id = item.id ?: "",
                     thumb = item.image_poster,
                     episode = "Detail",
                     score = null,
@@ -208,49 +227,56 @@ class AnimeInWebScraper @Inject constructor(
         val type = object : TypeToken<WebResponse<WebDetailData>>() {}.type
         val apiResponse = gson.fromJson<WebResponse<WebDetailData>>(json, type)
 
-        if (apiResponse.error || apiResponse.status != 200 || apiResponse.data.movie == null) {
-            throw IOException(apiResponse.message ?: "Anime not found")
+        if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data?.movie == null) {
+            throw IOException(apiResponse?.message ?: "Anime not found")
         }
 
         val movie = apiResponse.data.movie
         val latestEpisode = apiResponse.data.episode
 
-        // Fetch all episodes using the latest episode id
         val episodeList = mutableListOf<EpisodeItem>()
-        if (latestEpisode != null) {
+        if (latestEpisode?.id != null && movie.id != null) {
             try {
                 val epListJson = makeGetRequest("3/2/movie/episode/${movie.id}/${latestEpisode.id}")
                 val epListType = object : TypeToken<WebResponse<WebEpisodeListData>>() {}.type
                 val epListResponse = gson.fromJson<WebResponse<WebEpisodeListData>>(epListJson, epListType)
                 
-                (epListResponse.data.episode ?: emptyList()).forEach { ep ->
+                (epListResponse.data?.episode ?: emptyList()).forEach { ep ->
                     episodeList.add(
                         EpisodeItem(
-                            title = ep.title,
-                            id = ep.id,
+                            title = ep.title ?: "Episode",
+                            id = ep.id ?: "",
                             link = "",
                             uploadedOn = ep.key_time
                         )
                     )
                 }
             } catch (e: Exception) {
-                // Fallback to only the single latest episode if list fails
                 episodeList.add(
                     EpisodeItem(
-                        title = latestEpisode.title,
-                        id = latestEpisode.id,
+                        title = latestEpisode.title ?: "Episode Terbaru",
+                        id = latestEpisode.id ?: "",
                         link = "",
                         uploadedOn = latestEpisode.key_time
                     )
                 )
             }
+        } else if (latestEpisode != null) {
+            episodeList.add(
+                EpisodeItem(
+                    title = latestEpisode.title ?: "Episode Terbaru",
+                    id = latestEpisode.id ?: "",
+                    link = "",
+                    uploadedOn = latestEpisode.key_time
+                )
+            )
         }
 
         DetailResponse(
             thumb = movie.image_poster,
-            animeId = movie.id,
-            synopsis = movie.synopsis,
-            title = movie.title,
+            animeId = movie.id ?: "",
+            synopsis = movie.synopsis ?: "",
+            title = movie.title ?: "Tanpa Judul",
             japanese = movie.synonyms,
             score = null,
             producer = null,
@@ -271,8 +297,8 @@ class AnimeInWebScraper @Inject constructor(
         val type = object : TypeToken<WebResponse<WebStreamData>>() {}.type
         val apiResponse = gson.fromJson<WebResponse<WebStreamData>>(json, type)
 
-        if (apiResponse.error || apiResponse.status != 200 || apiResponse.data.server == null) {
-            throw IOException(apiResponse.message ?: "Episode stream not found")
+        if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data?.server == null) {
+            throw IOException(apiResponse?.message ?: "Episode stream not found")
         }
 
         val servers = apiResponse.data.server
@@ -281,15 +307,15 @@ class AnimeInWebScraper @Inject constructor(
 
         val mirror1 = servers.filter { it.quality == "360p" || it.quality == "360" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("360p", list.map { MirrorItem(it.name, it.link) })
+            else MirrorQuality("360p", list.map { MirrorItem(it.name ?: "Server 360p", it.link ?: "") })
         }
         val mirror2 = servers.filter { it.quality == "480p" || it.quality == "480" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("480p", list.map { MirrorItem(it.name, it.link) })
+            else MirrorQuality("480p", list.map { MirrorItem(it.name ?: "Server 480p", it.link ?: "") })
         }
         val mirror3 = servers.filter { it.quality == "720p" || it.quality == "1080p" || it.quality == "720" || it.quality == "1080" }.let { list ->
             if (list.isEmpty()) null
-            else MirrorQuality("720p", list.map { MirrorItem(it.name, it.link) })
+            else MirrorQuality("720p", list.map { MirrorItem(it.name ?: "Server HD", it.link ?: "") })
         }
 
         EpisodeDetailResponse(
@@ -305,7 +331,6 @@ class AnimeInWebScraper @Inject constructor(
     }
 
     override suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
-        // Since mirrorId is the direct URL itself in our case, just return it
         MirrorResponse(
             title = "Direct",
             id = mirrorId,
@@ -316,23 +341,25 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
         try {
-            // Fetch home data which has today ongoing, and query explore sorted by latest to group
             val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "latest"))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
+            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+                return@withContext ScheduleResponse(emptyList())
+            }
+
             val daysMap = mutableMapOf<String, MutableList<ScheduleAnimeItem>>()
             val daysList = listOf("SENIN", "SELASA", "RABU", "KAMIS", "JUMAT", "SABTU", "MINGGU")
 
-            // Initialize all days
             daysList.forEach { daysMap[it] = mutableListOf() }
 
-            (apiResponse.data.movie ?: emptyList()).forEach { movie ->
+            (apiResponse.data?.movie ?: emptyList()).forEach { movie ->
                 val rawDay = movie.day?.uppercase() ?: "RANDOM"
-                if (daysMap.containsKey(rawDay)) {
+                if (daysMap.containsKey(rawDay) && movie.id != null) {
                     daysMap[rawDay]?.add(
                         ScheduleAnimeItem(
-                            animeName = movie.title,
+                            animeName = movie.title ?: "Tanpa Judul",
                             id = movie.id,
                             link = "",
                             thumb = movie.image_poster,
@@ -355,12 +382,10 @@ class AnimeInWebScraper @Inject constructor(
         }
     }
 
-    // --- Web API JSON DTOs ---
-
     private data class WebResponse<T>(
-        val status: Int,
-        val error: Boolean,
-        val data: T,
+        val status: Int?,
+        val error: Boolean?,
+        val data: T?,
         val message: String?
     )
 
@@ -376,8 +401,8 @@ class AnimeInWebScraper @Inject constructor(
     )
 
     private data class WebMovieItem(
-        val id: String,
-        val title: String,
+        val id: String?,
+        val title: String?,
         val synopsis: String?,
         val synonyms: String?,
         val image_poster: String?,
@@ -399,8 +424,8 @@ class AnimeInWebScraper @Inject constructor(
     )
 
     private data class WebGenreItem(
-        val id: String,
-        val name: String,
+        val id: String?,
+        val name: String?,
         val image: String?,
         val group: String?
     )
@@ -412,9 +437,9 @@ class AnimeInWebScraper @Inject constructor(
     )
 
     private data class WebEpisodeItem(
-        val id: String,
-        val index: String,
-        val title: String,
+        val id: String?,
+        val index: String?,
+        val title: String?,
         val views: String?,
         val id_movie: String?,
         val key_time: String?
@@ -430,10 +455,10 @@ class AnimeInWebScraper @Inject constructor(
     )
 
     private data class WebServerItem(
-        val id: String,
-        val link: String,
-        val quality: String,
-        val name: String,
-        val type: String
+        val id: String?,
+        val link: String?,
+        val quality: String?,
+        val name: String?,
+        val type: String?
     )
 }
