@@ -91,6 +91,46 @@ fun HomeScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val activeSource by viewModel.activeSource.collectAsState()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("otakudesu" to "Otakudesu", "animeinweb" to "AnimeInWeb").forEach { (id, label) ->
+                        val isSelected = activeSource == id
+                        var isFocused by remember { mutableStateOf(false) }
+                        AssistChip(
+                            onClick = { viewModel.setActiveSource(id) },
+                            label = { 
+                                Text(
+                                    text = label, 
+                                    color = if (isSelected) Color.Black else Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                ) 
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = when {
+                                    isSelected -> NeonPurple
+                                    isFocused -> NeonPurple.copy(alpha = 0.4f)
+                                    else -> DarkSurface
+                                }
+                            ),
+                            border = AssistChipDefaults.assistChipBorder(
+                                borderColor = if (isSelected || isFocused) NeonPurple else Color.White.copy(alpha = 0.15f)
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .height(32.dp)
+                                .onFocusChanged { isFocused = it.isFocused }
+                        )
+                    }
+                }
             }
         },
         modifier = modifier

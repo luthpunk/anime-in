@@ -9,6 +9,8 @@ import com.animein.app.data.model.*
 import com.animein.app.data.remote.AnimeApiService
 import com.animein.app.data.remote.MirrorRequest
 import com.animein.app.data.remote.OtakudesuDirectScraper
+import com.animein.app.data.remote.AnimeInWebScraper
+import com.animein.app.data.remote.AnimeDataSource
 import com.animein.app.util.AnimeIdUtils
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -20,12 +22,30 @@ class AnimeRepository @Inject constructor(
     private val apiService: AnimeApiService,
     private val animeDao: AnimeDao,
     private val preferencesManager: PreferencesManager,
-    private val directScraper: OtakudesuDirectScraper
+    private val otakudesuScraper: OtakudesuDirectScraper,
+    private val animeInWebScraper: AnimeInWebScraper
 ) {
     private val gson = Gson()
     private var inMemoryHome: HomeResponse? = null
     private var inMemoryOngoing: AnimeListResponse? = null
     private var inMemoryCompleted: AnimeListResponse? = null
+    private var lastActiveSource: String? = null
+
+    private suspend fun getActiveScraper(): AnimeDataSource {
+        val currentSource = preferencesManager.getActiveSource()
+        if (lastActiveSource != currentSource) {
+            lastActiveSource = currentSource
+            // Invalidate in-memory caches when switching sources
+            inMemoryHome = null
+            inMemoryOngoing = null
+            inMemoryCompleted = null
+        }
+        return if (currentSource == "animeinweb") {
+            animeInWebScraper
+        } else {
+            otakudesuScraper
+        }
+    }
 
     private suspend fun <T> getCachedOrFetch(
         cacheKey: String,
@@ -34,8 +54,9 @@ class AnimeRepository @Inject constructor(
         clazz: Class<T>,
         fetcher: suspend () -> T
     ): T {
+        val sourceKey = "${cacheKey}_${preferencesManager.getActiveSource()}"
         if (!forceRefresh) {
-            val cachedEntry = animeDao.getCache(cacheKey)
+            val cachedEntry = animeDao.getCache(sourceKey)
             if (cachedEntry != null) {
                 val age = System.currentTimeMillis() - cachedEntry.lastUpdated
                 if (age < expiryMillis) {
@@ -75,7 +96,7 @@ class AnimeRepository @Inject constructor(
             try {
                 animeDao.insertCache(
                     com.animein.app.data.local.entity.CacheEntity(
-                        cacheKey = cacheKey,
+                        cacheKey = sourceKey,
                         jsonResponse = gson.toJson(result),
                         lastUpdated = System.currentTimeMillis()
                     )
@@ -88,6 +109,7 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getHome(forceRefresh: Boolean = false): HomeResponse {
+        val scraper = getActiveScraper()
         if (!forceRefresh && inMemoryHome != null) {
             return inMemoryHome!!
         }
@@ -97,7 +119,7 @@ class AnimeRepository @Inject constructor(
                 expiryMillis = 2 * 60 * 60 * 1000L, // 2 hours
                 forceRefresh = forceRefresh,
                 clazz = HomeResponse::class.java,
-                fetcher = { directScraper.getHome() }
+                fetcher = { scraper.getHome() }
             )
             inMemoryHome = response
             response
@@ -107,9 +129,10 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getOngoingAnimeList(page: Int, forceRefresh: Boolean = false): AnimeListResponse {
+        val scraper = getActiveScraper()
         if (page > 1) {
             return try {
-                directScraper.getOngoingAnimeList(page)
+                scraper.getOngoingAnimeList(page)
             } catch (e: Exception) {
                 AnimeListResponse("error", emptyList())
             }
@@ -120,7 +143,7 @@ class AnimeRepository @Inject constructor(
                 expiryMillis = 2 * 60 * 60 * 1000L, // 2 hours
                 forceRefresh = forceRefresh,
                 clazz = AnimeListResponse::class.java,
-                fetcher = { directScraper.getOngoingAnimeList(1) }
+                fetcher = { scraper.getOngoingAnimeList(1) }
             )
             inMemoryOngoing = response
             response
@@ -130,9 +153,10 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getCompletedAnimeList(page: Int, forceRefresh: Boolean = false): AnimeListResponse {
+        val scraper = getActiveScraper()
         if (page > 1) {
             return try {
-                directScraper.getCompletedAnimeList(page)
+                scraper.getCompletedAnimeList(page)
             } catch (e: Exception) {
                 AnimeListResponse("error", emptyList())
             }
@@ -143,7 +167,7 @@ class AnimeRepository @Inject constructor(
                 expiryMillis = 12 * 60 * 60 * 1000L, // 12 hours
                 forceRefresh = forceRefresh,
                 clazz = AnimeListResponse::class.java,
-                fetcher = { directScraper.getCompletedAnimeList(1) }
+                fetcher = { scraper.getCompletedAnimeList(1) }
             )
             inMemoryCompleted = response
             response
@@ -154,20 +178,21 @@ class AnimeRepository @Inject constructor(
 
     suspend fun searchAnime(query: String): SearchResponse {
         return try {
-            directScraper.searchAnime(query)
+            getActiveScraper().searchAnime(query)
         } catch (e: Exception) {
             SearchResponse("error", emptyList())
         }
     }
 
     suspend fun getGenres(forceRefresh: Boolean = false): GenreListResponse {
+        val scraper = getActiveScraper()
         return try {
             getCachedOrFetch(
                 cacheKey = "genres_list",
                 expiryMillis = 24 * 60 * 60 * 1000L, // 24 hours
                 forceRefresh = forceRefresh,
                 clazz = GenreListResponse::class.java,
-                fetcher = { directScraper.getGenres() }
+                fetcher = { scraper.getGenres() }
             )
         } catch (e: Exception) {
             GenreListResponse(emptyList())
@@ -176,7 +201,7 @@ class AnimeRepository @Inject constructor(
 
     suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
         return try {
-            directScraper.getAnimeByGenre(genreId, page)
+            getActiveScraper().getAnimeByGenre(genreId, page)
         } catch (e: Exception) {
             AnimeListResponse("error", emptyList())
         }
@@ -184,8 +209,12 @@ class AnimeRepository @Inject constructor(
 
 
     suspend fun getAnimeDetail(animeId: String): DetailResponse {
-        val normalizedAnimeId = AnimeIdUtils.normalizeAnimeId(animeId)
-        val detail = directScraper.getAnimeDetail(normalizedAnimeId)
+        val scraper = getActiveScraper()
+        // Determine whether to normalize ID depending on active source (AnimeInWeb has numeric IDs, Otakudesu needs normalization)
+        val isAnimeInWeb = preferencesManager.getActiveSource() == "animeinweb"
+        val normalizedAnimeId = if (isAnimeInWeb) animeId else AnimeIdUtils.normalizeAnimeId(animeId)
+        
+        val detail = scraper.getAnimeDetail(normalizedAnimeId)
         // Add to history
         val history = HistoryEntity(
             id = normalizedAnimeId,
@@ -197,12 +226,14 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse {
-        val normalizedEpisodeId = AnimeIdUtils.normalizeEpisodeId(episodeId)
-        return directScraper.getEpisodeDetail(normalizedEpisodeId)
+        val scraper = getActiveScraper()
+        val isAnimeInWeb = preferencesManager.getActiveSource() == "animeinweb"
+        val normalizedEpisodeId = if (isAnimeInWeb) episodeId else AnimeIdUtils.normalizeEpisodeId(episodeId)
+        return scraper.getEpisodeDetail(normalizedEpisodeId)
     }
 
     suspend fun getMirrorStream(animeId: String, mirrorId: String): MirrorResponse {
-        return directScraper.getMirrorStream(mirrorId)
+        return getActiveScraper().getMirrorStream(mirrorId)
     }
 
     // Local DB operations
@@ -239,17 +270,19 @@ class AnimeRepository @Inject constructor(
     }
 
     suspend fun getSchedule(forceRefresh: Boolean = false): ScheduleResponse {
+        val scraper = getActiveScraper()
         return try {
             getCachedOrFetch(
                 cacheKey = "schedule_data",
                 expiryMillis = 12 * 60 * 60 * 1000L, // 12 hours
                 forceRefresh = forceRefresh,
                 clazz = ScheduleResponse::class.java,
-                fetcher = { directScraper.getSchedule() }
+                fetcher = { scraper.getSchedule() }
             )
         } catch (e: Exception) {
             ScheduleResponse(emptyList())
         }
     }
 }
+
 

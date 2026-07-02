@@ -3,6 +3,7 @@ package com.animein.app.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.animein.app.data.local.entity.ContinueWatchingEntity
+import com.animein.app.data.local.pref.PreferencesManager
 import com.animein.app.data.model.HomeResponse
 import com.animein.app.data.model.SearchItem
 import com.animein.app.data.repository.AnimeRepository
@@ -15,11 +16,18 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: AnimeRepository
+    private val repository: AnimeRepository,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _homeState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val homeState: StateFlow<HomeUiState> = _homeState
+
+    val activeSource = preferencesManager.activeSourceFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "otakudesu"
+    )
 
     val continueWatchingList: StateFlow<List<ContinueWatchingEntity>> = repository.getContinueWatchingList().stateIn(
         scope = viewModelScope,
@@ -37,6 +45,13 @@ class HomeViewModel @Inject constructor(
     init {
         fetchHome()
         setupSearchDebounce()
+    }
+
+    fun setActiveSource(source: String) {
+        viewModelScope.launch {
+            preferencesManager.setActiveSource(source)
+            fetchHome(forceRefresh = true)
+        }
     }
 
     fun fetchHome(forceRefresh: Boolean = false) {

@@ -4,7 +4,7 @@ object AnimeIdUtils {
     fun normalizeAnimeId(rawId: String?): String {
         if (rawId.isNullOrBlank()) return ""
 
-        return rawId
+        val cleaned = rawId
             .trim()
             .substringBefore("?")
             .substringBefore("#")
@@ -16,6 +16,12 @@ object AnimeIdUtils {
             .removePrefix("http://otakudesu.cloud/anime/")
             .removePrefix("anime/")
             .trim('/')
+
+        if (cleaned.all { it.isDigit() }) {
+            return cleaned
+        }
+
+        return cleaned
             .takeIf { it.isNotBlank() }
             ?.plus("/")
             ?: ""

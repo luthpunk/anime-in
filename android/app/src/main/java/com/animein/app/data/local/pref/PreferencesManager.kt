@@ -17,6 +17,7 @@ class PreferencesManager(private val context: Context) {
     companion object {
         val DARK_MODE_KEY = stringPreferencesKey("dark_mode")
         val HOME_CACHE_KEY = stringPreferencesKey("home_cache")
+        val ACTIVE_SOURCE_KEY = stringPreferencesKey("active_source")
     }
 
     enum class ThemeMode {
@@ -29,6 +30,21 @@ class PreferencesManager(private val context: Context) {
             ThemeMode.valueOf(modeStr)
         } catch (e: Exception) {
             ThemeMode.SYSTEM
+        }
+    }
+
+    val activeSourceFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ACTIVE_SOURCE_KEY] ?: "otakudesu"
+    }
+
+    suspend fun getActiveSource(): String {
+        val preferences = context.dataStore.data.first()
+        return preferences[ACTIVE_SOURCE_KEY] ?: "otakudesu"
+    }
+
+    suspend fun setActiveSource(source: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ACTIVE_SOURCE_KEY] = source
         }
     }
 

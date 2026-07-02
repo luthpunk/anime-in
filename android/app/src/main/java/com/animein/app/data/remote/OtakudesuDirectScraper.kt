@@ -26,7 +26,7 @@ import javax.inject.Singleton
 @Singleton
 class OtakudesuDirectScraper @Inject constructor(
     private val okHttpClient: OkHttpClient
-) {
+) : AnimeDataSource {
     companion object {
         private const val REMOTE_CONFIG_URL =
             "https://raw.githubusercontent.com/luthpunk/anime-in/main/config/domain.json"
@@ -84,7 +84,7 @@ class OtakudesuDirectScraper @Inject constructor(
     }
 
 
-    suspend fun getAnimeDetail(animeId: String): DetailResponse = withContext(Dispatchers.IO) {
+    override suspend fun getAnimeDetail(animeId: String): DetailResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val normalizedId = AnimeIdUtils.normalizeAnimeId(animeId)
         val pageUrl = "${baseUrl}anime/$normalizedId"
@@ -147,7 +147,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
+    override suspend fun getEpisodeDetail(episodeId: String): EpisodeDetailResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val normalizedId = AnimeIdUtils.normalizeEpisodeId(episodeId)
         val pageUrl = if (normalizedId.startsWith("http")) normalizedId else "$baseUrl$normalizedId"
@@ -189,7 +189,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
+    override suspend fun getMirrorStream(mirrorId: String): MirrorResponse = withContext(Dispatchers.IO) {
         val iframeUrl = if (mirrorId.startsWith("eyJ")) {
             getIframeFromDataContent(mirrorId)
         } else {
@@ -204,7 +204,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
+    override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val doc = fetchDocument(baseUrl)
         val venz = doc.select(".venz")
@@ -262,7 +262,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val pageSegment = if (page <= 1) "" else "page/$page/"
         val pageUrl = "${baseUrl}ongoing-anime/$pageSegment"
@@ -296,7 +296,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val pageSegment = if (page <= 1) "" else "page/$page/"
         val pageUrl = "${baseUrl}complete-anime/$pageSegment"
@@ -331,7 +331,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getGenres(): GenreListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getGenres(): GenreListResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val doc = fetchDocument("${baseUrl}genre-list/")
         val elements = doc.select(".genres li a")
@@ -352,7 +352,7 @@ class OtakudesuDirectScraper @Inject constructor(
         GenreListResponse(genreList = list)
     }
 
-    suspend fun searchAnime(query: String): SearchResponse = withContext(Dispatchers.IO) {
+    override suspend fun searchAnime(query: String): SearchResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val pageUrl = "${baseUrl}?s=${java.net.URLEncoder.encode(query, "UTF-8")}&post_type=anime"
         val doc = fetchDocument(pageUrl)
@@ -629,7 +629,7 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
-    suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val url = if (page == 1) "${baseUrl}genres/$genreId/" else "${baseUrl}genres/$genreId/page/$page/"
         val doc = fetchDocument(url)
@@ -677,7 +677,7 @@ class OtakudesuDirectScraper @Inject constructor(
         )
     }
 
-    suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
+    override suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
         val doc = fetchDocument("${baseUrl}jadwal-rilis/")
         val elements = doc.select(".kgjdwl321 .kglist321")
