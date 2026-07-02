@@ -152,9 +152,18 @@ fun PlayerScreen(
                                 .height(220.dp)
                                 .background(Color.Black)
                         ) {
-                            var playPosition by remember { mutableLongStateOf(savedProgress) }
-                            var showControls by remember { mutableStateOf(true) }
-                            val playPauseFocusRequester = remember { FocusRequester() }
+                             var playPosition by remember { mutableLongStateOf(savedProgress) }
+                             var lastLoadedEpisodeId by remember { mutableStateOf("") }
+
+                             // Sync playPosition when savedProgress loads for a new episode
+                             LaunchedEffect(currentEpisodeId, savedProgress) {
+                                 if (lastLoadedEpisodeId != currentEpisodeId) {
+                                     playPosition = savedProgress
+                                 }
+                             }
+
+                             var showControls by remember { mutableStateOf(true) }
+                             val playPauseFocusRequester = remember { FocusRequester() }
 
                             LaunchedEffect(showControls) {
                                 if (showControls && isTV) {
@@ -358,9 +367,16 @@ fun PlayerScreen(
                             // Load video URI
                             LaunchedEffect(streamUrl) {
                                 if (streamUrl.isNotEmpty() && streamUrl != "-") {
-                                    val currentPos = exoPlayer.currentPosition
-                                    if (currentPos > 0 && exoPlayer.playbackState != Player.STATE_IDLE) {
-                                        playPosition = currentPos
+                                    if (lastLoadedEpisodeId == currentEpisodeId) {
+                                        // Same episode (changing quality/mirror), preserve current position
+                                        val currentPos = exoPlayer.currentPosition
+                                        if (currentPos > 0 && exoPlayer.playbackState != Player.STATE_IDLE) {
+                                            playPosition = currentPos
+                                        }
+                                    } else {
+                                        // Different episode (next/prev clicked), update tracked ID and use new progress
+                                        lastLoadedEpisodeId = currentEpisodeId
+                                        playPosition = savedProgress
                                     }
 
                                     val mediaItem = MediaItem.Builder()
