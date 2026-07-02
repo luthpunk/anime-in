@@ -1037,6 +1037,7 @@ fun PlayerScreen(
                     } // end if (!isFullscreen)
                     } // end Column(fillMaxSize)
                 } // end is PlayerUiState.Success
+            }
                 is PlayerUiState.Error -> {
                     Box(
                         modifier = Modifier
@@ -1057,7 +1058,6 @@ fun PlayerScreen(
             }
         }
     }
-}
 }
 
 val FullscreenIcon: ImageVector
