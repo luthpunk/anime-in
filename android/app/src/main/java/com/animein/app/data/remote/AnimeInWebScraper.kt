@@ -55,7 +55,7 @@ class AnimeInWebScraper @Inject constructor(
             }
 
             val data = apiResponse.data
-            val ongoingList = (data?.hot ?: emptyList()).map { item ->
+            val ongoingList = (data?.today ?: emptyList()).map { item ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
@@ -67,7 +67,7 @@ class AnimeInWebScraper @Inject constructor(
                 )
             }
 
-            val completedList = (data?.new ?: emptyList()).map { item ->
+            val completedList = (data?.popular ?: emptyList()).map { item ->
                 AnimeCompleted(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
@@ -341,9 +341,9 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getSchedule(): ScheduleResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "latest"))
-            val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
+            val json = makeGetRequest("3/2/home/data")
+            val type = object : TypeToken<WebResponse<WebHomeData>>() {}.type
+            val apiResponse = gson.fromJson<WebResponse<WebHomeData>>(json, type)
 
             if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
                 return@withContext ScheduleResponse(emptyList())
@@ -354,7 +354,13 @@ class AnimeInWebScraper @Inject constructor(
 
             daysList.forEach { daysMap[it] = mutableListOf() }
 
-            (apiResponse.data?.movie ?: emptyList()).forEach { movie ->
+            val allOngoing = mutableListOf<WebMovieItem>()
+            apiResponse.data.hot?.let { allOngoing.addAll(it) }
+            apiResponse.data.today?.let { allOngoing.addAll(it) }
+
+            val uniqueOngoing = allOngoing.distinctBy { it.id }
+
+            uniqueOngoing.forEach { movie ->
                 val rawDay = movie.day?.uppercase() ?: "RANDOM"
                 if (daysMap.containsKey(rawDay) && movie.id != null) {
                     daysMap[rawDay]?.add(

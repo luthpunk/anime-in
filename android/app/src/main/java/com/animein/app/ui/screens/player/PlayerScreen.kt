@@ -211,6 +211,12 @@ fun PlayerScreen(
                             val httpDataSourceFactory = remember {
                                 DefaultHttpDataSource.Factory()
                                     .setUserAgent("Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36")
+                                    .setDefaultRequestProperties(
+                                        mapOf(
+                                            "Referer" to "https://animeinweb.com/",
+                                            "Origin" to "https://animeinweb.com"
+                                        )
+                                    )
                                     .setAllowCrossProtocolRedirects(true)
                                     .setConnectTimeoutMs(15000)
                                     .setReadTimeoutMs(20000)
