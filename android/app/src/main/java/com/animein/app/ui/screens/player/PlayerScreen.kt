@@ -922,7 +922,6 @@ fun PlayerScreen(
                                 }
                             }
                         }
-                    }
 
                     if (!isFullscreen) {
                         // Metadata & Mirrors Dropdown
@@ -1058,6 +1057,7 @@ fun PlayerScreen(
                 }
             }
         }
+}
 }
 
 val FullscreenIcon: ImageVector
