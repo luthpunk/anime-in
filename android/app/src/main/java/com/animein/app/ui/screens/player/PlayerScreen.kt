@@ -421,6 +421,8 @@ fun PlayerScreen(
 
                             val prevEpIdBox by viewModel.prevEpisodeId.collectAsState()
                             val nextEpIdBox by viewModel.nextEpisodeId.collectAsState()
+                            var isLongPressTriggered by remember { mutableStateOf(false) }
+                            var controlsShownOnThisPress by remember { mutableStateOf(false) }
 
                             Box(
                                 modifier = Modifier
@@ -428,69 +430,94 @@ fun PlayerScreen(
                                     .focusable()
                                     .onKeyEvent { keyEvent ->
                                         if (!isTV) return@onKeyEvent false
-                                        if (keyEvent.type != KeyEventType.KeyDown) return@onKeyEvent false
-                                        when (keyEvent.key) {
-                                            Key.Back -> false // let BackHandler handle it
-                                            // Any key when controls hidden → show controls
-                                            Key.DirectionCenter, Key.Enter,
-                                            Key.DirectionLeft, Key.DirectionRight,
-                                            Key.DirectionUp, Key.DirectionDown,
-                                            Key.Menu, Key.F -> {
-                                                if (!showControls) {
-                                                    showControls = true
-                                                    // Menu/F key: also open settings right away
-                                                    if (keyEvent.key == Key.Menu || keyEvent.key == Key.F) {
-                                                        showSettingsDropdown = true
-                                                    }
-                                                    true
-                                                } else {
-                                                    // Controls visible — D-Pad actions
-                                                    when (keyEvent.key) {
-                                                        Key.DirectionCenter, Key.Enter -> {
-                                                            if (exoPlayer.isPlaying) exoPlayer.pause()
-                                                            else exoPlayer.play()
-                                                            true
+                                        val isCenterKey = keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter
+                                        
+                                        if (keyEvent.type == KeyEventType.KeyDown) {
+                                            when (keyEvent.key) {
+                                                Key.Back -> false // let BackHandler handle it
+                                                // Any key when controls hidden → show controls
+                                                Key.DirectionCenter, Key.Enter,
+                                                Key.DirectionLeft, Key.DirectionRight,
+                                                Key.DirectionUp, Key.DirectionDown,
+                                                Key.Menu, Key.F -> {
+                                                    if (!showControls) {
+                                                        showControls = true
+                                                        if (isCenterKey) {
+                                                            controlsShownOnThisPress = true
                                                         }
-                                                        Key.DirectionLeft -> {
-                                                            val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
-                                                            exoPlayer.seekTo(target)
-                                                            currentPosition = target
-                                                            true
+                                                        if (keyEvent.key == Key.Menu || keyEvent.key == Key.F) {
+                                                            showSettingsDropdown = true
                                                         }
-                                                        Key.DirectionRight -> {
-                                                            val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                                                            exoPlayer.seekTo(target)
-                                                            currentPosition = target
-                                                            true
-                                                        }
-                                                        Key.DirectionUp -> {
-                                                            if (showSettingsDropdown) {
-                                                                // navigate settings options (handled by dropdown itself)
-                                                                false
-                                                            } else {
-                                                                if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
-                                                                true
+                                                        true
+                                                    } else {
+                                                        // Controls visible — D-Pad actions
+                                                        if (isCenterKey) {
+                                                            val repeatCount = keyEvent.nativeKeyEvent.repeatCount
+                                                            if (repeatCount >= 3) { // Held down (~500ms+)
+                                                                if (!isLongPressTriggered) {
+                                                                    showSettingsDropdown = !showSettingsDropdown
+                                                                    isLongPressTriggered = true
+                                                                }
+                                                            }
+                                                            true // Consume all key downs for center key
+                                                        } else {
+                                                            when (keyEvent.key) {
+                                                                Key.DirectionLeft -> {
+                                                                    val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                                                                    exoPlayer.seekTo(target)
+                                                                    currentPosition = target
+                                                                    true
+                                                                }
+                                                                Key.DirectionRight -> {
+                                                                    val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                                                                    exoPlayer.seekTo(target)
+                                                                    currentPosition = target
+                                                                    true
+                                                                }
+                                                                Key.DirectionUp -> {
+                                                                    if (showSettingsDropdown) {
+                                                                        // navigate settings options (handled by dropdown itself)
+                                                                        false
+                                                                    } else {
+                                                                        if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
+                                                                        true
+                                                                    }
+                                                                }
+                                                                Key.DirectionDown -> {
+                                                                    if (showSettingsDropdown) {
+                                                                        false
+                                                                    } else {
+                                                                        if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
+                                                                        true
+                                                                    }
+                                                                }
+                                                                Key.Menu, Key.F -> {
+                                                                    // Toggle settings dropdown
+                                                                    showSettingsDropdown = !showSettingsDropdown
+                                                                    true
+                                                                }
+                                                                else -> false
                                                             }
                                                         }
-                                                        Key.DirectionDown -> {
-                                                            if (showSettingsDropdown) {
-                                                                false
-                                                            } else {
-                                                                if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
-                                                                true
-                                                            }
-                                                        }
-                                                        Key.Menu, Key.F -> {
-                                                            // Toggle settings dropdown
-                                                            showSettingsDropdown = !showSettingsDropdown
-                                                            true
-                                                        }
-                                                        else -> false
                                                     }
                                                 }
+                                                else -> false
                                             }
-                                            else -> false
-                                        }
+                                        } else if (keyEvent.type == KeyEventType.KeyUp) {
+                                            if (isCenterKey) {
+                                                if (isLongPressTriggered) {
+                                                    isLongPressTriggered = false
+                                                } else if (controlsShownOnThisPress) {
+                                                    controlsShownOnThisPress = false
+                                                } else {
+                                                    if (showControls) {
+                                                        if (exoPlayer.isPlaying) exoPlayer.pause()
+                                                        else exoPlayer.play()
+                                                    }
+                                                }
+                                                true
+                                            } else false
+                                        } else false
                                     }
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
@@ -989,7 +1016,7 @@ fun PlayerScreen(
                                                         fontSize = 10.sp,
                                                         color = Color.White.copy(alpha = 0.5f)
                                                     )
-                                                    Text("⏎ Play/Pause  ·  ◀▶ ±10s  ·  ▲▼ Prev/Next Ep  ·  ☰ Pengaturan", style = hs)
+                                                    Text("Tahan ⏎ OK/Center = Pengaturan  ·  ⏎ Play/Pause  ·  ◀▶ ±10s  ·  ▲▼ Prev/Next Ep", style = hs)
                                                 }
                                             }
                                         }
