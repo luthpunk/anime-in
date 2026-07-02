@@ -434,9 +434,14 @@ fun PlayerScreen(
                                             // Any key when controls hidden → show controls
                                             Key.DirectionCenter, Key.Enter,
                                             Key.DirectionLeft, Key.DirectionRight,
-                                            Key.DirectionUp, Key.DirectionDown -> {
+                                            Key.DirectionUp, Key.DirectionDown,
+                                            Key.Menu, Key.F -> {
                                                 if (!showControls) {
                                                     showControls = true
+                                                    // Menu/F key: also open settings right away
+                                                    if (keyEvent.key == Key.Menu || keyEvent.key == Key.F) {
+                                                        showSettingsDropdown = true
+                                                    }
                                                     true
                                                 } else {
                                                     // Controls visible — D-Pad actions
@@ -459,11 +464,25 @@ fun PlayerScreen(
                                                             true
                                                         }
                                                         Key.DirectionUp -> {
-                                                            if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
-                                                            true
+                                                            if (showSettingsDropdown) {
+                                                                // navigate settings options (handled by dropdown itself)
+                                                                false
+                                                            } else {
+                                                                if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
+                                                                true
+                                                            }
                                                         }
                                                         Key.DirectionDown -> {
-                                                            if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
+                                                            if (showSettingsDropdown) {
+                                                                false
+                                                            } else {
+                                                                if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
+                                                                true
+                                                            }
+                                                        }
+                                                        Key.Menu, Key.F -> {
+                                                            // Toggle settings dropdown
+                                                            showSettingsDropdown = !showSettingsDropdown
                                                             true
                                                         }
                                                         else -> false
@@ -956,6 +975,22 @@ fun PlayerScreen(
                                                     color = Color.White,
                                                     fontSize = 11.sp
                                                 )
+                                            }
+
+                                            // TV D-Pad hint — hanya muncul di Android TV
+                                            if (isTV) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 4.dp, bottom = 2.dp),
+                                                    horizontalArrangement = Arrangement.Center
+                                                ) {
+                                                    val hs = androidx.compose.ui.text.TextStyle(
+                                                        fontSize = 10.sp,
+                                                        color = Color.White.copy(alpha = 0.5f)
+                                                    )
+                                                    Text("⏎ Play/Pause  ·  ◀▶ ±10s  ·  ▲▼ Prev/Next Ep  ·  ☰ Pengaturan", style = hs)
+                                                }
                                             }
                                         }
                                     }
