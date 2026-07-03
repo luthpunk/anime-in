@@ -946,7 +946,26 @@ fun PlayerScreen(
                                                         .weight(1f)
                                                         .padding(horizontal = 6.dp)
                                                         .onFocusChanged { isSliderFocused = it.isFocused }
-                                                        .focusable(),
+                                                        .focusable()
+                                                        .onKeyEvent { keyEvent ->
+                                                            if (keyEvent.type == KeyEventType.KeyDown) {
+                                                                when (keyEvent.key) {
+                                                                    Key.DirectionLeft -> {
+                                                                        val target = (currentPosition - 10000).coerceAtLeast(0L)
+                                                                        currentPosition = target
+                                                                        exoPlayer.seekTo(target)
+                                                                        true
+                                                                    }
+                                                                    Key.DirectionRight -> {
+                                                                        val target = (currentPosition + 10000).coerceAtMost(duration)
+                                                                        currentPosition = target
+                                                                        exoPlayer.seekTo(target)
+                                                                        true
+                                                                    }
+                                                                    else -> false
+                                                                }
+                                                            } else false
+                                                        },
                                                     colors = SliderDefaults.colors(
                                                         thumbColor = NeonPurple,
                                                         activeTrackColor = NeonPurple,
@@ -958,22 +977,6 @@ fun PlayerScreen(
                                                     color = Color.White,
                                                     fontSize = 11.sp
                                                 )
-                                            }
-
-                                            // TV D-Pad hint — hanya muncul di Android TV
-                                            if (isTV) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(top = 4.dp, bottom = 2.dp),
-                                                    horizontalArrangement = Arrangement.Center
-                                                ) {
-                                                    val hs = androidx.compose.ui.text.TextStyle(
-                                                        fontSize = 10.sp,
-                                                        color = Color.White.copy(alpha = 0.5f)
-                                                    )
-                                                    Text("Tahan ⏎ OK/Center = Pengaturan  ·  ⏎ Play/Pause  ·  ◀▶ ±10s  ·  ▲▼ Prev/Next Ep", style = hs)
-                                                }
                                             }
                                         }
                                     }
