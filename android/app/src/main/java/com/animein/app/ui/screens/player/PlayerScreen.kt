@@ -174,6 +174,12 @@ fun PlayerScreen(
                             }
                             var isPlaying by remember { mutableStateOf(true) }
                             var isBuffering by remember { mutableStateOf(false) }
+                            var isPrevFocused by remember { mutableStateOf(false) }
+                            var isPlayFocused by remember { mutableStateOf(false) }
+                            var isNextFocused by remember { mutableStateOf(false) }
+                            var isSettingsFocused by remember { mutableStateOf(false) }
+                            var isFullscreenBtnFocused by remember { mutableStateOf(false) }
+                            var isSliderFocused by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             val speed by viewModel.playbackSpeed.collectAsState()
@@ -343,9 +349,10 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Hide controls after 3.5 seconds, unless settings dropdown is open
-                            LaunchedEffect(showControls, isPlaying, showSettingsDropdown) {
-                                if (showControls && isPlaying && !showSettingsDropdown) {
+                            // Hide controls after 3.5 seconds, unless settings dropdown is open or a control is focused
+                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isSettingsFocused || isFullscreenBtnFocused || isSliderFocused
+                            LaunchedEffect(showControls, isPlaying, showSettingsDropdown, isAnyControlFocused) {
+                                if (showControls && isPlaying && !showSettingsDropdown && !isAnyControlFocused) {
                                     delay(3500)
                                     showControls = false
                                 }
@@ -453,101 +460,19 @@ fun PlayerScreen(
                                     .fillMaxSize()
                                     .focusable()
                                     .onKeyEvent { keyEvent ->
-                                        if (!isTV) return@onKeyEvent false
-                                        val isCenterKey = keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter
-                                        
-                                        if (keyEvent.type == KeyEventType.KeyDown) {
-                                            if (isCenterKey && keyEvent.nativeKeyEvent.repeatCount == 0) {
-                                                isLongPressTriggered = false
-                                                dpadCenterPressJob?.cancel()
-                                                dpadCenterPressJob = coroutineScope.launch {
-                                                    delay(600)
-                                                    isLongPressTriggered = true
-                                                    showSettingsDropdown = !showSettingsDropdown
-                                                }
-                                            }
-
-                                            when (keyEvent.key) {
-                                                Key.Back -> false // let BackHandler handle it
-                                                // Any key when controls hidden → show controls
-                                                Key.DirectionCenter, Key.Enter,
-                                                Key.DirectionLeft, Key.DirectionRight,
-                                                Key.DirectionUp, Key.DirectionDown,
-                                                Key.Menu, Key.F -> {
-                                                    if (!showControls) {
-                                                        showControls = true
-                                                        if (isCenterKey) {
-                                                            controlsShownOnThisPress = true
-                                                        }
-                                                        if (keyEvent.key == Key.Menu || keyEvent.key == Key.F) {
-                                                            showSettingsDropdown = true
-                                                        }
-                                                        true
-                                                    } else {
-                                                        // Controls visible — D-Pad actions
-                                                        if (isCenterKey) {
-                                                            true // Consume key down
-                                                        } else {
-                                                            when (keyEvent.key) {
-                                                                Key.DirectionLeft -> {
-                                                                    val target = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
-                                                                    exoPlayer.seekTo(target)
-                                                                    currentPosition = target
-                                                                    true
-                                                                }
-                                                                Key.DirectionRight -> {
-                                                                    val target = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                                                                    exoPlayer.seekTo(target)
-                                                                    currentPosition = target
-                                                                    true
-                                                                }
-                                                                Key.DirectionUp -> {
-                                                                    if (showSettingsDropdown) {
-                                                                        // navigate settings options (handled by dropdown itself)
-                                                                        false
-                                                                    } else {
-                                                                        if (prevEpIdBox != null) viewModel.selectEpisode(prevEpIdBox!!)
-                                                                        true
-                                                                    }
-                                                                }
-                                                                Key.DirectionDown -> {
-                                                                    if (showSettingsDropdown) {
-                                                                        false
-                                                                    } else {
-                                                                        if (nextEpIdBox != null) viewModel.selectEpisode(nextEpIdBox!!)
-                                                                        true
-                                                                    }
-                                                                }
-                                                                Key.Menu, Key.F -> {
-                                                                    // Toggle settings dropdown
-                                                                    showSettingsDropdown = !showSettingsDropdown
-                                                                    true
-                                                                }
-                                                                else -> false
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                else -> false
-                                            }
-                                        } else if (keyEvent.type == KeyEventType.KeyUp) {
-                                            if (isCenterKey) {
-                                                dpadCenterPressJob?.cancel()
-                                                dpadCenterPressJob = null
-                                                if (isLongPressTriggered) {
-                                                    isLongPressTriggered = false
-                                                } else if (controlsShownOnThisPress) {
-                                                    controlsShownOnThisPress = false
-                                                } else {
-                                                    if (showControls) {
-                                                        if (exoPlayer.isPlaying) exoPlayer.pause()
-                                                        else exoPlayer.play()
-                                                    }
-                                                }
-                                                true
-                                            } else false
-                                        } else false
-                                    }
+                                         if (!isTV) return@onKeyEvent false
+                                         
+                                         if (keyEvent.type == KeyEventType.KeyDown) {
+                                             if (!showControls) {
+                                                 showControls = true
+                                                 try {
+                                                     playPauseFocusRequester.requestFocus()
+                                                 } catch (e: Exception) {}
+                                                 return@onKeyEvent true
+                                             }
+                                         }
+                                         false
+                                     }
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
                                         detectTapGestures(
@@ -1020,6 +945,7 @@ fun PlayerScreen(
                                                     modifier = Modifier
                                                         .weight(1f)
                                                         .padding(horizontal = 6.dp)
+                                                        .onFocusChanged { isSliderFocused = it.isFocused }
                                                         .focusable(),
                                                     colors = SliderDefaults.colors(
                                                         thumbColor = NeonPurple,
