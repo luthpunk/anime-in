@@ -22,6 +22,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -59,6 +65,22 @@ fun HomeScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchState by viewModel.searchState.collectAsState()
 
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+    val firstChipFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        if (isTV) {
+            try {
+                firstChipFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             Column(
@@ -91,7 +113,11 @@ fun HomeScreen(
                     ),
                     shape = RoundedCornerShape(24.dp),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusProperties {
+                            down = firstChipFocusRequester
+                        }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -102,7 +128,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
+                    listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEachIndexed { index, (id, label) ->
                         val isSelected = activeSource == id
                         var isFocused by remember { mutableStateOf(false) }
                         AssistChip(
@@ -127,6 +153,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .padding(end = 8.dp)
                                 .height(32.dp)
+                                .focusRequester(if (index == 0) firstChipFocusRequester else FocusRequester.Default)
                                 .onFocusChanged { isFocused = it.isFocused }
                         )
                     }
@@ -183,7 +210,7 @@ fun HomeScreen(
                             }
 
                             // Ongoing Section
-                            SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
+                            SectionHeader(title = "Ongoing / Baru", onSeeAllClick = { onSeeAllClick("ongoing", "Ongoing / Baru") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -196,7 +223,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(24.dp))
 
                             // Completed Section
-                            SectionHeader(title = "Anime Tamat", onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") })
+                            SectionHeader(title = "Populer / Tamat", onSeeAllClick = { onSeeAllClick("complete", "Populer / Tamat") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)

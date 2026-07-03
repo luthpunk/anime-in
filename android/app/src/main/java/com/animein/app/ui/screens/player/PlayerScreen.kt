@@ -446,6 +446,7 @@ fun PlayerScreen(
                             val nextEpIdBox by viewModel.nextEpisodeId.collectAsState()
                             var isLongPressTriggered by remember { mutableStateOf(false) }
                             var controlsShownOnThisPress by remember { mutableStateOf(false) }
+                            var dpadCenterPressJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
                             Box(
                                 modifier = Modifier
@@ -456,6 +457,16 @@ fun PlayerScreen(
                                         val isCenterKey = keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter
                                         
                                         if (keyEvent.type == KeyEventType.KeyDown) {
+                                            if (isCenterKey && keyEvent.nativeKeyEvent.repeatCount == 0) {
+                                                isLongPressTriggered = false
+                                                dpadCenterPressJob?.cancel()
+                                                dpadCenterPressJob = coroutineScope.launch {
+                                                    delay(600)
+                                                    isLongPressTriggered = true
+                                                    showSettingsDropdown = !showSettingsDropdown
+                                                }
+                                            }
+
                                             when (keyEvent.key) {
                                                 Key.Back -> false // let BackHandler handle it
                                                 // Any key when controls hidden → show controls
@@ -475,14 +486,7 @@ fun PlayerScreen(
                                                     } else {
                                                         // Controls visible — D-Pad actions
                                                         if (isCenterKey) {
-                                                            val repeatCount = keyEvent.nativeKeyEvent.repeatCount
-                                                            if (repeatCount >= 3) { // Held down (~500ms+)
-                                                                if (!isLongPressTriggered) {
-                                                                    showSettingsDropdown = !showSettingsDropdown
-                                                                    isLongPressTriggered = true
-                                                                }
-                                                            }
-                                                            true // Consume all key downs for center key
+                                                            true // Consume key down
                                                         } else {
                                                             when (keyEvent.key) {
                                                                 Key.DirectionLeft -> {
@@ -528,6 +532,8 @@ fun PlayerScreen(
                                             }
                                         } else if (keyEvent.type == KeyEventType.KeyUp) {
                                             if (isCenterKey) {
+                                                dpadCenterPressJob?.cancel()
+                                                dpadCenterPressJob = null
                                                 if (isLongPressTriggered) {
                                                     isLongPressTriggered = false
                                                 } else if (controlsShownOnThisPress) {
