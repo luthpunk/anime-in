@@ -78,7 +78,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import com.animein.app.util.AnimeIdUtils
+
 
 
 import dagger.hilt.android.AndroidEntryPoint
@@ -183,76 +189,100 @@ fun MainApp() {
             }
         }
     } else {
-        // ── Phone / Tablet layout: Floating Glassmorphic Bottom Bar ─────────
-        Scaffold(
-            bottomBar = {
-                if (showNav) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                            .navigationBarsPadding()
+        // ── Phone / Tablet layout: Floating Glassmorphic Overlay Bottom Bar ──
+        Box(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(400)
+                    ) + fadeIn(animationSpec = tween(400))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it / 3 },
+                        animationSpec = tween(400)
+                    ) + fadeOut(animationSpec = tween(400))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it / 3 },
+                        animationSpec = tween(400)
+                    ) + fadeIn(animationSpec = tween(400))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(400)
+                    ) + fadeOut(animationSpec = tween(400))
+                }
+            ) {
+                appNavGraph(navController) { currentRoute = it }
+            }
+
+
+            if (showNav) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .navigationBarsPadding()
+                ) {
+                    GlassmorphicCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
-                        GlassmorphicCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 10.dp, horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                navItems.forEach { item ->
-                                    val selected = currentRoute == item.route
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .clickable {
-                                                currentRoute = item.route
-                                                navController.navigate(item.route) {
-                                                    popUpTo(navController.graph.startDestinationId) {
-                                                        saveState = true
-                                                    }
-                                                    launchSingleTop = true
-                                                    restoreState = true
+                            navItems.forEach { item ->
+                                val selected = currentRoute == item.route
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            currentRoute = item.route
+                                            navController.navigate(item.route) {
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
                                                 }
+                                                launchSingleTop = true
+                                                restoreState = true
                                             }
-                                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = item.icon,
-                                            contentDescription = item.label,
-                                            tint = if (selected) NeonPurple else TextSecondary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            item.label,
-                                            color = if (selected) Color.White else TextSecondary,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                        )
-                                    }
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.label,
+                                        tint = if (selected) NeonPurple else TextSecondary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        item.label,
+                                        color = if (selected) Color.White else TextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = "home",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                appNavGraph(navController) { currentRoute = it }
-            }
         }
+    }
+
 
     }
 }
