@@ -49,9 +49,25 @@ fun DetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(Color(0xFF131018))
                 .padding(innerPadding)
         ) {
+            // Ambient Immersive Glow (Top Center behind header and banner)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF8F6AFF).copy(alpha = 0.15f),
+                                Color.Transparent
+                            ),
+                            radius = 900f
+                        )
+                    )
+            )
+
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -84,9 +100,9 @@ fun DetailScreen(
                                     .background(
                                         Brush.verticalGradient(
                                             colors = listOf(
-                                                Color.Black.copy(alpha = 0.4f),
-                                                Color.Black.copy(alpha = 0.7f),
-                                                MaterialTheme.colorScheme.background
+                                                Color.Transparent,
+                                                Color(0xFF131018).copy(alpha = 0.5f),
+                                                Color(0xFF131018)
                                             )
                                         )
                                     )
@@ -296,13 +312,13 @@ fun DetailScreen(
                                 detail.genreList?.forEach { genre ->
                                     Box(
                                         modifier = Modifier
-                                            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(20.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                                            .background(NeonPurple.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                                            .border(1.dp, NeonPurple.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             genre.genreName,
-                                            color = Color.White,
+                                            color = Color(0xFFE2D6FF),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium
                                         )

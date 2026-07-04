@@ -620,46 +620,24 @@ fun PlayerScreen(
                                         )
                                     }
                                 }
-                                // --- Gesture Indicator Overlay (Volume / Brightness) ---
-                                if (isDraggingBrightness || isDraggingVolume) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Card(
-                                            colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.80f)),
-                                            shape = RoundedCornerShape(16.dp),
-                                            modifier = Modifier.size(110.dp)
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center,
-                                                modifier = Modifier.fillMaxSize().padding(12.dp)
-                                            ) {
-                                                val percentage = if (isDraggingBrightness) (brightnessValue * 100).toInt() else (volumePercent * 100).toInt()
-                                                Icon(
-                                                    imageVector = if (isDraggingBrightness) BrightnessIcon else VolumeUpIcon,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(40.dp)
-                                                )
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                LinearProgressIndicator(
-                                                    progress = percentage / 100f,
-                                                    modifier = Modifier.fillMaxWidth().height(4.dp),
-                                                    color = if (isDraggingBrightness) Color(0xFFFFC107) else Color(0xFF4FC3F7),
-                                                    trackColor = Color.White.copy(alpha = 0.2f)
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    text = "$percentage%",
-                                                    color = Color.White,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-                                    }
+                                // --- Gesture Indicator Overlay (Volume / Brightness Side Sliders) ---
+                                if (isDraggingBrightness) {
+                                    SideGestureIndicator(
+                                        isLeft = true,
+                                        progress = brightnessValue,
+                                        icon = BrightnessIcon,
+                                        color = Color(0xFFFFC107),
+                                        modifier = Modifier.align(Alignment.CenterStart)
+                                    )
+                                }
+                                if (isDraggingVolume) {
+                                    SideGestureIndicator(
+                                        isLeft = false,
+                                        progress = volumePercent,
+                                        icon = VolumeUpIcon,
+                                        color = Color(0xFF4FC3F7),
+                                        modifier = Modifier.align(Alignment.CenterEnd)
+                                    )
                                 }
 
                                 // --- Buffering Spinner ---
@@ -1238,6 +1216,55 @@ data class UiMirrorItem(
     val host: String,
     val resolution: String
 )
+
+@Composable
+fun SideGestureIndicator(
+    isLeft: Boolean,
+    progress: Float,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(60.dp)
+            .padding(vertical = 32.dp, horizontal = 12.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(36.dp)
+                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                .padding(vertical = 12.dp, horizontal = 6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            
+            // Vertical Progress Bar
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .width(6.dp)
+                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(progress.coerceIn(0f, 1f))
+                        .background(color, RoundedCornerShape(3.dp))
+                        .align(Alignment.BottomCenter)
+                )
+            }
+        }
+    }
+}
 
 private fun formatTime(ms: Long): String {
     val totalSeconds = ms / 1000
