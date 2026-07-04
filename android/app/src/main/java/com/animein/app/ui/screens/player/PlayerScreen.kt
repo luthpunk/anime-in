@@ -1053,7 +1053,7 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.height(10.dp))
                             }
                             
-                            val chunkedEpisodes = episodes.chunked(5)
+                            val chunkedEpisodes = episodes.chunked(6)
                             chunkedEpisodes.forEach { rowEpisodes ->
                                 item {
                                     Row(
@@ -1065,8 +1065,8 @@ fun PlayerScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .aspectRatio(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .height(36.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
                                                     .background(if (isCurrent) NeonPurple else DarkSurface)
                                                     .clickable {
                                                         viewModel.selectEpisode(episode.id)
@@ -1076,12 +1076,12 @@ fun PlayerScreen(
                                                 Text(
                                                     text = extractEpisodeNumber(episode.title),
                                                     color = Color.White,
-                                                    fontSize = 15.sp,
+                                                    fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             }
                                         }
-                                        val placeholdersCount = 5 - rowEpisodes.size
+                                        val placeholdersCount = 6 - rowEpisodes.size
                                         if (placeholdersCount > 0) {
                                             repeat(placeholdersCount) {
                                                 Spacer(modifier = Modifier.weight(1f))
