@@ -50,8 +50,8 @@ fun GlassmorphicCard(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF2F273D).copy(alpha = 0.50f),
-                        Color(0xFF231D2D).copy(alpha = 0.75f)
+                        Color(0xFF251F30).copy(alpha = 0.88f),
+                        Color(0xFF191421).copy(alpha = 0.94f)
                     )
                 )
             )
