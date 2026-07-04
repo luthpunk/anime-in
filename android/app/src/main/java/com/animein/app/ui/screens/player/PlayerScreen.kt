@@ -167,6 +167,8 @@ fun PlayerScreen(
                                 ?: allMirrors.firstOrNull()?.resolution ?: "480p"
                         )
                     }
+                    var showQualityDropdown by remember { mutableStateOf(false) }
+                    var showSpeedDropdown by remember { mutableStateOf(false) }
 
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Video Player Area - ExoPlayer as default
@@ -1028,39 +1030,124 @@ fun PlayerScreen(
                             }
                         }
 
-                        // Pilihan Server (Resolution) Selection Chips
-                        if (allMirrors.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "Pilihan Server",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp)
+                        // Settings: Quality & Playback Speed Buttons
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // 1. Video Quality Button
+                                Box(
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    items(allMirrors) { mirror ->
-                                        val isSelected = selectedResolution == mirror.resolution
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(50)) // Pill shape
-                                                .background(if (isSelected) NeonPurple else DarkSurface)
-                                                .clickable {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(DarkSurface)
+                                            .clickable { showQualityDropdown = true }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Settings,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Kualitas: $selectedResolution",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = showQualityDropdown,
+                                        onDismissRequest = { showQualityDropdown = false },
+                                        modifier = Modifier.background(DarkSurface)
+                                    ) {
+                                        allMirrors.forEach { mirror ->
+                                            val isSelected = selectedResolution == mirror.resolution
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        text = mirror.resolution,
+                                                        color = if (isSelected) NeonPurple else Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                },
+                                                onClick = {
                                                     selectedResolution = mirror.resolution
                                                     viewModel.switchMirror(mirror.id)
+                                                    showQualityDropdown = false
                                                 }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // 2. Playback Speed Button
+                                Box(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(DarkSurface)
+                                            .clickable { showSpeedDropdown = true }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
                                             Text(
-                                                text = mirror.resolution,
+                                                text = "Kecepatan: ${speed}x",
                                                 color = Color.White,
-                                                fontSize = 13.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = showSpeedDropdown,
+                                        onDismissRequest = { showSpeedDropdown = false },
+                                        modifier = Modifier.background(DarkSurface)
+                                    ) {
+                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                            val isSelected = speed == value
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(
+                                                        text = "${value}x",
+                                                        color = if (isSelected) NeonPurple else Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                },
+                                                onClick = {
+                                                    viewModel.setPlaybackSpeed(value)
+                                                    showSpeedDropdown = false
+                                                }
                                             )
                                         }
                                     }

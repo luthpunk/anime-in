@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -88,73 +89,106 @@ fun HomeScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = { Text("Cari anime...", color = TextSecondary) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = "Cari", tint = TextSecondary)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
-                            }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = DarkSurface,
-                        unfocusedContainerColor = DarkSurface,
-                        focusedBorderColor = NeonPurple,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusProperties {
-                            down = firstChipFocusRequester
-                        }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 val activeSource by viewModel.activeSource.collectAsState()
+                var showServerDropdown by remember { mutableStateOf(false) }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEachIndexed { index, (id, label) ->
-                        val isSelected = activeSource == id
-                        var isFocused by remember { mutableStateOf(false) }
-                        AssistChip(
-                            onClick = { viewModel.setActiveSource(id) },
-                            label = { 
-                                Text(
-                                    text = label, 
-                                    color = if (isSelected) Color.Black else Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
-                                ) 
-                            },
-                            colors = AssistChipDefaults.assistChipColors(
-                                containerColor = when {
-                                    isSelected -> NeonPurple
-                                    isFocused -> NeonPurple.copy(alpha = 0.4f)
-                                    else -> DarkSurface
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.onSearchQueryChanged(it) },
+                        placeholder = { Text("Cari anime...", color = TextSecondary, fontSize = 13.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Cari", tint = TextSecondary, modifier = Modifier.size(20.dp))
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
                                 }
-                            ),
-                            border = if (isSelected || isFocused) BorderStroke(1.dp, NeonPurple) else BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                            shape = RoundedCornerShape(16.dp),
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = DarkSurface,
+                            unfocusedContainerColor = DarkSurface,
+                            focusedBorderColor = NeonPurple,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(24.dp),
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(0.73f)
+                            .height(48.dp)
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .weight(0.27f)
+                            .height(48.dp)
+                    ) {
+                        val activeLabel = when (activeSource) {
+                            "otakudesu" -> "Server 1"
+                            "animeinweb" -> "Server 2"
+                            else -> "Server 1"
+                        }
+                        
+                        Box(
                             modifier = Modifier
-                                .padding(end = 8.dp)
-                                .height(32.dp)
-                                .focusRequester(if (index == 0) firstChipFocusRequester else FocusRequester.Default)
-                                .onFocusChanged { isFocused = it.isFocused }
-                        )
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(DarkSurface)
+                                .clickable { showServerDropdown = true }
+                                .padding(horizontal = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = activeLabel,
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showServerDropdown,
+                            onDismissRequest = { showServerDropdown = false },
+                            modifier = Modifier.background(DarkSurface)
+                        ) {
+                            listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = label,
+                                            color = if (activeSource == id) NeonPurple else Color.White,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (activeSource == id) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.setActiveSource(id)
+                                        showServerDropdown = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

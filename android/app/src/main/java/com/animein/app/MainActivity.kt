@@ -234,12 +234,12 @@ fun MainApp() {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 24.dp)
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
                         .navigationBarsPadding()
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
                         val density = LocalDensity.current
@@ -249,7 +249,7 @@ fun MainApp() {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 8.dp)
+                                .padding(vertical = 4.dp, horizontal = 6.dp)
                         ) {
                             if (itemWidthPx > 0) {
                                 val indicatorWidthPx = with(density) { indicatorWidthDp.toPx() }
@@ -262,11 +262,11 @@ fun MainApp() {
                                     modifier = Modifier
                                         .offset { IntOffset(x = pillOffset.toInt(), y = 0) }
                                         .width(indicatorWidthDp)
-                                        .height(48.dp) // rounded rect height
+                                        .height(36.dp) // rounded rect height
                                         .align(Alignment.CenterStart)
                                         .background(
                                             color = com.animein.app.ui.theme.DarkSurfaceVariant.copy(alpha = 0.8f),
-                                            shape = RoundedCornerShape(16.dp)
+                                            shape = RoundedCornerShape(12.dp)
                                         )
                                 )
                             }
@@ -286,7 +286,7 @@ fun MainApp() {
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(56.dp)
+                                            .height(44.dp)
                                             .clip(RoundedCornerShape(percent = 50))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },

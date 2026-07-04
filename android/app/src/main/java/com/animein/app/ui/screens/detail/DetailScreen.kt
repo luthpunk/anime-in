@@ -52,18 +52,17 @@ fun DetailScreen(
                 .background(Color(0xFF131018))
                 .padding(innerPadding)
         ) {
-            // Ambient Immersive Glow (Top Center behind header and banner)
+            // Ambient Immersive Glow (Top fading to bottom)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(400.dp)
+                    .height(350.dp)
                     .background(
-                        Brush.radialGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF8F6AFF).copy(alpha = 0.15f),
+                                Color(0xFF8F6AFF).copy(alpha = 0.12f),
                                 Color.Transparent
-                            ),
-                            radius = 900f
+                            )
                         )
                     )
             )
@@ -99,10 +98,11 @@ fun DetailScreen(
                                     .fillMaxSize()
                                     .background(
                                         Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color(0xFF131018).copy(alpha = 0.5f),
-                                                Color(0xFF131018)
+                                            colorStops = arrayOf(
+                                                0.0f to Color.Transparent,
+                                                0.5f to Color(0xFF131018).copy(alpha = 0.5f),
+                                                0.85f to Color(0xFF131018),
+                                                1.0f to Color(0xFF131018)
                                             )
                                         )
                                     )
