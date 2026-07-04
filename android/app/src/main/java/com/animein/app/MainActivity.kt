@@ -239,17 +239,17 @@ fun MainApp() {
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
+                        shape = RoundedCornerShape(24.dp)
                     ) {
                         val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
                         val density = LocalDensity.current
                         var itemWidthPx by remember { mutableStateOf(0f) }
-                        val indicatorWidthDp = 64.dp
+                        val indicatorWidthDp = 76.dp
                         
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 8.dp)
+                                .padding(vertical = 4.dp, horizontal = 5.dp)
                         ) {
                             if (itemWidthPx > 0) {
                                 val indicatorWidthPx = with(density) { indicatorWidthDp.toPx() }
@@ -265,8 +265,8 @@ fun MainApp() {
                                         .height(44.dp) // rounded rect height
                                         .align(Alignment.CenterStart)
                                         .background(
-                                            color = com.animein.app.ui.theme.DarkSurfaceVariant.copy(alpha = 0.8f),
-                                            shape = RoundedCornerShape(14.dp)
+                                            color = Color.White.copy(alpha = 0.12f),
+                                            shape = RoundedCornerShape(20.dp)
                                         )
                                 )
                             }
@@ -286,7 +286,7 @@ fun MainApp() {
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(52.dp)
+                                            .height(44.dp)
                                             .clip(RoundedCornerShape(percent = 50))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
