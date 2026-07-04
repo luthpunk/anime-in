@@ -147,6 +147,27 @@ fun PlayerScreen(
                     val detail = state.data
                     val streamUrl = detail.linkStream ?: ""
 
+                    val allMirrors = remember(detail) {
+                        val parseResolution = { host: String, fallback: String ->
+                            when {
+                                host.contains("1080") -> "1080p"
+                                host.contains("720") -> "720p"
+                                host.contains("480") -> "480p"
+                                host.contains("360") -> "360p"
+                                else -> fallback
+                            }
+                        }
+                        (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "360p")) } ?: emptyList()) +
+                        (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "480p")) } ?: emptyList()) +
+                        (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "720p")) } ?: emptyList())
+                    }
+                    var selectedResolution by remember(allMirrors) {
+                        mutableStateOf(
+                            allMirrors.firstOrNull { it.resolution == "480p" }?.resolution
+                                ?: allMirrors.firstOrNull()?.resolution ?: "480p"
+                        )
+                    }
+
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Video Player Area - ExoPlayer as default
                         Box(
@@ -189,26 +210,6 @@ fun PlayerScreen(
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
 
                             var showSettingsDropdown by remember { mutableStateOf(false) }
-                            val allMirrors = remember(detail) {
-                                val parseResolution = { host: String, fallback: String ->
-                                    when {
-                                        host.contains("1080") -> "1080p"
-                                        host.contains("720") -> "720p"
-                                        host.contains("480") -> "480p"
-                                        host.contains("360") -> "360p"
-                                        else -> fallback
-                                    }
-                                }
-                                (detail.mirror1?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "360p")) } ?: emptyList()) +
-                                (detail.mirror2?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "480p")) } ?: emptyList()) +
-                                (detail.mirror3?.mirrorList?.map { UiMirrorItem(it.id, it.host, parseResolution(it.host, "720p")) } ?: emptyList())
-                            }
-                            var selectedResolution by remember(allMirrors) {
-                                mutableStateOf(
-                                    allMirrors.firstOrNull { it.resolution == "480p" }?.resolution
-                                        ?: allMirrors.firstOrNull()?.resolution ?: "480p"
-                                )
-                            }
 
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }

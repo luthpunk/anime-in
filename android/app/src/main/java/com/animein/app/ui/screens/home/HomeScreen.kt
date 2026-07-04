@@ -45,6 +45,7 @@ import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.StarYellow
 
