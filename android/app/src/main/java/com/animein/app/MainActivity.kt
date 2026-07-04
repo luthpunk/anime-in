@@ -282,9 +282,6 @@ fun MainApp() {
             }
         }
     }
-
-
-    }
 }
 
 // ── Shared NavGraph (no NavHost here — only composable destinations) ────────
