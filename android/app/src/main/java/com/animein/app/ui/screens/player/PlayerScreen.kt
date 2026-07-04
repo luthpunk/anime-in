@@ -169,6 +169,7 @@ fun PlayerScreen(
                     }
                     var showQualityDropdown by remember { mutableStateOf(false) }
                     var showSpeedDropdown by remember { mutableStateOf(false) }
+                    val speed by viewModel.playbackSpeed.collectAsState()
 
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Video Player Area - ExoPlayer as default
@@ -208,7 +209,6 @@ fun PlayerScreen(
                             var isSliderFocused by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
-                            val speed by viewModel.playbackSpeed.collectAsState()
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
 
                             var showSettingsDropdown by remember { mutableStateOf(false) }
