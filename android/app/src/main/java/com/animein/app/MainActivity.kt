@@ -83,9 +83,26 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.draw.scale
+
 import com.animein.app.util.AnimeIdUtils
 
-
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -197,27 +214,27 @@ fun MainApp() {
                 modifier = Modifier.fillMaxSize(),
                 enterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(400)
-                    ) + fadeIn(animationSpec = tween(400))
+                        initialOffsetX = { it / 4 },
+                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                    ) + fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.95f, animationSpec = tween(400))
                 },
                 exitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { -it / 3 },
-                        animationSpec = tween(400)
-                    ) + fadeOut(animationSpec = tween(400))
+                        targetOffsetX = { -it / 4 },
+                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                    ) + fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 1.05f, animationSpec = tween(400))
                 },
                 popEnterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { -it / 3 },
-                        animationSpec = tween(400)
-                    ) + fadeIn(animationSpec = tween(400))
+                        initialOffsetX = { -it / 4 },
+                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                    ) + fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 1.05f, animationSpec = tween(400))
                 },
                 popExitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(400)
-                    ) + fadeOut(animationSpec = tween(400))
+                        targetOffsetX = { it / 4 },
+                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                    ) + fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 0.95f, animationSpec = tween(400))
                 }
             ) {
                 appNavGraph(navController) { currentRoute = it }
@@ -234,46 +251,101 @@ fun MainApp() {
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(28.dp)
                     ) {
-                        Row(
+                        val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
+                        val density = LocalDensity.current
+                        var itemWidthPx by remember { mutableStateOf(0f) }
+                        
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 10.dp, horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 8.dp, horizontal = 8.dp)
                         ) {
-                            navItems.forEach { item ->
-                                val selected = currentRoute == item.route
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                            if (itemWidthPx > 0) {
+                                val pillOffset by animateFloatAsState(
+                                    targetValue = selectedIndex * itemWidthPx,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessLow
+                                    ),
+                                    label = "pillOffset"
+                                )
+                                Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .clickable {
-                                            currentRoute = item.route
-                                            navController.navigate(item.route) {
-                                                popUpTo(navController.graph.startDestinationId) {
-                                                    saveState = true
+                                        .offset { IntOffset(x = pillOffset.toInt(), y = 0) }
+                                        .width(with(density) { itemWidthPx.toDp() })
+                                        .height(56.dp) // capsule height
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
+                                            shape = RoundedCornerShape(percent = 50)
+                                        )
+                                )
+                            }
+                            
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onGloballyPositioned { coordinates ->
+                                        itemWidthPx = coordinates.size.width.toFloat() / navItems.size
+                                    },
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                navItems.forEachIndexed { index, item ->
+                                    val selected = selectedIndex == index
+                                    val scaleVal by animateFloatAsState(
+                                        targetValue = if (selected) 1.05f else 1.0f,
+                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                                        label = "scale"
+                                    )
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp)
+                                            .scale(scaleVal)
+                                            .clip(RoundedCornerShape(percent = 50))
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                currentRoute = item.route
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        androidx.compose.animation.Crossfade(
+                                            targetState = selected,
+                                            animationSpec = tween(300),
+                                            label = "nav_item_crossfade"
+                                        ) { isSelected ->
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = item.icon,
+                                                    contentDescription = item.label,
+                                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    item.label,
+                                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                )
                                             }
                                         }
-                                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        tint = if (selected) NeonPurple else TextSecondary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        item.label,
-                                        color = if (selected) Color.White else TextSecondary,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                                    )
+                                    }
                                 }
                             }
                         }

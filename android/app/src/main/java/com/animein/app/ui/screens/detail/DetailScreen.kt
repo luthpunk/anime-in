@@ -205,7 +205,7 @@ fun DetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(24.dp)
                             ) {
                                 Column(modifier = Modifier.padding(14.dp)) {
                                     // Row 1: Score & Studio

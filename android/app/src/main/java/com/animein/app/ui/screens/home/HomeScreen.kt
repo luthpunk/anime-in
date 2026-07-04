@@ -196,7 +196,7 @@ fun HomeScreen(
                                 SectionHeader(title = "Lanjut Nonton")
                                 LazyRow(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(continueWatchingList.take(10)) { item ->
                                         ContinueWatchingCard(
@@ -213,7 +213,7 @@ fun HomeScreen(
                             SectionHeader(title = "Ongoing / Baru", onSeeAllClick = { onSeeAllClick("ongoing", "Ongoing / Baru") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(ongoing.drop(1)) { anime ->
                                     OngoingAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
@@ -226,7 +226,7 @@ fun HomeScreen(
                             SectionHeader(title = "Populer / Tamat", onSeeAllClick = { onSeeAllClick("complete", "Populer / Tamat") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 items(complete) { anime ->
                                     CompletedAnimeCard(anime = anime, onClick = { onAnimeClick(anime.id) })
@@ -307,7 +307,7 @@ fun HeroBanner(
             .fillMaxWidth()
             .height(250.dp)
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(24.dp))
             .clickable { onClick() }
     ) {
         AsyncImage(
@@ -416,7 +416,7 @@ fun OngoingAnimeCard(
             modifier = Modifier
                 .width(140.dp)
                 .height(200.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
         ) {
             AsyncImage(
@@ -470,7 +470,7 @@ fun CompletedAnimeCard(
             modifier = Modifier
                 .width(140.dp)
                 .height(200.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
         ) {
             AsyncImage(
@@ -576,7 +576,7 @@ fun ContinueWatchingCard(
             modifier = Modifier
                 .width(160.dp)
                 .height(100.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
         ) {
             if (item.thumb.isNotEmpty()) {
