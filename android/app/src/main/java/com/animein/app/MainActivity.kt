@@ -64,7 +64,15 @@ import com.animein.app.ui.theme.AnimeInTheme
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.ui.components.GlassmorphicCard
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.navigationBarsPadding
 import com.animein.app.util.AnimeIdUtils
+
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -167,45 +175,61 @@ fun MainApp() {
             }
         }
     } else {
-        // ── Phone / Tablet layout: NavigationBar at bottom ─────────────────
+        // ── Phone / Tablet layout: Floating Glassmorphic Bottom Bar ─────────
         Scaffold(
             bottomBar = {
                 if (showNav) {
-                    NavigationBar(
-                        containerColor = DarkSurface,
-                        contentColor = NeonPurple
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding()
                     ) {
-                        navItems.forEach { item ->
-                            val selected = currentRoute == item.route
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = {
-                                    currentRoute = item.route
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
+                        GlassmorphicCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                navItems.forEach { item ->
+                                    val selected = currentRoute == item.route
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .clickable {
+                                                currentRoute = item.route
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.startDestinationId) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = item.icon,
+                                            contentDescription = item.label,
+                                            tint = if (selected) NeonPurple else TextSecondary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            item.label,
+                                            color = if (selected) Color.White else TextSecondary,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                        )
                                     }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        tint = if (selected) NeonPurple else TextSecondary
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        item.label,
-                                        color = if (selected) Color.White else TextSecondary
-                                    )
-                                },
-                                colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = Color.Transparent
-                                )
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -221,6 +245,7 @@ fun MainApp() {
                 appNavGraph(navController) { currentRoute = it }
             }
         }
+
     }
 }
 
