@@ -239,7 +239,7 @@ fun MainApp() {
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(28.dp)
                     ) {
                         val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
                         val density = LocalDensity.current
@@ -249,7 +249,7 @@ fun MainApp() {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp, horizontal = 5.dp)
+                                .padding(vertical = 8.dp, horizontal = 8.dp)
                         ) {
                             if (itemWidthPx > 0) {
                                 val indicatorWidthPx = with(density) { indicatorWidthDp.toPx() }
