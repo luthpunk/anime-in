@@ -204,14 +204,13 @@ fun PlayerScreen(
                             var isPrevFocused by remember { mutableStateOf(false) }
                             var isPlayFocused by remember { mutableStateOf(false) }
                             var isNextFocused by remember { mutableStateOf(false) }
-                            var isSettingsFocused by remember { mutableStateOf(false) }
+                            var isResFocused by remember { mutableStateOf(false) }
+                            var isSpeedFocused by remember { mutableStateOf(false) }
                             var isFullscreenBtnFocused by remember { mutableStateOf(false) }
                             var isSliderFocused by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
-
-                            var showSettingsDropdown by remember { mutableStateOf(false) }
 
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }
@@ -356,9 +355,9 @@ fun PlayerScreen(
                             }
 
                             // Hide controls after 3.5 seconds, unless settings dropdown is open or a control is focused
-                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isSettingsFocused || isFullscreenBtnFocused || isSliderFocused
-                            LaunchedEffect(showControls, isPlaying, showSettingsDropdown, isAnyControlFocused) {
-                                if (showControls && isPlaying && !showSettingsDropdown && !isAnyControlFocused) {
+                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isResFocused || isSpeedFocused || isFullscreenBtnFocused || isSliderFocused
+                            LaunchedEffect(showControls, isPlaying, showQualityDropdown, showSpeedDropdown, isAnyControlFocused) {
+                                if (showControls && isPlaying && !showQualityDropdown && !showSpeedDropdown && !isAnyControlFocused) {
                                     delay(3500)
                                     showControls = false
                                 }
@@ -367,7 +366,8 @@ fun PlayerScreen(
                             // Dismiss settings dropdown when controls are hidden
                             LaunchedEffect(showControls) {
                                 if (!showControls) {
-                                    showSettingsDropdown = false
+                                    showQualityDropdown = false
+                                    showSpeedDropdown = false
                                 }
                             }
 
@@ -660,11 +660,6 @@ fun PlayerScreen(
                                             .fillMaxSize()
                                             .background(Color.Black.copy(alpha = 0.6f))
                                     ) {
-                                        var isPrevFocused by remember { mutableStateOf(false) }
-                                        var isPlayFocused by remember { mutableStateOf(false) }
-                                        var isNextFocused by remember { mutableStateOf(false) }
-                                        var isSettingsFocused by remember { mutableStateOf(false) }
-                                        var isFullscreenBtnFocused by remember { mutableStateOf(false) }
 
                                         // 1. Top row: Fullscreen Title & Episode
                                         if (isFullscreen) {
@@ -802,40 +797,35 @@ fun PlayerScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 // Settings dropdown menu containing speed and resolution
+                                                // 1. Resolution Dropdown Button
                                                 Box {
-                                                    IconButton(
-                                                        onClick = { showSettingsDropdown = true },
+                                                    Box(
                                                         modifier = Modifier
-                                                            .size(36.dp)
-                                                            .onFocusChanged { isSettingsFocused = it.isFocused }
-                                                            .focusable()
-                                                            .handleRemoteClick { showSettingsDropdown = true }
+                                                            .height(32.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
                                                             .background(
-                                                                if (isSettingsFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
-                                                                RoundedCornerShape(18.dp)
+                                                                if (isResFocused) NeonPurple.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
                                                             )
+                                                            .onFocusChanged { isResFocused = it.isFocused }
+                                                            .focusable()
+                                                            .clickable { showQualityDropdown = true }
+                                                            .handleRemoteClick { showQualityDropdown = true }
+                                                            .padding(horizontal = 10.dp),
+                                                        contentAlignment = Alignment.Center
                                                     ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Settings,
-                                                            contentDescription = "Pengaturan",
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(24.dp)
+                                                        Text(
+                                                            text = selectedResolution,
+                                                            color = Color.White,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
                                                         )
                                                     }
 
                                                     DropdownMenu(
-                                                        expanded = showSettingsDropdown,
-                                                        onDismissRequest = { showSettingsDropdown = false },
+                                                        expanded = showQualityDropdown,
+                                                        onDismissRequest = { showQualityDropdown = false },
                                                         modifier = Modifier.background(DarkSurface)
                                                     ) {
-                                                        // 1. Resolutions
-                                                        Text(
-                                                            text = "Kualitas Video",
-                                                            color = Color.Gray,
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                                                        )
                                                         allMirrors.forEach { mirror ->
                                                             val isSelected = selectedResolution == mirror.resolution
                                                             DropdownMenuItem(
@@ -850,21 +840,44 @@ fun PlayerScreen(
                                                                 onClick = {
                                                                     selectedResolution = mirror.resolution
                                                                     viewModel.switchMirror(mirror.id)
-                                                                    showSettingsDropdown = false
+                                                                    showQualityDropdown = false
                                                                 }
                                                             )
                                                         }
+                                                    }
+                                                }
 
-                                                        Divider(color = Color.White.copy(alpha = 0.1f), thickness = 1.dp)
+                                                Spacer(modifier = Modifier.width(8.dp))
 
-                                                        // 2. Playback Speed
+                                                // 2. Playback Speed Dropdown Button
+                                                Box {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .height(32.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(
+                                                                if (isSpeedFocused) NeonPurple.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
+                                                            )
+                                                            .onFocusChanged { isSpeedFocused = it.isFocused }
+                                                            .focusable()
+                                                            .clickable { showSpeedDropdown = true }
+                                                            .handleRemoteClick { showSpeedDropdown = true }
+                                                            .padding(horizontal = 10.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
                                                         Text(
-                                                            text = "Kecepatan Pemutaran",
-                                                            color = Color.Gray,
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                                                            text = "${speed}x",
+                                                            color = Color.White,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold
                                                         )
+                                                    }
+
+                                                    DropdownMenu(
+                                                        expanded = showSpeedDropdown,
+                                                        onDismissRequest = { showSpeedDropdown = false },
+                                                        modifier = Modifier.background(DarkSurface)
+                                                    ) {
                                                         listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
                                                             val isSelected = speed == value
                                                             DropdownMenuItem(
@@ -878,7 +891,7 @@ fun PlayerScreen(
                                                                 },
                                                                 onClick = {
                                                                     viewModel.setPlaybackSpeed(value)
-                                                                    showSettingsDropdown = false
+                                                                    showSpeedDropdown = false
                                                                 }
                                                             )
                                                         }

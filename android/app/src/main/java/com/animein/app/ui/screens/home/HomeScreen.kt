@@ -97,7 +97,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    TextField(
                         value = searchQuery,
                         onValueChange = { viewModel.onSearchQueryChanged(it) },
                         placeholder = { Text("Cari anime...", color = TextSecondary, fontSize = 13.sp) },
@@ -107,15 +107,16 @@ fun HomeScreen(
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White, modifier = Modifier.size(20.dp))
                                 }
                             }
                         },
-                        colors = OutlinedTextFieldDefaults.colors(
+                        colors = TextFieldDefaults.colors(
                             focusedContainerColor = DarkSurface,
                             unfocusedContainerColor = DarkSurface,
-                            focusedBorderColor = NeonPurple,
-                            unfocusedBorderColor = Color.Transparent,
+                            disabledContainerColor = DarkSurface,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
                         ),
