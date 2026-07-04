@@ -428,9 +428,10 @@ fun OngoingAnimeCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF231D2D).copy(alpha = 0.85f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .fillMaxWidth()
             ) {
                 Text(
                     anime.episode,
@@ -506,9 +507,10 @@ fun CompletedAnimeCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF231D2D).copy(alpha = 0.85f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .fillMaxWidth()
             ) {
                 Text(
                     anime.episode,

@@ -213,28 +213,16 @@ fun MainApp() {
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize(),
                 enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it / 4 },
-                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
-                    ) + fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 0.95f, animationSpec = tween(400))
+                    fadeIn(animationSpec = tween(250))
                 },
                 exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { -it / 4 },
-                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
-                    ) + fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 1.05f, animationSpec = tween(400))
+                    fadeOut(animationSpec = tween(250))
                 },
                 popEnterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { -it / 4 },
-                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
-                    ) + fadeIn(animationSpec = tween(400)) + scaleIn(initialScale = 1.05f, animationSpec = tween(400))
+                    fadeIn(animationSpec = tween(250))
                 },
                 popExitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it / 4 },
-                        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioNoBouncy)
-                    ) + fadeOut(animationSpec = tween(400)) + scaleOut(targetScale = 0.95f, animationSpec = tween(400))
+                    fadeOut(animationSpec = tween(250))
                 }
             ) {
                 appNavGraph(navController) { currentRoute = it }
@@ -246,12 +234,12 @@ fun MainApp() {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 24.dp, vertical = 24.dp)
                         .navigationBarsPadding()
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp)
+                        shape = RoundedCornerShape(50)
                     ) {
                         val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
                         val density = LocalDensity.current
@@ -265,10 +253,7 @@ fun MainApp() {
                             if (itemWidthPx > 0) {
                                 val pillOffset by animateFloatAsState(
                                     targetValue = selectedIndex * itemWidthPx,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                        stiffness = Spring.StiffnessLow
-                                    ),
+                                    animationSpec = tween(300),
                                     label = "pillOffset"
                                 )
                                 Box(
@@ -277,7 +262,7 @@ fun MainApp() {
                                         .width(with(density) { itemWidthPx.toDp() })
                                         .height(56.dp) // capsule height
                                         .background(
-                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f),
+                                            color = com.animein.app.ui.theme.DarkSurfaceVariant.copy(alpha = 0.6f),
                                             shape = RoundedCornerShape(percent = 50)
                                         )
                                 )
@@ -294,17 +279,11 @@ fun MainApp() {
                             ) {
                                 navItems.forEachIndexed { index, item ->
                                     val selected = selectedIndex == index
-                                    val scaleVal by animateFloatAsState(
-                                        targetValue = if (selected) 1.05f else 1.0f,
-                                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                                        label = "scale"
-                                    )
                                     
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(56.dp)
-                                            .scale(scaleVal)
                                             .clip(RoundedCornerShape(percent = 50))
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
@@ -323,27 +302,15 @@ fun MainApp() {
                                     ) {
                                         androidx.compose.animation.Crossfade(
                                             targetState = selected,
-                                            animationSpec = tween(300),
+                                            animationSpec = tween(200),
                                             label = "nav_item_crossfade"
                                         ) { isSelected ->
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = item.icon,
-                                                    contentDescription = item.label,
-                                                    tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(
-                                                    item.label,
-                                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                                )
-                                            }
+                                            Icon(
+                                                imageVector = item.icon,
+                                                contentDescription = item.label,
+                                                tint = if (isSelected) com.animein.app.ui.theme.NeonPurple else com.animein.app.ui.theme.TextSecondary,
+                                                modifier = Modifier.size(26.dp)
+                                            )
                                         }
                                     }
                                 }

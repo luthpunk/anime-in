@@ -36,7 +36,7 @@ fun squircleShape(percent: Int = 30): Shape {
 @Composable
 fun GlassmorphicCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(24.dp),
     borderWidth: Dp = 1.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -46,8 +46,8 @@ fun GlassmorphicCard(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF16161A).copy(alpha = 0.60f),
-                        Color(0xFF08080C).copy(alpha = 0.85f)
+                        Color(0xFF2F273D).copy(alpha = 0.50f),
+                        Color(0xFF231D2D).copy(alpha = 0.75f)
                     )
                 )
             )
