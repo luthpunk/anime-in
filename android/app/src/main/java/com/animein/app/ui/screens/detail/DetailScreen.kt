@@ -26,6 +26,7 @@ import coil.compose.AsyncImage
 import com.animein.app.data.model.DetailResponse
 import com.animein.app.ui.components.GlassmorphicCard
 import com.animein.app.ui.components.AppleGlassIcon
+import com.animein.app.ui.components.PremiumLoadingSpinner
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPink
 import com.animein.app.ui.theme.NeonPurple
@@ -54,7 +55,7 @@ fun DetailScreen(
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NeonPurple)
+                        PremiumLoadingSpinner(color = NeonPurple)
                     }
                 }
                 is DetailUiState.Success -> {
@@ -98,28 +99,43 @@ fun DetailScreen(
                                     .padding(16.dp)
                                     .statusBarsPadding()
                             ) {
-                                AppleGlassIcon(
-                                    imageVector = Icons.Default.ArrowBack,
-                                    contentDescription = "Kembali",
-                                    iconColor = Color.White,
-                                    onClick = onBackClick
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color.Black.copy(alpha = 0.40f), CircleShape)
+                                        .clickable { onBackClick() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowBack,
+                                        contentDescription = "Kembali",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                             
-                            // Favorite button (top-right) with Apple Glass style
+                            // Favorite button (top-right)
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .padding(16.dp)
                                     .statusBarsPadding()
                             ) {
-                                AppleGlassIcon(
-                                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = "Favorit",
-                                    iconColor = if (isFavorite) NeonPink else Color.White,
-                                    glowColor = if (isFavorite) NeonPink else NeonPurple,
-                                    onClick = { viewModel.toggleFavorite(detail) }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color.Black.copy(alpha = 0.40f), CircleShape)
+                                        .clickable { viewModel.toggleFavorite(detail) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = "Favorit",
+                                        tint = if (isFavorite) NeonPink else Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                             
                             // Title & Quick Badges overlaid on bottom of the banner

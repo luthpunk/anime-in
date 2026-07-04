@@ -10,6 +10,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -67,6 +69,7 @@ import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.ui.components.PremiumLoadingSpinner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -137,7 +140,7 @@ fun PlayerScreen(
                             .background(Color.Black),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = NeonPurple)
+                        PremiumLoadingSpinner(color = NeonPurple)
                     }
                 }
                 is PlayerUiState.Success -> {
@@ -576,7 +579,7 @@ fun PlayerScreen(
                                             .background(Color.Black.copy(alpha = 0.5f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(color = NeonPurple)
+                                        PremiumLoadingSpinner(color = NeonPurple)
                                     }
                                 }
 
@@ -664,11 +667,10 @@ fun PlayerScreen(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator(
-                                            color = Color.White,
-                                            strokeWidth = 3.dp,
-                                            modifier = Modifier.size(48.dp)
-                                        )
+                                        PremiumLoadingSpinner(
+                                             color = Color.White,
+                                             size = 48.dp
+                                         )
                                     }
                                 }
                                  if (showControls) {
@@ -1044,7 +1046,46 @@ fun PlayerScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
                                 )
-                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+
+                        // Pilihan Server (Resolution) Selection Chips
+                        if (allMirrors.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Pilihan Server",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp)
+                                ) {
+                                    items(allMirrors) { mirror ->
+                                        val isSelected = selectedResolution == mirror.resolution
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(50)) // Pill shape
+                                                .background(if (isSelected) NeonPurple else DarkSurface)
+                                                .clickable {
+                                                    selectedResolution = mirror.resolution
+                                                    viewModel.switchMirror(mirror.id)
+                                                }
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = mirror.resolution,
+                                                color = Color.White,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 

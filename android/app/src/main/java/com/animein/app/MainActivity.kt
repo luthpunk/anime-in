@@ -239,11 +239,12 @@ fun MainApp() {
                 ) {
                     GlassmorphicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(50)
+                        shape = RoundedCornerShape(20.dp)
                     ) {
                         val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
                         val density = LocalDensity.current
                         var itemWidthPx by remember { mutableStateOf(0f) }
+                        val indicatorWidthDp = 64.dp
                         
                         Box(
                             modifier = Modifier
@@ -251,19 +252,21 @@ fun MainApp() {
                                 .padding(vertical = 8.dp, horizontal = 8.dp)
                         ) {
                             if (itemWidthPx > 0) {
+                                val indicatorWidthPx = with(density) { indicatorWidthDp.toPx() }
                                 val pillOffset by animateFloatAsState(
-                                    targetValue = selectedIndex * itemWidthPx,
+                                    targetValue = selectedIndex * itemWidthPx + (itemWidthPx - indicatorWidthPx) / 2,
                                     animationSpec = tween(300),
                                     label = "pillOffset"
                                 )
                                 Box(
                                     modifier = Modifier
                                         .offset { IntOffset(x = pillOffset.toInt(), y = 0) }
-                                        .width(with(density) { itemWidthPx.toDp() })
-                                        .height(56.dp) // capsule height
+                                        .width(indicatorWidthDp)
+                                        .height(48.dp) // rounded rect height
+                                        .align(Alignment.CenterStart)
                                         .background(
-                                            color = com.animein.app.ui.theme.DarkSurfaceVariant.copy(alpha = 0.6f),
-                                            shape = RoundedCornerShape(percent = 50)
+                                            color = com.animein.app.ui.theme.DarkSurfaceVariant.copy(alpha = 0.8f),
+                                            shape = RoundedCornerShape(16.dp)
                                         )
                                 )
                             }

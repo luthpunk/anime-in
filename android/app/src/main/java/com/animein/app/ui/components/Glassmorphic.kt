@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +20,10 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 
 /**
  * Creates a custom squircle shape that resembles Apple's iOS icon shape.
@@ -153,6 +157,40 @@ fun AppleGlassIcon(
             contentDescription = contentDescription,
             tint = iconColor,
             modifier = Modifier.size(24.dp)
+        )
+    }
+}
+
+@Composable
+fun PremiumLoadingSpinner(
+    modifier: Modifier = Modifier,
+    color: Color = com.animein.app.ui.theme.NeonPurple,
+    size: Dp = 48.dp
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "angle"
+    )
+    Canvas(modifier = modifier.size(size)) {
+        drawArc(
+            color = color.copy(alpha = 0.2f),
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+        )
+        drawArc(
+            color = color,
+            startAngle = angle,
+            sweepAngle = 90f,
+            useCenter = false,
+            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
         )
     }
 }

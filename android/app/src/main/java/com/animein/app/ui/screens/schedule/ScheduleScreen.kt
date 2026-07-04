@@ -28,6 +28,8 @@ import com.animein.app.data.model.ScheduleItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.animein.app.ui.components.PremiumLoadingSpinner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +60,7 @@ fun ScheduleScreen(
             when (val state = uiState) {
                 is ScheduleUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = NeonPurple)
+                        PremiumLoadingSpinner(color = NeonPurple)
                     }
                 }
                 is ScheduleUiState.Success -> {
@@ -67,7 +69,25 @@ fun ScheduleScreen(
                             Text("Tidak ada jadwal rilis tersedia.", color = TextSecondary)
                         }
                     } else {
+                        val calendar = java.util.Calendar.getInstance()
+                        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+                        val todayName = when (dayOfWeek) {
+                            java.util.Calendar.MONDAY -> "Senin"
+                            java.util.Calendar.TUESDAY -> "Selasa"
+                            java.util.Calendar.WEDNESDAY -> "Rabu"
+                            java.util.Calendar.THURSDAY -> "Kamis"
+                            java.util.Calendar.FRIDAY -> "Jumat"
+                            java.util.Calendar.SATURDAY -> "Sabtu"
+                            java.util.Calendar.SUNDAY -> "Minggu"
+                            else -> ""
+                        }
+                        val todayIndex = remember(state.schedule) {
+                            state.schedule.indexOfFirst { it.day.contains(todayName, ignoreCase = true) }.coerceAtLeast(0)
+                        }
+                        val listState = rememberLazyListState(initialFirstVisibleItemIndex = todayIndex)
+
                         LazyColumn(
+                            state = listState,
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxSize()

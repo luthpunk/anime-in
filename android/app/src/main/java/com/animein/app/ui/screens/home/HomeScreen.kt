@@ -44,11 +44,9 @@ import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
-import com.animein.app.ui.theme.StarYellow
-import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.ui.components.PremiumLoadingSpinner
 import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.StarYellow
-import com.animein.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -172,7 +170,7 @@ fun HomeScreen(
                 when (val state = uiState) {
                     is HomeUiState.Loading -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = NeonPurple)
+                            PremiumLoadingSpinner(color = NeonPurple)
                         }
                     }
                     is HomeUiState.Success -> {
@@ -261,7 +259,7 @@ fun HomeScreen(
                     is SearchUiState.Idle -> {}
                     is SearchUiState.Loading -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = NeonPurple)
+                            PremiumLoadingSpinner(color = NeonPurple)
                         }
                     }
                     is SearchUiState.Success -> {
