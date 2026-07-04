@@ -67,6 +67,7 @@ import android.view.View
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.DarkSurfaceVariant
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.ui.components.PremiumLoadingSpinner
@@ -824,7 +825,18 @@ fun PlayerScreen(
                                                     DropdownMenu(
                                                         expanded = showQualityDropdown,
                                                         onDismissRequest = { showQualityDropdown = false },
-                                                        modifier = Modifier.background(DarkSurface)
+                                                        modifier = Modifier
+                                                            .background(DarkSurfaceVariant)
+                                                            .border(
+                                                                width = 1.dp,
+                                                                brush = Brush.verticalGradient(
+                                                                    colors = listOf(
+                                                                        Color.White.copy(alpha = 0.12f),
+                                                                        Color.White.copy(alpha = 0.02f)
+                                                                    )
+                                                                ),
+                                                                shape = RoundedCornerShape(8.dp)
+                                                            )
                                                     ) {
                                                         allMirrors.forEach { mirror ->
                                                             val isSelected = selectedResolution == mirror.resolution
@@ -837,6 +849,19 @@ fun PlayerScreen(
                                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                     )
                                                                 },
+                                                                leadingIcon = {
+                                                                    if (isSelected) {
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .size(6.dp)
+                                                                                .background(NeonPurple, RoundedCornerShape(50))
+                                                                        )
+                                                                    }
+                                                                },
+                                                                colors = MenuDefaults.itemColors(
+                                                                    focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
+                                                                    focusedTextColor = Color.White
+                                                                ),
                                                                 onClick = {
                                                                     selectedResolution = mirror.resolution
                                                                     viewModel.switchMirror(mirror.id)
@@ -876,7 +901,18 @@ fun PlayerScreen(
                                                     DropdownMenu(
                                                         expanded = showSpeedDropdown,
                                                         onDismissRequest = { showSpeedDropdown = false },
-                                                        modifier = Modifier.background(DarkSurface)
+                                                        modifier = Modifier
+                                                            .background(DarkSurfaceVariant)
+                                                            .border(
+                                                                width = 1.dp,
+                                                                brush = Brush.verticalGradient(
+                                                                    colors = listOf(
+                                                                        Color.White.copy(alpha = 0.12f),
+                                                                        Color.White.copy(alpha = 0.02f)
+                                                                    )
+                                                                ),
+                                                                shape = RoundedCornerShape(8.dp)
+                                                            )
                                                     ) {
                                                         listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
                                                             val isSelected = speed == value
@@ -889,6 +925,19 @@ fun PlayerScreen(
                                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                     )
                                                                 },
+                                                                leadingIcon = {
+                                                                    if (isSelected) {
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .size(6.dp)
+                                                                                .background(NeonPurple, RoundedCornerShape(50))
+                                                                        )
+                                                                    }
+                                                                },
+                                                                colors = MenuDefaults.itemColors(
+                                                                    focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
+                                                                    focusedTextColor = Color.White
+                                                                ),
                                                                 onClick = {
                                                                     viewModel.setPlaybackSpeed(value)
                                                                     showSpeedDropdown = false

@@ -39,6 +39,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -47,6 +52,7 @@ import com.animein.app.data.model.AnimeCompleted
 import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.DarkSurfaceVariant
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.components.PremiumLoadingSpinner
 import com.animein.app.ui.theme.TextSecondary
@@ -160,12 +166,16 @@ fun HomeScreen(
                             else -> "Server 1"
                         }
                         
+                        var isServerFocused by remember { mutableStateOf(false) }
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(DarkSurface)
+                                .background(if (isServerFocused) NeonPurple.copy(alpha = 0.4f) else DarkSurface)
+                                .onFocusChanged { isServerFocused = it.isFocused }
+                                .focusable()
                                 .clickable { showServerDropdown = true }
+                                .handleRemoteClick { showServerDropdown = true }
                                 .padding(horizontal = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -193,18 +203,43 @@ fun HomeScreen(
                         DropdownMenu(
                             expanded = showServerDropdown,
                             onDismissRequest = { showServerDropdown = false },
-                            modifier = Modifier.background(DarkSurface)
+                            modifier = Modifier
+                                .background(DarkSurfaceVariant)
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.12f),
+                                            Color.White.copy(alpha = 0.02f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
                         ) {
                             listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
+                                val isSelected = activeSource == id
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             text = label,
-                                            color = if (activeSource == id) NeonPurple else Color.White,
+                                            color = if (isSelected) NeonPurple else Color.White,
                                             fontSize = 13.sp,
-                                            fontWeight = if (activeSource == id) FontWeight.Bold else FontWeight.Normal
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     },
+                                    leadingIcon = {
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(NeonPurple, RoundedCornerShape(50))
+                                            )
+                                        }
+                                    },
+                                    colors = MenuDefaults.itemColors(
+                                        focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
+                                        focusedTextColor = Color.White
+                                    ),
                                     onClick = {
                                         viewModel.setActiveSource(id)
                                         showServerDropdown = false
@@ -838,3 +873,15 @@ fun SearchResultCard(
         }
     }
 }
+
+// Helper extension: handle Android TV remote D-Pad Center / Enter key
+private fun Modifier.handleRemoteClick(onClick: () -> Unit): Modifier = this.then(
+    Modifier.onKeyEvent { event ->
+        if (event.type == KeyEventType.KeyDown &&
+            (event.key == Key.Enter || event.key == Key.DirectionCenter)
+        ) {
+            onClick()
+            true
+        } else false
+    }
+)
