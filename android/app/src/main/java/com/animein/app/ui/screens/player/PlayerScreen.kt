@@ -824,53 +824,56 @@ fun PlayerScreen(
                                                     }
 
                                                     DropdownMenu(
-                                                        expanded = showQualityDropdown,
-                                                        onDismissRequest = { showQualityDropdown = false },
-                                                        modifier = Modifier
-                                                            .background(DarkSurfaceVariant)
-                                                            .border(
-                                                                width = 1.dp,
-                                                                brush = Brush.verticalGradient(
-                                                                    colors = listOf(
-                                                                        Color.White.copy(alpha = 0.12f),
-                                                                        Color.White.copy(alpha = 0.02f)
-                                                                    )
-                                                                ),
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                    ) {
-                                                        allMirrors.forEach { mirror ->
-                                                            val isSelected = selectedResolution == mirror.resolution
-                                                            var isItemFocused by remember { mutableStateOf(false) }
-                                                            DropdownMenuItem(
-                                                                modifier = Modifier
-                                                                    .onFocusChanged { isItemFocused = it.isFocused }
-                                                                    .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
-                                                                text = {
-                                                                    Text(
-                                                                        text = mirror.resolution,
-                                                                        color = if (isSelected) NeonPurple else Color.White,
-                                                                        fontSize = 13.sp,
-                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                    )
-                                                                },
-                                                                leadingIcon = {
-                                                                    if (isSelected) {
-                                                                        Box(
-                                                                            modifier = Modifier
-                                                                                .size(6.dp)
-                                                                                .background(NeonPurple, RoundedCornerShape(50))
-                                                                        )
-                                                                    }
-                                                                },
-                                                                onClick = {
-                                                                    selectedResolution = mirror.resolution
-                                                                    viewModel.switchMirror(mirror.id)
-                                                                    showQualityDropdown = false
-                                                                }
-                                                            )
-                                                        }
-                                                    }
+                                                         expanded = showQualityDropdown,
+                                                         onDismissRequest = { showQualityDropdown = false },
+                                                         modifier = Modifier
+                                                             .background(DarkSurfaceVariant.copy(alpha = 0.85f))
+                                                             .border(
+                                                                 width = 1.dp,
+                                                                 brush = Brush.verticalGradient(
+                                                                     colors = listOf(
+                                                                         Color.White.copy(alpha = 0.12f),
+                                                                         Color.White.copy(alpha = 0.02f)
+                                                                     )
+                                                                 ),
+                                                                 shape = RoundedCornerShape(8.dp)
+                                                             )
+                                                     ) {
+                                                         allMirrors.forEach { mirror ->
+                                                             val isSelected = selectedResolution == mirror.resolution
+                                                             var isItemFocused by remember { mutableStateOf(false) }
+                                                             DropdownMenuItem(
+                                                                 modifier = Modifier
+                                                                     .onFocusChanged { isItemFocused = it.isFocused }
+                                                                     .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
+                                                                 text = {
+                                                                     Row(
+                                                                         verticalAlignment = Alignment.CenterVertically,
+                                                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                                     ) {
+                                                                         if (isSelected) {
+                                                                             Box(
+                                                                                 modifier = Modifier
+                                                                                     .size(6.dp)
+                                                                                     .background(NeonPurple, RoundedCornerShape(50))
+                                                                             )
+                                                                         }
+                                                                         Text(
+                                                                             text = mirror.resolution,
+                                                                             color = if (isSelected) NeonPurple else Color.White,
+                                                                             fontSize = 13.sp,
+                                                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                                         )
+                                                                     }
+                                                                 },
+                                                                 onClick = {
+                                                                     selectedResolution = mirror.resolution
+                                                                     viewModel.switchMirror(mirror.id)
+                                                                     showQualityDropdown = false
+                                                                 }
+                                                             )
+                                                         }
+                                                     }
                                                 }
 
                                                 Spacer(modifier = Modifier.width(8.dp))
@@ -903,7 +906,7 @@ fun PlayerScreen(
                                                         expanded = showSpeedDropdown,
                                                         onDismissRequest = { showSpeedDropdown = false },
                                                         modifier = Modifier
-                                                            .background(DarkSurfaceVariant)
+                                                            .background(DarkSurfaceVariant.copy(alpha = 0.85f))
                                                             .border(
                                                                 width = 1.dp,
                                                                 brush = Brush.verticalGradient(
@@ -923,19 +926,22 @@ fun PlayerScreen(
                                                                     .onFocusChanged { isItemFocused = it.isFocused }
                                                                     .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
                                                                 text = {
-                                                                    Text(
-                                                                        text = "${value}x",
-                                                                        color = if (isSelected) NeonPurple else Color.White,
-                                                                        fontSize = 13.sp,
-                                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                    )
-                                                                },
-                                                                leadingIcon = {
-                                                                    if (isSelected) {
-                                                                        Box(
-                                                                            modifier = Modifier
-                                                                                .size(6.dp)
-                                                                                .background(NeonPurple, RoundedCornerShape(50))
+                                                                    Row(
+                                                                        verticalAlignment = Alignment.CenterVertically,
+                                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                                    ) {
+                                                                        if (isSelected) {
+                                                                            Box(
+                                                                                modifier = Modifier
+                                                                                    .size(6.dp)
+                                                                                    .background(NeonPurple, RoundedCornerShape(50))
+                                                                            )
+                                                                        }
+                                                                        Text(
+                                                                            text = "${value}x",
+                                                                            color = if (isSelected) NeonPurple else Color.White,
+                                                                            fontSize = 13.sp,
+                                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                         )
                                                                     }
                                                                 },

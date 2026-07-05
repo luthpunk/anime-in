@@ -34,13 +34,20 @@ jobs:
         cd android
         ./gradlew testDebugUnitTest
 
-    - name: Build Debug APK
+    - name: Build Debug & Release APK
       run: |
         cd android
         ./gradlew assembleDebug
+        ./gradlew assembleRelease
 
-    - name: Upload APK Artifact
+    - name: Upload Debug APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: debug-apk
         path: android/app/build/outputs/apk/debug/*.apk
+
+    - name: Upload Release APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-apk
+        path: android/app/build/outputs/apk/release/*.apk

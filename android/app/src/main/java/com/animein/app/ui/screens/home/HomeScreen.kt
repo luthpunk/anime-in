@@ -204,7 +204,7 @@ fun HomeScreen(
                             expanded = showServerDropdown,
                             onDismissRequest = { showServerDropdown = false },
                             modifier = Modifier
-                                .background(DarkSurfaceVariant)
+                                .background(DarkSurfaceVariant.copy(alpha = 0.85f))
                                 .border(
                                     width = 1.dp,
                                     brush = Brush.verticalGradient(
@@ -224,19 +224,22 @@ fun HomeScreen(
                                         .onFocusChanged { isItemFocused = it.isFocused }
                                         .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
                                     text = {
-                                        Text(
-                                            text = label,
-                                            color = if (isSelected) NeonPurple else Color.White,
-                                            fontSize = 13.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        if (isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(NeonPurple, RoundedCornerShape(50))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            if (isSelected) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .background(NeonPurple, RoundedCornerShape(50))
+                                                )
+                                            }
+                                            Text(
+                                                text = label,
+                                                color = if (isSelected) NeonPurple else Color.White,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                             )
                                         }
                                     },
