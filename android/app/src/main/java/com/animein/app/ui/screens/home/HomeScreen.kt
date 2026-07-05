@@ -218,7 +218,11 @@ fun HomeScreen(
                         ) {
                             listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
                                 val isSelected = activeSource == id
+                                var isItemFocused by remember { mutableStateOf(false) }
                                 DropdownMenuItem(
+                                    modifier = Modifier
+                                        .onFocusChanged { isItemFocused = it.isFocused }
+                                        .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
                                     text = {
                                         Text(
                                             text = label,
@@ -236,10 +240,6 @@ fun HomeScreen(
                                             )
                                         }
                                     },
-                                    colors = MenuDefaults.itemColors(
-                                        focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
-                                        focusedTextColor = Color.White
-                                    ),
                                     onClick = {
                                         viewModel.setActiveSource(id)
                                         showServerDropdown = false

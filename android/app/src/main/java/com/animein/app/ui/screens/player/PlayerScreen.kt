@@ -4,6 +4,7 @@ import android.view.ViewGroup
 import kotlin.OptIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -840,7 +841,11 @@ fun PlayerScreen(
                                                     ) {
                                                         allMirrors.forEach { mirror ->
                                                             val isSelected = selectedResolution == mirror.resolution
+                                                            var isItemFocused by remember { mutableStateOf(false) }
                                                             DropdownMenuItem(
+                                                                modifier = Modifier
+                                                                    .onFocusChanged { isItemFocused = it.isFocused }
+                                                                    .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
                                                                 text = {
                                                                     Text(
                                                                         text = mirror.resolution,
@@ -858,10 +863,6 @@ fun PlayerScreen(
                                                                         )
                                                                     }
                                                                 },
-                                                                colors = MenuDefaults.itemColors(
-                                                                    focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
-                                                                    focusedTextColor = Color.White
-                                                                ),
                                                                 onClick = {
                                                                     selectedResolution = mirror.resolution
                                                                     viewModel.switchMirror(mirror.id)
@@ -916,7 +917,11 @@ fun PlayerScreen(
                                                     ) {
                                                         listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
                                                             val isSelected = speed == value
+                                                            var isItemFocused by remember { mutableStateOf(false) }
                                                             DropdownMenuItem(
+                                                                modifier = Modifier
+                                                                    .onFocusChanged { isItemFocused = it.isFocused }
+                                                                    .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
                                                                 text = {
                                                                     Text(
                                                                         text = "${value}x",
@@ -934,10 +939,7 @@ fun PlayerScreen(
                                                                         )
                                                                     }
                                                                 },
-                                                                colors = MenuDefaults.itemColors(
-                                                                    focusedContainerColor = NeonPurple.copy(alpha = 0.25f),
-                                                                    focusedTextColor = Color.White
-                                                                ),
+
                                                                 onClick = {
                                                                     viewModel.setPlaybackSpeed(value)
                                                                     showSpeedDropdown = false
