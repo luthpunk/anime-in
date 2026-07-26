@@ -9,7 +9,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
-import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,46 +82,42 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         try {
-            // Determine today's day name in Indonesian
-            val todayDay = when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
-                Calendar.MONDAY -> "SENIN"
-                Calendar.TUESDAY -> "SELASA"
-                Calendar.WEDNESDAY -> "RABU"
-                Calendar.THURSDAY -> "KAMIS"
-                Calendar.FRIDAY -> "JUMAT"
-                Calendar.SATURDAY -> "SABTU"
-                Calendar.SUNDAY -> "MINGGU"
-                else -> "SENIN"
-            }
-
-            // Fetch today's anime from schedule endpoint (Anime Hari Ini)
-            val schedJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
-            val schedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val schedResponse = gson.fromJson<WebResponse<WebExploreData>>(schedJson, schedType)
-            val ongoingList = (schedResponse?.data?.movie ?: emptyList()).map { item ->
+            // Fetch anime ongoing terbaru (urut dari yang paling baru diupdate)
+            val ongoingJson = makeGetRequest("3/2/explore/movie", mapOf(
+                "status" to "ongoing",
+                "sort" to "latest",
+                "page" to "1"
+            ))
+            val ongoingType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+            val ongoingResponse = gson.fromJson<WebResponse<WebExploreData>>(ongoingJson, ongoingType)
+            val ongoingList = (ongoingResponse?.data?.movie ?: emptyList()).take(16).map { item ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
-                    episode = "Update",
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Ongoing",
                     uploadedOn = item.aired_start ?: "",
-                    dayUpdated = item.day ?: todayDay,
+                    dayUpdated = item.day ?: "",
                     link = ""
                 )
             }
 
-            // Fetch popular anime for completed section
-            val homeJson = makeGetRequest("3/2/home/data", mapOf("limit" to "16"))
-            val homeType = object : TypeToken<WebResponse<WebHomeData>>() {}.type
-            val homeResponse = gson.fromJson<WebResponse<WebHomeData>>(homeJson, homeType)
-            val completedList = (homeResponse?.data?.popular ?: emptyList()).map { item ->
+            // Fetch anime yang benar-benar sudah tamat (status=completed, urut terbaru ditambahkan)
+            val completedJson = makeGetRequest("3/2/explore/movie", mapOf(
+                "status" to "completed",
+                "sort" to "latest",
+                "page" to "1"
+            ))
+            val completedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+            val completedResponse = gson.fromJson<WebResponse<WebExploreData>>(completedJson, completedType)
+            val completedList = (completedResponse?.data?.movie ?: emptyList()).take(16).map { item ->
                 AnimeCompleted(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
-                    episode = "Tamat",
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Tamat",
                     uploadedOn = item.aired_start ?: "",
-                    score = null,
+                    score = item.score,
                     link = ""
                 )
             }
@@ -135,7 +130,12 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "latest", "page" to page.toString()))
+            // Filter status=ongoing, sort=latest agar urut dari yang paling baru diupload
+            val json = makeGetRequest("3/2/explore/movie", mapOf(
+                "status" to "ongoing",
+                "sort" to "latest",
+                "page" to page.toString()
+            ))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
@@ -149,9 +149,9 @@ class AnimeInWebScraper @Inject constructor(
                     animeName = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster,
-                    episode = "Update",
-                    score = null,
-                    studio = null,
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Ongoing",
+                    score = item.score,
+                    studio = item.studio,
                     releaseDate = item.aired_start,
                     genreList = item.genre?.split(",")?.map { Genre(it.trim(), it.trim(), null) }
                 )
@@ -164,7 +164,12 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/explore/movie", mapOf("sort" to "views", "page" to page.toString()))
+            // Filter status=completed agar hanya anime yang benar-benar sudah tamat
+            val json = makeGetRequest("3/2/explore/movie", mapOf(
+                "status" to "completed",
+                "sort" to "latest",
+                "page" to page.toString()
+            ))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
             val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
 
@@ -178,9 +183,9 @@ class AnimeInWebScraper @Inject constructor(
                     animeName = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster,
-                    episode = "Tamat",
-                    score = null,
-                    studio = null,
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Tamat",
+                    score = item.score,
+                    studio = item.studio,
                     releaseDate = item.aired_start,
                     genreList = item.genre?.split(",")?.map { Genre(it.trim(), it.trim(), null) }
                 )
@@ -457,7 +462,9 @@ class AnimeInWebScraper @Inject constructor(
         val aired_start: String?,
         val genre: String?,
         val time: String?,
-        val studio: String?
+        val studio: String?,
+        val total_episodes: String?,
+        val score: String?
     )
 
     private data class WebGenreData(

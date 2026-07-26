@@ -192,6 +192,7 @@ fun PlayerScreen(
                              }
 
                              var showControls by remember { mutableStateOf(true) }
+                             var isLocked by remember { mutableStateOf(false) }
                              val playPauseFocusRequester = remember { FocusRequester() }
 
                             LaunchedEffect(showControls) {
@@ -210,6 +211,7 @@ fun PlayerScreen(
                             var isSpeedFocused by remember { mutableStateOf(false) }
                             var isFullscreenBtnFocused by remember { mutableStateOf(false) }
                             var isSliderFocused by remember { mutableStateOf(false) }
+                            var isLockBtnFocused by remember { mutableStateOf(false) }
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
@@ -357,8 +359,8 @@ fun PlayerScreen(
                             }
 
                             // Hide controls after 3.5 seconds, unless settings dropdown is open or a control is focused
-                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isResFocused || isSpeedFocused || isFullscreenBtnFocused || isSliderFocused
-                            LaunchedEffect(showControls, isPlaying, showQualityDropdown, showSpeedDropdown, isAnyControlFocused) {
+                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isResFocused || isSpeedFocused || isFullscreenBtnFocused || isSliderFocused || isLockBtnFocused
+                            LaunchedEffect(showControls, isPlaying, showQualityDropdown, showSpeedDropdown, isAnyControlFocused, isLocked) {
                                 if (showControls && isPlaying && !showQualityDropdown && !showSpeedDropdown && !isAnyControlFocused) {
                                     delay(3500)
                                     showControls = false
@@ -485,6 +487,8 @@ fun PlayerScreen(
                                     .pointerInput(Unit) {
                                         detectTapGestures(
                                             onDoubleTap = { offset ->
+                                                // Jika layar terkunci, abaikan semua gestur kecuali tap tunggal
+                                                if (isLocked) return@detectTapGestures
                                                 val isLeft = offset.x < playerSize.width / 2
                                                 if (isLeft) {
                                                     val target = (exoPlayer.currentPosition - 15000).coerceAtLeast(0L)
@@ -511,6 +515,7 @@ fun PlayerScreen(
                                                 }
                                             },
                                             onTap = {
+                                                // Tap: tampilkan/sembunyikan kontrol (termasuk saat terkunci agar bisa unlock)
                                                 showControls = !showControls
                                             }
                                         )
@@ -660,10 +665,45 @@ fun PlayerScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.6f))
+                                            .background(Color.Black.copy(alpha = if (isLocked) 0.3f else 0.6f))
                                     ) {
 
-                                        // 1. Top row: Fullscreen Title & Episode
+                                        // ========== TOMBOL KUNCI (Selalu tampil di kiri bawah saat controls muncul) ==========
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterStart)
+                                                .padding(start = 16.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(
+                                                        if (isLocked) NeonPurple.copy(alpha = 0.85f)
+                                                        else Color.Black.copy(alpha = 0.45f)
+                                                    )
+                                                    .onFocusChanged { isLockBtnFocused = it.isFocused }
+                                                    .focusable()
+                                                    .clickable {
+                                                        isLocked = !isLocked
+                                                        // Setelah unlock, tampilkan kontrol sebentar
+                                                        if (!isLocked) showControls = true
+                                                    }
+                                                    .handleRemoteClick { isLocked = !isLocked; if (!isLocked) showControls = true },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isLocked) LockClosedIcon else LockOpenIcon,
+                                                    contentDescription = if (isLocked) "Buka Kunci" else "Kunci Layar",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        // Semua kontrol lainnya HANYA tampil jika TIDAK terkunci
+                                        if (!isLocked) {
+
                                         if (isFullscreen) {
                                             Row(
                                                 modifier = Modifier
@@ -1044,9 +1084,9 @@ fun PlayerScreen(
                                                 )
                                             }
                                         }
-                                    }
+                                        } // end if (!isLocked)
+                                    } // end controls Box
                                 }
-                            }
                         }
 
                     if (!isFullscreen) {
@@ -1531,5 +1571,92 @@ val BrightnessIcon: ImageVector
         }
     }.build()
 
+// =====================================================================
+// Icon: Lock Closed (gembok terkunci)
+// =====================================================================
+val LockClosedIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "LockClosed",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        // Body gembok (persegi panjang bawah)
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color.White)) {
+            moveTo(18f, 11f)
+            lineTo(6f, 11f)
+            curveTo(4.9f, 11f, 4f, 11.9f, 4f, 13f)
+            lineTo(4f, 20f)
+            curveTo(4f, 21.1f, 4.9f, 22f, 6f, 22f)
+            lineTo(18f, 22f)
+            curveTo(19.1f, 22f, 20f, 21.1f, 20f, 20f)
+            lineTo(20f, 13f)
+            curveTo(20f, 11.9f, 19.1f, 11f, 18f, 11f)
+            close()
+        }
+        // Titik di tengah (keyhole)
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF8B5CF6))) {
+            moveTo(12f, 17f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 10.5f, 15.5f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 12f, 14f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 13.5f, 15.5f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 12f, 17f)
+            close()
+        }
+        // Lingkaran atas (shackle)
+        path(
+            stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
+            strokeLineWidth = 2f
+        ) {
+            moveTo(8f, 11f)
+            lineTo(8f, 7f)
+            arcTo(4f, 4f, 0f, false, true, 16f, 7f)
+            lineTo(16f, 11f)
+        }
+    }.build()
 
-
+// =====================================================================
+// Icon: Lock Open (gembok terbuka)
+// =====================================================================
+val LockOpenIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "LockOpen",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).apply {
+        // Body gembok (persegi panjang bawah)
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color.White)) {
+            moveTo(18f, 11f)
+            lineTo(6f, 11f)
+            curveTo(4.9f, 11f, 4f, 11.9f, 4f, 13f)
+            lineTo(4f, 20f)
+            curveTo(4f, 21.1f, 4.9f, 22f, 6f, 22f)
+            lineTo(18f, 22f)
+            curveTo(19.1f, 22f, 20f, 21.1f, 20f, 20f)
+            lineTo(20f, 13f)
+            curveTo(20f, 11.9f, 19.1f, 11f, 18f, 11f)
+            close()
+        }
+        // Titik di tengah
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF374151))) {
+            moveTo(12f, 17f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 10.5f, 15.5f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 12f, 14f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 13.5f, 15.5f)
+            arcTo(1.5f, 1.5f, 0f, false, true, 12f, 17f)
+            close()
+        }
+        // Lingkaran atas terbuka (shackle open — ke kanan)
+        path(
+            stroke = androidx.compose.ui.graphics.SolidColor(Color.White),
+            strokeLineWidth = 2f
+        ) {
+            moveTo(8f, 11f)
+            lineTo(8f, 7f)
+            arcTo(4f, 4f, 0f, false, true, 16f, 7f)
+            lineTo(16f, 9f)
+        }
+    }.build()

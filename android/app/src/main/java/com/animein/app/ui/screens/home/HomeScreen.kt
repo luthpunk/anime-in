@@ -309,8 +309,8 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
                             }
 
-                            // Ongoing Section
-                            SectionHeader(title = "Ongoing / Baru", onSeeAllClick = { onSeeAllClick("ongoing", "Ongoing / Baru") })
+                            // Ongoing Section — semua anime kecuali yang pertama (sudah di banner)
+                            SectionHeader(title = "Anime Ongoing", onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -322,8 +322,8 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(24.dp))
 
-                            // Completed Section
-                            SectionHeader(title = "Populer / Tamat", onSeeAllClick = { onSeeAllClick("complete", "Populer / Tamat") })
+                            // Completed Section — hanya anime yang benar-benar tamat
+                            SectionHeader(title = "Anime Tamat", onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") })
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -430,13 +430,17 @@ fun HeroBanner(
                 .align(Alignment.BottomStart)
                 .padding(16.dp)
         ) {
+            val bannerLabel = when {
+                anime.episode.isNotBlank() && anime.episode != "Ongoing" && anime.episode != "Update" -> anime.episode.uppercase()
+                else -> "ONGOING"
+            }
             Box(
                 modifier = Modifier
                     .background(NeonPurple, RoundedCornerShape(4.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    "TERBARU",
+                    bannerLabel,
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
@@ -460,10 +464,17 @@ fun HeroBanner(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
+                val subtitleText = buildString {
+                    append("Tonton Sekarang")
+                    if (anime.episode.isNotBlank()) append(" • ${anime.episode}")
+                    if (!anime.uploadedOn.isNullOrBlank()) append(" • ${anime.uploadedOn}")
+                }
                 Text(
-                    "Tonton Sekarang • ${anime.episode}",
+                    subtitleText,
                     color = TextSecondary,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
