@@ -222,8 +222,12 @@ fun DetailScreen(
                                             .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                                             .padding(horizontal = 10.dp, vertical = 4.dp)
                                     ) {
+                                        val epText = when {
+                                            totalEp.contains("Episode", true) || totalEp.contains("Tamat", true) || totalEp.contains("Ongoing", true) -> totalEp
+                                            else -> "$totalEp Episode"
+                                        }
                                         Text(
-                                            "$totalEp Episode",
+                                            text = epText,
                                             color = Color.White,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold

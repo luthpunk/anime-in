@@ -520,12 +520,14 @@ fun PlayerScreen(
                                             }
                                         )
                                     }
-                                    .pointerInput(Unit) {
+                                    .pointerInput(isLocked) {
+                                        if (isLocked) return@pointerInput
                                         var isLeft = false
                                         var dragStartValue = 0f
                                         var accumulatedDeltaY = 0f
                                         detectDragGestures(
                                             onDragStart = { offset ->
+                                                if (isLocked) return@detectDragGestures
                                                 isLeft = offset.x < playerSize.width / 2
                                                 accumulatedDeltaY = 0f
                                                 if (isLeft) {
@@ -542,6 +544,7 @@ fun PlayerScreen(
                                                 }
                                             },
                                             onDrag = { change, dragAmount ->
+                                                if (isLocked) return@detectDragGestures
                                                 change.consume()
                                                 accumulatedDeltaY -= dragAmount.y
                                                 val height = playerSize.height.toFloat().coerceAtLeast(1f)
