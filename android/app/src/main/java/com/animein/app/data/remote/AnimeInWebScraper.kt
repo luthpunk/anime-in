@@ -9,6 +9,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,24 +81,74 @@ class AnimeInWebScraper @Inject constructor(
         }
     }
 
+    private fun getTodayDayName(): String {
+        return when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> "SENIN"
+            Calendar.TUESDAY -> "SELASA"
+            Calendar.WEDNESDAY -> "RABU"
+            Calendar.THURSDAY -> "KAMIS"
+            Calendar.FRIDAY -> "JUMAT"
+            Calendar.SATURDAY -> "SABTU"
+            Calendar.SUNDAY -> "MINGGU"
+            else -> "SENIN"
+        }
+    }
+
+    private fun getYesterdayDayName(): String {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -1)
+        return when (cal.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> "SENIN"
+            Calendar.TUESDAY -> "SELASA"
+            Calendar.WEDNESDAY -> "RABU"
+            Calendar.THURSDAY -> "KAMIS"
+            Calendar.FRIDAY -> "JUMAT"
+            Calendar.SATURDAY -> "SABTU"
+            Calendar.SUNDAY -> "MINGGU"
+            else -> "SENIN"
+        }
+    }
+
     override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
         try {
-            // Fetch anime ongoing terbaru (urut dari yang paling baru diupdate)
-            val ongoingJson = makeGetRequest("3/2/explore/movie", mapOf(
-                "status" to "ongoing",
-                "sort" to "latest",
-                "page" to "1"
-            ))
-            val ongoingType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val ongoingResponse = gson.fromJson<WebResponse<WebExploreData>>(ongoingJson, ongoingType)
-            val ongoingList = (ongoingResponse?.data?.movie ?: emptyList()).take(16).map { item ->
+            val todayDay = getTodayDayName()
+            val yesterdayDay = getYesterdayDayName()
+
+            // Fetch anime schedule hari ini
+            val schedTodayJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
+            val schedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+            val schedTodayResponse = gson.fromJson<WebResponse<WebExploreData>>(schedTodayJson, schedType)
+            
+            // Filter HANYA anime yang sudah rilis episodenya (ber-label 'new !!')
+            val todayMovies = schedTodayResponse?.data?.movie.orEmpty()
+            val newTodayList = todayMovies.filter { 
+                it.time != null && it.time.contains("new", ignoreCase = true)
+            }
+
+            // Jika rilis hari ini sedikit (misal pagi hari), gabungkan dengan rilis kemarin yang ber-label 'new !!' / rilis
+            val combinedList = newTodayList.toMutableList()
+            if (combinedList.size < 12) {
+                val schedYestJson = makeGetRequest("3/2/schedule/data", mapOf("day" to yesterdayDay))
+                val schedYestResponse = gson.fromJson<WebResponse<WebExploreData>>(schedYestJson, schedType)
+                val yestMovies = schedYestResponse?.data?.movie.orEmpty().filter {
+                    it.time != null && it.time.contains("new", ignoreCase = true)
+                }
+                val existingIds = combinedList.mapNotNull { it.id }.toSet()
+                yestMovies.forEach { item ->
+                    if (item.id != null && item.id !in existingIds) {
+                        combinedList.add(item)
+                    }
+                }
+            }
+
+            val ongoingList = combinedList.take(16).map { item ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Ongoing",
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "NEW !!",
                     uploadedOn = item.aired_start ?: "",
-                    dayUpdated = item.day ?: "",
+                    dayUpdated = item.day ?: todayDay,
                     link = ""
                 )
             }
@@ -130,26 +181,27 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            // Filter status=ongoing, sort=latest agar urut dari yang paling baru diupload
-            val json = makeGetRequest("3/2/explore/movie", mapOf(
-                "status" to "ongoing",
-                "sort" to "latest",
-                "page" to page.toString()
-            ))
+            val todayDay = getTodayDayName()
+            val schedJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
             val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
+            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(schedJson, type)
 
             if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
                 return@withContext AnimeListResponse("error", emptyList())
             }
 
-            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
+            // Filter HANYA anime yang ber-label 'new !!'
+            val newMovies = (apiResponse.data?.movie ?: emptyList()).filter {
+                it.time != null && it.time.contains("new", ignoreCase = true)
+            }
+
+            val list = newMovies.map { item ->
                 AnimeListItem(
                     title = item.title ?: "Tanpa Judul",
                     animeName = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster,
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Ongoing",
+                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "NEW !!",
                     score = item.score,
                     studio = item.studio,
                     releaseDate = item.aired_start,
