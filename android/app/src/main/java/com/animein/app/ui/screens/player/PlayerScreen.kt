@@ -1224,6 +1224,7 @@ fun PlayerScreen(
                 }
             }
         }
+    }
 }
 }
 
