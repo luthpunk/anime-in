@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Source Code
@@ -45,7 +47,7 @@ jobs:
       with:
         name: debug-apk
         path: android/app/build/outputs/apk/debug/*.apk
-        retention-days: 3
+        retention-days: 1
       continue-on-error: true
 
     - name: Upload Release APK Artifact
@@ -53,5 +55,22 @@ jobs:
       with:
         name: release-apk
         path: android/app/build/outputs/apk/release/*.apk
-        retention-days: 3
+        retention-days: 1
       continue-on-error: true
+
+    - name: Release APK to GitHub Releases (Bypasses Storage Quota)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest
+        name: "Latest AnimeIn Build APK"
+        body: "APK hasil kompilasi otomatis terbaru."
+        draft: false
+        prerelease: false
+        files: |
+          android/app/build/outputs/apk/debug/*.apk
+          android/app/build/outputs/apk/release/*.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
+
