@@ -1088,6 +1088,7 @@ fun PlayerScreen(
                                     } // end controls Box
                                 }
                         }
+                        } // end Video Player Area Box
 
                     if (!isFullscreen) {
                         // Metadata & Mirrors Dropdown
@@ -1204,7 +1205,6 @@ fun PlayerScreen(
                         } // end LazyColumn
                     } // end if (!isFullscreen)
                     } // end Column(fillMaxSize)
-                } // end is PlayerUiState.Success
                 } // end is PlayerUiState.Success
                 is PlayerUiState.Error -> {
                     Box(
