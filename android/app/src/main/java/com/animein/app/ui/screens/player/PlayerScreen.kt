@@ -1201,9 +1201,10 @@ fun PlayerScreen(
                                 }
                             }
                         }
-                    }
+                        } // end LazyColumn
                     } // end if (!isFullscreen)
                     } // end Column(fillMaxSize)
+                } // end is PlayerUiState.Success
                 } // end is PlayerUiState.Success
                 is PlayerUiState.Error -> {
                     Box(
@@ -1225,7 +1226,6 @@ fun PlayerScreen(
             }
         }
     }
-}
 }
 
 // Helper extension: handle Android TV remote D-Pad Center / Enter key
