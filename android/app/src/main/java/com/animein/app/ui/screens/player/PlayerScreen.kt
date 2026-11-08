@@ -688,16 +688,23 @@ fun PlayerScreen(
                                     )
                                 }
 
-                                // --- Buffering Spinner ---
-                                if (isBuffering) {
+                                // --- Buffering Spinner (Saat kontrol tersembunyi / layar terkunci, tetap di posisi & ukuran yang sama dengan tombol Play/Pause) ---
+                                if (isBuffering && (!showControls || isLocked)) {
+                                    val bufferBtnSize = if (isFullscreen) 48.dp else 40.dp
+                                    val bufferOffsetY = if (isFullscreen) 0.dp else (-8).dp
                                     Box(
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .offset(y = bufferOffsetY)
+                                            .size(bufferBtnSize)
+                                            .frostGlass(shape = RoundedCornerShape(50)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         PremiumLoadingSpinner(
-                                             color = Color.White,
-                                             size = 48.dp
-                                         )
+                                            color = Color.White,
+                                            size = bufferBtnSize,
+                                            strokeWidth = 2.5.dp
+                                        )
                                     }
                                 }
                                  if (showControls) {
@@ -841,7 +848,7 @@ fun PlayerScreen(
                                                 )
                                             }
 
-                                            // Play/Pause Button (Minimalist Circle)
+                                            // Play/Pause Button (Minimalist Circle — menyatu dengan Buffering Spinner)
                                             Box(
                                                 modifier = Modifier
                                                     .size(mainBtnSize)
@@ -869,6 +876,13 @@ fun PlayerScreen(
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {
+                                                if (isBuffering) {
+                                                    PremiumLoadingSpinner(
+                                                        color = Color.White,
+                                                        size = mainBtnSize,
+                                                        strokeWidth = 2.5.dp
+                                                    )
+                                                }
                                                 Icon(
                                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                                     contentDescription = "Play/Pause",

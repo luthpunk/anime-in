@@ -215,7 +215,8 @@ fun AppleGlassIcon(
 fun PremiumLoadingSpinner(
     modifier: Modifier = Modifier,
     color: Color = Color.White,
-    size: Dp = 48.dp
+    size: Dp = 48.dp,
+    strokeWidth: Dp = 3.5.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
     val angle by infiniteTransition.animateFloat(
@@ -228,19 +229,30 @@ fun PremiumLoadingSpinner(
         label = "angle"
     )
     Canvas(modifier = modifier.size(size)) {
+        val strokePx = strokeWidth.toPx()
+        val halfStroke = strokePx / 2f
+        val arcSize = androidx.compose.ui.geometry.Size(
+            width = this.size.width - strokePx,
+            height = this.size.height - strokePx
+        )
+        val topLeft = androidx.compose.ui.geometry.Offset(halfStroke, halfStroke)
         drawArc(
             color = color.copy(alpha = 0.2f),
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
-            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokePx, cap = StrokeCap.Round)
         )
         drawArc(
             color = color,
             startAngle = angle,
             sweepAngle = 90f,
             useCenter = false,
-            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokePx, cap = StrokeCap.Round)
         )
     }
 }
