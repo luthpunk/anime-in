@@ -141,14 +141,28 @@ fun PlayerScreen(
         ) {
             when (val state = uiState) {
                 is PlayerUiState.Loading -> {
+                    val initBtnSize = if (isFullscreen) 48.dp else 40.dp
+                    val initOffsetY = if (isFullscreen) 0.dp else (-8).dp
                     Box(
-                        modifier = if (isFullscreen) Modifier.fillMaxSize() else Modifier
+                        modifier = if (isFullscreen) Modifier.fillMaxSize().background(Color.Black) else Modifier
                             .fillMaxWidth()
                             .height(220.dp)
                             .background(Color.Black),
                         contentAlignment = Alignment.Center
                     ) {
-                        PremiumLoadingSpinner(color = NeonPurple)
+                        Box(
+                            modifier = Modifier
+                                .offset(y = initOffsetY)
+                                .size(initBtnSize)
+                                .frostGlass(shape = RoundedCornerShape(50)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            PremiumLoadingSpinner(
+                                color = Color.White,
+                                size = initBtnSize,
+                                strokeWidth = 2.5.dp
+                            )
+                        }
                     }
                 }
                 is PlayerUiState.Success -> {
@@ -621,17 +635,6 @@ fun PlayerScreen(
                                     modifier = Modifier.fillMaxSize()
                                 )
 
-                                if (isVideoLoading || isBuffering) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.5f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        PremiumLoadingSpinner(color = NeonPurple)
-                                    }
-                                }
-
                                 // Double-tap visual feedback overlays
                                 if (doubleTapFeedbackLeft) {
                                     Box(
@@ -688,8 +691,10 @@ fun PlayerScreen(
                                     )
                                 }
 
+                                val isLoadingOrBuffering = isVideoLoading || isBuffering
+
                                 // --- Buffering Spinner (Saat kontrol tersembunyi / layar terkunci, tetap di posisi & ukuran yang sama dengan tombol Play/Pause) ---
-                                if (isBuffering && (!showControls || isLocked)) {
+                                if (isLoadingOrBuffering && (!showControls || isLocked)) {
                                     val bufferBtnSize = if (isFullscreen) 48.dp else 40.dp
                                     val bufferOffsetY = if (isFullscreen) 0.dp else (-8).dp
                                     Box(
@@ -876,7 +881,7 @@ fun PlayerScreen(
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                if (isBuffering) {
+                                                if (isLoadingOrBuffering) {
                                                     PremiumLoadingSpinner(
                                                         color = Color.White,
                                                         size = mainBtnSize,
