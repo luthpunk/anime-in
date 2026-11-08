@@ -19,8 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -72,6 +74,7 @@ fun DetailScreen(
                     val detail = state.data
                     var isSynopsisExpanded by remember { mutableStateOf(false) }
                     var isAscendingOrder by remember { mutableStateOf(false) }
+                    var allowTopBarFocus by remember { mutableStateOf(!isTV) }
                     val rawEpisodes = detail.episodeList ?: emptyList()
                     val displayedEpisodes = remember(rawEpisodes, isAscendingOrder) {
                         if (isAscendingOrder) rawEpisodes.reversed() else rawEpisodes
@@ -124,6 +127,7 @@ fun DetailScreen(
                                                 shape = CircleShape,
                                                 isFocused = isBackFocused
                                             )
+                                            .focusProperties { canFocus = allowTopBarFocus }
                                             .onFocusChanged { isBackFocused = it.isFocused }
                                             .clickable { onBackClick() },
                                         contentAlignment = Alignment.Center
@@ -152,6 +156,7 @@ fun DetailScreen(
                                                 shape = CircleShape,
                                                 isFocused = isFavFocused
                                             )
+                                            .focusProperties { canFocus = allowTopBarFocus }
                                             .onFocusChanged { isFavFocused = it.isFocused }
                                             .clickable { viewModel.toggleFavorite(detail) },
                                         contentAlignment = Alignment.Center
@@ -236,11 +241,15 @@ fun DetailScreen(
                                 var isWatchBtnFocused by remember { mutableStateOf(false) }
 
                                 LaunchedEffect(targetWatchEpisodeId) {
-                                    if (isTV && targetWatchEpisodeId != null) {
-                                        kotlinx.coroutines.delay(100)
-                                        try {
-                                            watchBtnFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
+                                    if (isTV) {
+                                        if (targetWatchEpisodeId != null) {
+                                            kotlinx.coroutines.delay(80)
+                                            try {
+                                                watchBtnFocusRequester.requestFocus()
+                                            } catch (_: Exception) {}
+                                        }
+                                        kotlinx.coroutines.delay(250)
+                                        allowTopBarFocus = true
                                     }
                                 }
 
@@ -290,21 +299,102 @@ fun DetailScreen(
                                     }
 
                                     if (targetWatchEpisodeId != null) {
+                                        val isResume = latestWatched != null
                                         val watchBtnShape = RoundedCornerShape(18.dp)
+                                        val bgBrush = if (isResume) {
+                                            // Amber/Orange Glass untuk "Lanjut Episode X"
+                                            Brush.linearGradient(
+                                                colors = if (isWatchBtnFocused) {
+                                                    listOf(
+                                                        Color(0xFFF59E0B).copy(alpha = 0.65f),
+                                                        Color(0xFFEA580C).copy(alpha = 0.48f)
+                                                    )
+                                                } else {
+                                                    listOf(
+                                                        Color(0xFFD97706).copy(alpha = 0.40f),
+                                                        Color(0xFF9A3412).copy(alpha = 0.28f)
+                                                    )
+                                                },
+                                                start = Offset(0f, 0f),
+                                                end = Offset(220f, 120f)
+                                            )
+                                        } else {
+                                            // Emerald Green Glass untuk "Mulai Tonton"
+                                            Brush.linearGradient(
+                                                colors = if (isWatchBtnFocused) {
+                                                    listOf(
+                                                        Color(0xFF10B981).copy(alpha = 0.65f),
+                                                        Color(0xFF059669).copy(alpha = 0.48f)
+                                                    )
+                                                } else {
+                                                    listOf(
+                                                        Color(0xFF059669).copy(alpha = 0.40f),
+                                                        Color(0xFF065F46).copy(alpha = 0.28f)
+                                                    )
+                                                },
+                                                start = Offset(0f, 0f),
+                                                end = Offset(220f, 120f)
+                                            )
+                                        }
+                                        val borderBrush = if (isResume) {
+                                            Brush.linearGradient(
+                                                colors = if (isWatchBtnFocused) {
+                                                    listOf(
+                                                        Color(0xFFFDE68A),
+                                                        Color(0xFFF59E0B).copy(alpha = 0.75f),
+                                                        Color(0xFFFDE68A)
+                                                    )
+                                                } else {
+                                                    listOf(
+                                                        Color(0xFFFBBF24).copy(alpha = 0.85f),
+                                                        Color(0xFFF59E0B).copy(alpha = 0.35f),
+                                                        Color(0xFFFBBF24).copy(alpha = 0.70f)
+                                                    )
+                                                },
+                                                start = Offset(0f, 0f),
+                                                end = Offset(260f, 140f)
+                                            )
+                                        } else {
+                                            Brush.linearGradient(
+                                                colors = if (isWatchBtnFocused) {
+                                                    listOf(
+                                                        Color(0xFFA7F3D0),
+                                                        Color(0xFF10B981).copy(alpha = 0.75f),
+                                                        Color(0xFFA7F3D0)
+                                                    )
+                                                } else {
+                                                    listOf(
+                                                        Color(0xFF34D399).copy(alpha = 0.85f),
+                                                        Color(0xFF10B981).copy(alpha = 0.35f),
+                                                        Color(0xFF34D399).copy(alpha = 0.70f)
+                                                    )
+                                                },
+                                                start = Offset(0f, 0f),
+                                                end = Offset(260f, 140f)
+                                            )
+                                        }
+                                        val accentColor = if (isResume) {
+                                            if (isWatchBtnFocused) Color.White else Color(0xFFFDE68A)
+                                        } else {
+                                            if (isWatchBtnFocused) Color.White else Color(0xFFA7F3D0)
+                                        }
+
                                         Box(
                                             modifier = Modifier
                                                 .height(34.dp)
-                                                .frostGlass(
-                                                    shape = watchBtnShape,
-                                                    isFocused = isWatchBtnFocused
-                                                )
                                                 .clip(watchBtnShape)
+                                                .background(brush = bgBrush, shape = watchBtnShape)
+                                                .border(
+                                                    width = if (isWatchBtnFocused) 1.8.dp else 1.2.dp,
+                                                    brush = borderBrush,
+                                                    shape = watchBtnShape
+                                                )
                                                 .focusRequester(watchBtnFocusRequester)
                                                 .onFocusChanged { isWatchBtnFocused = it.isFocused }
                                                 .clickable {
                                                     onEpisodeClick(targetWatchEpisodeId, detail.animeId.ifBlank { viewModel.animeId })
                                                 }
-                                                .padding(horizontal = 12.dp),
+                                                .padding(horizontal = 13.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Row(
@@ -314,7 +404,7 @@ fun DetailScreen(
                                                 Icon(
                                                     imageVector = Icons.Default.PlayArrow,
                                                     contentDescription = null,
-                                                    tint = Color.White,
+                                                    tint = accentColor,
                                                     modifier = Modifier.size(16.dp)
                                                 )
                                                 Text(
