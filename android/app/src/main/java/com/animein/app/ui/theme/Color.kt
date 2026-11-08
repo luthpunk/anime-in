@@ -7,13 +7,15 @@ val DarkBackground = Color(0xFF161618)       // Dark grey background
 val DarkSurface = Color(0xFF232326)          // Dark grey card/surface
 val DarkSurfaceVariant = Color(0xFF2E2E33)   // Lighter dark grey surface
 
-// Frost Glass & Grey Outline colors
-val FrostGlassBgTop = Color(0xD92A2A2E)      // Frosted dark grey top
-val FrostGlassBgBottom = Color(0xEB1E1E22)   // Frosted dark grey bottom
-val OutlineGrey = Color(0xFF75757E)          // Grey untuk bingkai / outline
-val OutlineGreySubtle = Color(0xFF52525A)    // Subtle grey outline for cards/containers
+// Frost Glass & Grey Gradient Outline colors
+val FrostGlassBgTop = Color(0xCC323238)      // Frosted dark grey top with specular sheen
+val FrostGlassBgMid = Color(0xD9242429)      // Frosted dark grey middle body
+val FrostGlassBgBottom = Color(0xE61A1A1E)   // Frosted dark grey bottom depth
+val OutlineGreyHighlight = Color(0xFFB8B8C2) // Top-left specular edge of gradient outline
+val OutlineGrey = Color(0xFF7A7A85)          // Grey untuk bingkai / outline
+val OutlineGreySubtle = Color(0xFF4A4A52)    // Subtle grey outline for cards/containers
 val FrostWhiteAccent = Color(0xFFFFFFFF)     // White for active text & icons
-val FrostActiveBg = Color(0x33FFFFFF)        // Frosted white translucent highlight
+val FrostActiveBg = Color(0x38FFFFFF)        // Frosted white translucent highlight
 
 // Legacy aliases mapped to neutral Frost Glass (menghapus semua nuansa neon)
 val Purple80 = Color(0xFFE0E0E5)

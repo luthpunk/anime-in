@@ -1,5 +1,6 @@
 package com.animein.app.ui.screens.schedule
 
+import android.content.res.Configuration
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,29 +12,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
 import com.animein.app.data.model.ScheduleItem
-import com.animein.app.ui.theme.DarkSurface
-import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
-import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.components.frostGlass
+import com.animein.app.ui.components.frostGlassBgBrush
+import com.animein.app.ui.components.frostGlassBorderBrush
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +41,9 @@ fun ScheduleScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.scheduleState.collectAsState()
+    val configuration = LocalConfiguration.current
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
 
     Scaffold(
         topBar = {
@@ -92,7 +93,12 @@ fun ScheduleScreen(
 
                         LazyColumn(
                             state = listState,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = 8.dp,
+                                bottom = if (isTV) 24.dp else 100.dp
+                            ),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
@@ -115,11 +121,15 @@ fun ScheduleScreen(
                     ) {
                         Text(state.message, color = Color.Red, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { viewModel.fetchSchedule(forceRefresh = true) },
-                            colors = ButtonDefaults.buttonColors(containerColor = NeonPurple)
+                        var isRetryFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .frostGlass(shape = RoundedCornerShape(14.dp), isFocused = isRetryFocused)
+                                .onFocusChanged { isRetryFocused = it.isFocused }
+                                .clickable { viewModel.fetchSchedule(forceRefresh = true) }
+                                .padding(horizontal = 20.dp, vertical = 10.dp)
                         ) {
-                            Text("Coba Lagi", color = Color.White)
+                            Text("Coba Lagi", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -134,7 +144,6 @@ fun DayScheduleSection(
     onAnimeClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Detect today's day in Indonesian
     val calendar = java.util.Calendar.getInstance()
     val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
     val todayName = when (dayOfWeek) {
@@ -171,9 +180,8 @@ fun DayScheduleSection(
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
-                        .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .frostGlass(shape = RoundedCornerShape(6.dp), isFocused = true)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
                         "Hari Ini",
@@ -184,7 +192,6 @@ fun DayScheduleSection(
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
-            // Anime count badge
             if (item.animeList.isNotEmpty()) {
                 Text(
                     "${item.animeList.size} anime",
@@ -194,50 +201,57 @@ fun DayScheduleSection(
             }
         }
 
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = FrostGlassBgTop
-            ),
-            shape = RoundedCornerShape(14.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(
-                    width = if (isToday) 1.5.dp else 1.dp,
-                    color = if (isToday) Color.White.copy(alpha = 0.7f) else OutlineGreySubtle,
-                    shape = RoundedCornerShape(14.dp)
+                .frostGlass(
+                    shape = RoundedCornerShape(16.dp),
+                    isFocused = isToday,
+                    isSubtle = !isToday
                 )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 6.dp, horizontal = 6.dp)
             ) {
                 if (item.animeList.isEmpty()) {
                     Text(
                         text = "Tidak ada rilis hari ini",
                         color = TextSecondary,
                         fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
                     )
                 } else {
                     item.animeList.forEachIndexed { index, anime ->
+                        var isRowFocused by remember { mutableStateOf(false) }
+                        val rowShape = RoundedCornerShape(10.dp)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(rowShape)
+                                .then(
+                                    if (isRowFocused) {
+                                        Modifier
+                                            .background(frostGlassBgBrush(isFocused = true), rowShape)
+                                            .border(1.dp, frostGlassBorderBrush(isFocused = true), rowShape)
+                                    } else Modifier
+                                )
+                                .onFocusChanged { isRowFocused = it.isFocused }
                                 .clickable { onAnimeClick(anime.id) }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = anime.animeName,
                                 color = Color.White,
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = if (isRowFocused) FontWeight.Bold else FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
-                            
+
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
                                 contentDescription = null,
@@ -247,9 +261,9 @@ fun DayScheduleSection(
                         }
                         if (index < item.animeList.size - 1) {
                             Divider(
-                                color = OutlineGreySubtle.copy(alpha = 0.5f),
+                                color = OutlineGreySubtle.copy(alpha = 0.45f),
                                 thickness = 1.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp)
+                                modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
                     }

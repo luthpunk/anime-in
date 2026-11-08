@@ -218,8 +218,8 @@ class OtakudesuDirectScraper @Inject constructor(
             val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
             val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
             val uploadedOn = item.select(".newnime").first()?.text()?.trim()
-            val episode = item.select(".epz").first()?.text()?.replace(" ", "") ?: ""
-            val dayUpdated = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            val episode = AnimeIdUtils.formatEpisodeLabel(item.select(".epz").first()?.text())
+            val dayUpdated = item.select(".epztipe").first()?.text()?.trim()
             
             com.animein.app.data.model.AnimeOngoing(
                 title = title,
@@ -270,8 +270,8 @@ class OtakudesuDirectScraper @Inject constructor(
             val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
             val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
             val uploadedOn = item.select(".newnime").first()?.text()?.trim()
-            val episode = item.select(".epz").first()?.text()?.replace(" ", "") ?: ""
-            val score = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            val episode = AnimeIdUtils.formatEpisodeLabel(item.select(".epz").first()?.text())
+            val score = item.select(".epztipe").first()?.text()?.trim()
             
             com.animein.app.data.model.AnimeCompleted(
                 title = title,
@@ -306,7 +306,7 @@ class OtakudesuDirectScraper @Inject constructor(
             val id = AnimeIdUtils.normalizeAnimeId(link)
             val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
             val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
-            val episode = item.select(".epz").first()?.text()?.replace(" ", "")
+            val episode = AnimeIdUtils.formatEpisodeLabel(item.select(".epz").first()?.text()).ifBlank { null }
             
             com.animein.app.data.model.AnimeListItem(
                 title = title,
@@ -340,8 +340,8 @@ class OtakudesuDirectScraper @Inject constructor(
             val id = AnimeIdUtils.normalizeAnimeId(link)
             val title = anchor.select(".thumbz > h2").first()?.text()?.trim() ?: ""
             val thumb = anchor.select(".thumbz > img").first()?.absUrl("src") ?: ""
-            val episode = item.select(".epz").first()?.text()?.replace(" ", "")
-            val score = item.select(".epztipe").first()?.text()?.replace(" ", "")
+            val episode = AnimeIdUtils.formatEpisodeLabel(item.select(".epz").first()?.text()).ifBlank { null }
+            val score = item.select(".epztipe").first()?.text()?.trim()
             
             com.animein.app.data.model.AnimeListItem(
                 title = title,

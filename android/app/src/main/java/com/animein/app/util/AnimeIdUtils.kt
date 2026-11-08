@@ -42,4 +42,17 @@ object AnimeIdUtils {
             .removePrefix("http://otakudesu.cloud/")
             .trimStart('/')
     }
+
+    /**
+     * Memastikan label episode memiliki spasi yang rapi:
+     * "Episode6" -> "Episode 6", "12Episode" -> "12 Episode", "Ep6" -> "Ep 6"
+     */
+    fun formatEpisodeLabel(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        return raw.trim()
+            .replace(Regex("(?i)(episode|eps|ep)(\\d+)"), "$1 $2")
+            .replace(Regex("(?i)(\\d+)(episode|eps|ep)"), "$1 $2")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
 }

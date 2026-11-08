@@ -75,6 +75,9 @@ import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.components.frostGlass
+import com.animein.app.ui.components.frostGlassBgBrush
+import com.animein.app.ui.components.frostGlassBorderBrush
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -719,15 +722,9 @@ fun PlayerScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .size(lockSize)
-                                                    .clip(controlChipShape)
-                                                    .background(
-                                                        if (isLocked) Color.White.copy(alpha = 0.25f)
-                                                        else FrostGlassBgTop
-                                                    )
-                                                    .border(
-                                                        width = if (isLockBtnFocused || isLocked) 1.5.dp else 1.dp,
-                                                        color = if (isLockBtnFocused || isLocked) Color.White else OutlineGrey,
-                                                        shape = controlChipShape
+                                                    .frostGlass(
+                                                        shape = controlChipShape,
+                                                        isFocused = isLockBtnFocused || isLocked
                                                     )
                                                     .onFocusChanged {
                                                         isLockBtnFocused = it.isFocused
@@ -800,6 +797,7 @@ fun PlayerScreen(
                                         val mainBtnSize = if (isFullscreen) 48.dp else 40.dp
                                         val mainIconSize = if (isFullscreen) 24.dp else 20.dp
                                         val centerSpacing = if (isFullscreen) 24.dp else 16.dp
+                                        val circleBtnShape = RoundedCornerShape(50)
 
                                         Row(
                                             modifier = Modifier
@@ -815,14 +813,10 @@ fun PlayerScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .clip(RoundedCornerShape(50))
-                                                    .background(
-                                                        if (isPrevFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                    )
-                                                    .border(
-                                                        width = if (isPrevFocused) 1.5.dp else 1.dp,
-                                                        color = if (isPrevFocused) Color.White else OutlineGrey.copy(alpha = if (prevEpId != null) 0.9f else 0.4f),
-                                                        shape = RoundedCornerShape(50)
+                                                    .frostGlass(
+                                                        shape = circleBtnShape,
+                                                        isFocused = isPrevFocused,
+                                                        isSubtle = prevEpId == null
                                                     )
                                                     .onFocusChanged {
                                                         isPrevFocused = it.isFocused
@@ -851,14 +845,9 @@ fun PlayerScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .size(mainBtnSize)
-                                                    .clip(RoundedCornerShape(50))
-                                                    .background(
-                                                        if (isPlayFocused) Color.White.copy(alpha = 0.25f) else FrostGlassBgTop
-                                                    )
-                                                    .border(
-                                                        width = if (isPlayFocused) 1.5.dp else 1.dp,
-                                                        color = if (isPlayFocused) Color.White else OutlineGrey,
-                                                        shape = RoundedCornerShape(50)
+                                                    .frostGlass(
+                                                        shape = circleBtnShape,
+                                                        isFocused = isPlayFocused
                                                     )
                                                     .focusRequester(playPauseFocusRequester)
                                                     .onFocusChanged {
@@ -892,14 +881,10 @@ fun PlayerScreen(
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .clip(RoundedCornerShape(50))
-                                                    .background(
-                                                        if (isNextFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                    )
-                                                    .border(
-                                                        width = if (isNextFocused) 1.5.dp else 1.dp,
-                                                        color = if (isNextFocused) Color.White else OutlineGrey.copy(alpha = if (nextEpId != null) 0.9f else 0.4f),
-                                                        shape = RoundedCornerShape(50)
+                                                    .frostGlass(
+                                                        shape = circleBtnShape,
+                                                        isFocused = isNextFocused,
+                                                        isSubtle = nextEpId == null
                                                     )
                                                     .onFocusChanged {
                                                         isNextFocused = it.isFocused
@@ -972,14 +957,9 @@ fun PlayerScreen(
                                                         Box(
                                                             modifier = Modifier
                                                                 .height(controlChipHeight)
-                                                                .clip(controlChipShape)
-                                                                .background(
-                                                                    if (isResFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                                )
-                                                                .border(
-                                                                    width = if (isResFocused) 1.5.dp else 1.dp,
-                                                                    color = if (isResFocused) Color.White else OutlineGrey,
-                                                                    shape = controlChipShape
+                                                                .frostGlass(
+                                                                    shape = controlChipShape,
+                                                                    isFocused = isResFocused
                                                                 )
                                                                 .onFocusChanged {
                                                                     isResFocused = it.isFocused
@@ -1012,10 +992,10 @@ fun PlayerScreen(
                                                                  showQualityDropdown = false
                                                              },
                                                              modifier = Modifier
-                                                                 .background(DarkSurfaceVariant.copy(alpha = 0.94f))
+                                                                 .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                                                  .border(
                                                                      width = 1.dp,
-                                                                     color = OutlineGrey,
+                                                                     brush = frostGlassBorderBrush(isFocused = false),
                                                                      shape = RoundedCornerShape(8.dp)
                                                                  )
                                                          ) {
@@ -1024,11 +1004,19 @@ fun PlayerScreen(
                                                                  var isItemFocused by remember { mutableStateOf(false) }
                                                                  DropdownMenuItem(
                                                                      modifier = Modifier
+                                                                         .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                                         .clip(RoundedCornerShape(8.dp))
                                                                          .onFocusChanged {
                                                                              isItemFocused = it.isFocused
                                                                              if (it.isFocused) lastUserInteractionTick++
                                                                          }
-                                                                         .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
+                                                                         .then(
+                                                                             if (isItemFocused) {
+                                                                                 Modifier
+                                                                                     .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                                                                     .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                                                             } else Modifier
+                                                                         ),
                                                                      text = {
                                                                          Box(
                                                                              modifier = Modifier.fillMaxWidth(),
@@ -1071,14 +1059,9 @@ fun PlayerScreen(
                                                         Box(
                                                             modifier = Modifier
                                                                 .height(controlChipHeight)
-                                                                .clip(controlChipShape)
-                                                                .background(
-                                                                    if (isSpeedFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                                )
-                                                                .border(
-                                                                    width = if (isSpeedFocused) 1.5.dp else 1.dp,
-                                                                    color = if (isSpeedFocused) Color.White else OutlineGrey,
-                                                                    shape = controlChipShape
+                                                                .frostGlass(
+                                                                    shape = controlChipShape,
+                                                                    isFocused = isSpeedFocused
                                                                 )
                                                                 .onFocusChanged {
                                                                     isSpeedFocused = it.isFocused
@@ -1111,10 +1094,10 @@ fun PlayerScreen(
                                                                 showSpeedDropdown = false
                                                             },
                                                             modifier = Modifier
-                                                                .background(DarkSurfaceVariant.copy(alpha = 0.94f))
+                                                                .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                                                 .border(
                                                                     width = 1.dp,
-                                                                    color = OutlineGrey,
+                                                                    brush = frostGlassBorderBrush(isFocused = false),
                                                                     shape = RoundedCornerShape(8.dp)
                                                                 )
                                                         ) {
@@ -1123,11 +1106,19 @@ fun PlayerScreen(
                                                                 var isItemFocused by remember { mutableStateOf(false) }
                                                                 DropdownMenuItem(
                                                                     modifier = Modifier
+                                                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                                        .clip(RoundedCornerShape(8.dp))
                                                                         .onFocusChanged {
                                                                             isItemFocused = it.isFocused
                                                                             if (it.isFocused) lastUserInteractionTick++
                                                                         }
-                                                                        .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
+                                                                        .then(
+                                                                            if (isItemFocused) {
+                                                                                Modifier
+                                                                                    .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                                                            } else Modifier
+                                                                        ),
                                                                     text = {
                                                                         Box(
                                                                             modifier = Modifier.fillMaxWidth(),
@@ -1164,19 +1155,14 @@ fun PlayerScreen(
                                                         }
                                                     }
 
-                                                    // 3. Fullscreen Button — serasi ukuran, bentuk, background, & outline dengan Resolusi dan Kecepatan
+                                                    // 3. Fullscreen Button — serasi ukuran, bentuk, background, & outline gradasi dengan Resolusi dan Kecepatan
                                                     Box(
                                                         modifier = Modifier
                                                             .height(controlChipHeight)
                                                             .width(if (isFullscreen) 34.dp else 30.dp)
-                                                            .clip(controlChipShape)
-                                                            .background(
-                                                                if (isFullscreenBtnFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                            )
-                                                            .border(
-                                                                width = if (isFullscreenBtnFocused) 1.5.dp else 1.dp,
-                                                                color = if (isFullscreenBtnFocused) Color.White else OutlineGrey,
-                                                                shape = controlChipShape
+                                                            .frostGlass(
+                                                                shape = controlChipShape,
+                                                                isFocused = isFullscreenBtnFocused
                                                             )
                                                             .onFocusChanged {
                                                                 isFullscreenBtnFocused = it.isFocused
@@ -1338,19 +1324,17 @@ fun PlayerScreen(
                                     ) {
                                         rowEpisodes.forEach { episode ->
                                             val isCurrent = AnimeIdUtils.normalizeEpisodeId(episode.id) == AnimeIdUtils.normalizeEpisodeId(currentEpisodeId)
+                                            var isEpFocused by remember { mutableStateOf(false) }
                                             Box(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .height(36.dp)
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(
-                                                        if (isCurrent) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                    .frostGlass(
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        isFocused = isEpFocused || isCurrent,
+                                                        isSubtle = !isCurrent && !isEpFocused
                                                     )
-                                                    .border(
-                                                        width = if (isCurrent) 1.5.dp else 1.dp,
-                                                        color = if (isCurrent) Color.White else OutlineGreySubtle,
-                                                        shape = RoundedCornerShape(10.dp)
-                                                    )
+                                                    .onFocusChanged { isEpFocused = it.isFocused }
                                                     .clickable {
                                                         viewModel.selectEpisode(episode.id)
                                                     },

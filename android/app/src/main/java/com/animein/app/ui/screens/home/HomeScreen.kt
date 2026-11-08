@@ -1,9 +1,12 @@
 package com.animein.app.ui.screens.home
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -58,6 +61,10 @@ import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.components.frostGlass
+import com.animein.app.ui.components.frostGlassBgBrush
+import com.animein.app.ui.components.frostGlassBorderBrush
+import com.animein.app.ui.components.frostPosterFrame
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.StarYellow
@@ -116,17 +123,12 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.73f)
                             .height(48.dp)
+                            .frostGlass(
+                                shape = RoundedCornerShape(24.dp),
+                                isFocused = isSearchFocused
+                            )
                             .focusProperties { canFocus = allowSearchFocus }
                             .onFocusChanged { isSearchFocused = it.isFocused }
-                            .background(
-                                if (isSearchFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
-                                RoundedCornerShape(24.dp)
-                            )
-                            .border(
-                                width = if (isSearchFocused) 1.5.dp else 1.dp,
-                                color = if (isSearchFocused) Color.White else OutlineGrey,
-                                shape = RoundedCornerShape(24.dp)
-                            )
                             .padding(horizontal = 14.dp),
                         decorationBox = { innerTextField ->
                             Row(
@@ -181,12 +183,9 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(if (isServerFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop)
-                                .border(
-                                    width = if (isServerFocused) 1.5.dp else 1.dp,
-                                    color = if (isServerFocused) Color.White else OutlineGrey,
-                                    shape = RoundedCornerShape(24.dp)
+                                .frostGlass(
+                                    shape = RoundedCornerShape(24.dp),
+                                    isFocused = isServerFocused
                                 )
                                 .onFocusChanged { isServerFocused = it.isFocused }
                                 .focusable()
@@ -220,11 +219,11 @@ fun HomeScreen(
                             expanded = showServerDropdown,
                             onDismissRequest = { showServerDropdown = false },
                             modifier = Modifier
-                                .background(DarkSurfaceVariant.copy(alpha = 0.94f))
+                                .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                 .border(
                                     width = 1.dp,
-                                    color = OutlineGrey,
-                                    shape = RoundedCornerShape(8.dp)
+                                    brush = frostGlassBorderBrush(isFocused = false),
+                                    shape = RoundedCornerShape(10.dp)
                                 )
                         ) {
                             listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
@@ -232,8 +231,16 @@ fun HomeScreen(
                                 var isItemFocused by remember { mutableStateOf(false) }
                                 DropdownMenuItem(
                                     modifier = Modifier
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        .clip(RoundedCornerShape(8.dp))
                                         .onFocusChanged { isItemFocused = it.isFocused }
-                                        .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
+                                        .then(
+                                            if (isItemFocused) {
+                                                Modifier
+                                                    .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
+                                            } else Modifier
+                                        ),
                                     text = {
                                         Box(
                                             modifier = Modifier.fillMaxWidth(),
@@ -413,13 +420,28 @@ fun HeroBanner(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.02f else 1f,
+        animationSpec = tween(180),
+        label = "heroBannerScale"
+    )
+    val bannerShape = RoundedCornerShape(24.dp)
+    val formattedEpisode = remember(anime.episode) {
+        AnimeIdUtils.formatEpisodeLabel(anime.episode)
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .border(1.dp, OutlineGrey, RoundedCornerShape(24.dp))
+            .scale(scale)
+            .frostPosterFrame(
+                shape = bannerShape,
+                isFocused = isFocused
+            )
+            .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
     ) {
         AsyncImage(
@@ -443,13 +465,15 @@ fun HeroBanner(
                 .padding(16.dp)
         ) {
             val bannerLabel = when {
-                anime.episode.isNotBlank() && anime.episode != "Ongoing" && anime.episode != "Update" -> anime.episode.uppercase()
+                formattedEpisode.isNotBlank() && formattedEpisode != "Ongoing" && formattedEpisode != "Update" -> formattedEpisode.uppercase()
                 else -> "ONGOING"
             }
             Box(
                 modifier = Modifier
-                    .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
-                    .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
+                    .frostGlass(
+                        shape = RoundedCornerShape(8.dp),
+                        isFocused = isFocused
+                    )
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -479,7 +503,7 @@ fun HeroBanner(
                 Spacer(modifier = Modifier.width(4.dp))
                 val subtitleText = buildString {
                     append("Tonton Sekarang")
-                    if (anime.episode.isNotBlank()) append(" • ${anime.episode}")
+                    if (formattedEpisode.isNotBlank()) append(" • $formattedEpisode")
                     if (!anime.uploadedOn.isNullOrBlank()) append(" • ${anime.uploadedOn}")
                 }
                 Text(
@@ -514,11 +538,15 @@ fun SectionHeader(
             fontWeight = FontWeight.Bold
         )
         if (onSeeAllClick != null) {
+            var isFocused by remember { mutableStateOf(false) }
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(FrostGlassBgTop)
-                    .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
+                    .frostGlass(
+                        shape = RoundedCornerShape(12.dp),
+                        isFocused = isFocused,
+                        isSubtle = true
+                    )
+                    .onFocusChanged { isFocused = it.isFocused }
                     .clickable { onSeeAllClick() }
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
@@ -539,18 +567,34 @@ fun OngoingAnimeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.04f else 1f,
+        animationSpec = tween(160),
+        label = "ongoingCardScale"
+    )
+    val formattedEpisode = remember(anime.episode) {
+        AnimeIdUtils.formatEpisodeLabel(anime.episode)
+    }
+
     Column(
         modifier = modifier
             .width(140.dp)
-            .clickable { onClick() }
+            .scale(scale)
+            .onFocusChanged { isFocused = it.isFocused }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .width(140.dp)
                 .height(200.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurface)
-                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
+                .frostPosterFrame(
+                    shape = RoundedCornerShape(16.dp),
+                    isFocused = isFocused
+                )
         ) {
             AsyncImage(
                 model = anime.thumb,
@@ -558,32 +602,34 @@ fun OngoingAnimeCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(FrostGlassBgTop)
-                    .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    anime.episode,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            if (formattedEpisode.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .frostGlass(
+                            shape = RoundedCornerShape(8.dp),
+                            isFocused = isFocused
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        formattedEpisode,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             anime.title,
             color = Color.White,
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -596,18 +642,34 @@ fun CompletedAnimeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.04f else 1f,
+        animationSpec = tween(160),
+        label = "completedCardScale"
+    )
+    val formattedEpisode = remember(anime.episode) {
+        AnimeIdUtils.formatEpisodeLabel(anime.episode)
+    }
+
     Column(
         modifier = modifier
             .width(140.dp)
-            .clickable { onClick() }
+            .scale(scale)
+            .onFocusChanged { isFocused = it.isFocused }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
     ) {
         Box(
             modifier = Modifier
                 .width(140.dp)
                 .height(200.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurface)
-                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
+                .frostPosterFrame(
+                    shape = RoundedCornerShape(16.dp),
+                    isFocused = isFocused
+                )
         ) {
             AsyncImage(
                 model = anime.thumb,
@@ -620,8 +682,10 @@ fun CompletedAnimeCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
-                        .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
-                        .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
+                        .frostGlass(
+                            shape = RoundedCornerShape(6.dp),
+                            isFocused = isFocused
+                        )
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -640,23 +704,26 @@ fun CompletedAnimeCard(
                     )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(FrostGlassBgTop)
-                    .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    anime.episode,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            if (formattedEpisode.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
+                        .frostGlass(
+                            shape = RoundedCornerShape(8.dp),
+                            isFocused = isFocused
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        formattedEpisode,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -664,7 +731,7 @@ fun CompletedAnimeCard(
             anime.title,
             color = Color.White,
             fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -681,7 +748,6 @@ fun ContinueWatchingCard(
 ) {
     val progressPercent = if (item.duration > 0) item.progress.toFloat() / item.duration.toFloat() else 0f
     val episodeLabel = remember(item.episodeTitle) {
-        // Try to get "Episode X" from episodeTitle (e.g. "[Nimegami] AnimeTitle_Episode_01_(720p)")
         val cleaned = item.episodeTitle
             .replace(Regex("\\[.*?\\]"), "")
             .replace(Regex("\\(\\d+p\\)"), "")
@@ -694,11 +760,21 @@ fun ContinueWatchingCard(
         }
     }
     var showDeleteOverlay by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.04f else 1f,
+        animationSpec = tween(160),
+        label = "continueWatchingScale"
+    )
 
     Column(
         modifier = modifier
             .width(160.dp)
+            .scale(scale)
+            .onFocusChanged { isFocused = it.isFocused }
             .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
                 onClick = {
                     if (showDeleteOverlay) {
                         showDeleteOverlay = false
@@ -715,9 +791,10 @@ fun ContinueWatchingCard(
             modifier = Modifier
                 .width(160.dp)
                 .height(100.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurface)
-                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
+                .frostPosterFrame(
+                    shape = RoundedCornerShape(16.dp),
+                    isFocused = isFocused
+                )
         ) {
             if (item.thumb.isNotEmpty()) {
                 AsyncImage(
@@ -755,8 +832,10 @@ fun ContinueWatchingCard(
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .background(FrostGlassBgTop, RoundedCornerShape(18.dp))
-                        .border(1.dp, OutlineGrey, RoundedCornerShape(18.dp)),
+                        .frostGlass(
+                            shape = RoundedCornerShape(18.dp),
+                            isFocused = isFocused
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -771,8 +850,10 @@ fun ContinueWatchingCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .background(FrostGlassBgTop, RoundedCornerShape(topEnd = 6.dp))
-                    .border(1.dp, OutlineGrey, RoundedCornerShape(topEnd = 6.dp))
+                    .frostGlass(
+                        shape = RoundedCornerShape(topEnd = 8.dp),
+                        isFocused = isFocused
+                    )
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
@@ -850,7 +931,7 @@ fun ContinueWatchingCard(
             item.animeTitle.ifBlank { "Anime" },
             color = Color.White,
             fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -863,12 +944,16 @@ fun SearchResultCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(FrostGlassBgTop)
-            .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
+            .frostGlass(
+                shape = RoundedCornerShape(14.dp),
+                isFocused = isFocused,
+                isSubtle = !isFocused
+            )
+            .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -879,8 +964,8 @@ fun SearchResultCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(width = 60.dp, height = 80.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Color.Gray)
+                .clip(RoundedCornerShape(10.dp))
+                .background(DarkSurface)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

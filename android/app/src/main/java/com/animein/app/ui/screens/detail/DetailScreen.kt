@@ -2,6 +2,8 @@ package com.animein.app.ui.screens.detail
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,15 +28,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.animein.app.data.model.DetailResponse
 import com.animein.app.ui.components.GlassmorphicCard
-import com.animein.app.ui.components.AppleGlassIcon
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.components.frostGlass
 import com.animein.app.ui.theme.DarkBackground
-import com.animein.app.ui.theme.DarkSurface
-import com.animein.app.ui.theme.FrostGlassBgTop
-import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
-import com.animein.app.ui.theme.StarYellow
+import com.animein.app.util.AnimeIdUtils
 
 @Composable
 fun DetailScreen(
@@ -62,290 +62,350 @@ fun DetailScreen(
                 }
                 is DetailUiState.Success -> {
                     val detail = state.data
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 24.dp)
+                    var isSynopsisExpanded by remember { mutableStateOf(false) }
+                    var isAscendingOrder by remember { mutableStateOf(false) }
+                    val rawEpisodes = detail.episodeList ?: emptyList()
+                    val displayedEpisodes = remember(rawEpisodes, isAscendingOrder) {
+                        if (isAscendingOrder) rawEpisodes.reversed() else rawEpisodes
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
-                        // Poster Banner
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(320.dp)
-                        ) {
-                            AsyncImage(
-                                model = detail.thumb,
-                                contentDescription = detail.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                        item {
+                            // Poster Banner
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colorStops = arrayOf(
-                                                0.0f to Color.Transparent,
-                                                0.5f to DarkBackground.copy(alpha = 0.55f),
-                                                0.85f to DarkBackground,
-                                                1.0f to DarkBackground
-                                            )
-                                        )
-                                    )
-                            )
-                            
-                            // Back button (top-left) with Frost Glass style
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(16.dp)
-                                    .statusBarsPadding()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(FrostGlassBgTop, CircleShape)
-                                        .border(1.dp, OutlineGrey, CircleShape)
-                                        .clickable { onBackClick() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Kembali",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                            
-                            // Favorite button (top-right)
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(16.dp)
-                                    .statusBarsPadding()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(FrostGlassBgTop, CircleShape)
-                                        .border(1.dp, OutlineGrey, CircleShape)
-                                        .clickable { viewModel.toggleFavorite(detail) },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = "Favorit",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                            
-                            // Title & Quick Badges overlaid on bottom of the banner
-                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .align(Alignment.BottomStart)
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    .height(320.dp)
                             ) {
-                                Text(
-                                    detail.title,
-                                    color = Color.White,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 28.sp
+                                AsyncImage(
+                                    model = detail.thumb,
+                                    contentDescription = detail.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
-                                detail.japanese?.takeIf { it.isNotBlank() }?.let { jpTitle ->
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colorStops = arrayOf(
+                                                    0.0f to Color.Transparent,
+                                                    0.5f to DarkBackground.copy(alpha = 0.55f),
+                                                    0.85f to DarkBackground,
+                                                    1.0f to DarkBackground
+                                                )
+                                            )
+                                        )
+                                )
+
+                                // Back button (top-left) with Frost Glass & rounded focus
+                                var isBackFocused by remember { mutableStateOf(false) }
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(16.dp)
+                                        .statusBarsPadding()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .frostGlass(
+                                                shape = CircleShape,
+                                                isFocused = isBackFocused
+                                            )
+                                            .onFocusChanged { isBackFocused = it.isFocused }
+                                            .clickable { onBackClick() },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Kembali",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // Favorite button (top-right) with Frost Glass & rounded focus
+                                var isFavFocused by remember { mutableStateOf(false) }
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(16.dp)
+                                        .statusBarsPadding()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .frostGlass(
+                                                shape = CircleShape,
+                                                isFocused = isFavFocused
+                                            )
+                                            .onFocusChanged { isFavFocused = it.isFocused }
+                                            .clickable { viewModel.toggleFavorite(detail) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = "Favorit",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // Title & Quick Badges overlaid on bottom of the banner
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomStart)
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                ) {
                                     Text(
-                                        jpTitle,
-                                        color = TextSecondary,
-                                        fontSize = 13.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        detail.title,
+                                        color = Color.White,
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 28.sp
                                     )
+                                    detail.japanese?.takeIf { it.isNotBlank() }?.let { jpTitle ->
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            jpTitle,
+                                            color = TextSecondary,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        // Compact Info Details
-                        Column(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .offset(y = (-8).dp)
-                        ) {
-                            // Type & Episode Row
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            ) {
-                                detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
-                                    Box(
-                                        modifier = Modifier
-                                            .background(FrostGlassBgTop, RoundedCornerShape(8.dp))
-                                            .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
-                                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(
-                                            animeType,
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                                detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let { totalEp ->
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .background(FrostGlassBgTop, RoundedCornerShape(8.dp))
-                                            .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
-                                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        val epText = when {
-                                            totalEp.contains("Episode", true) || totalEp.contains("Tamat", true) || totalEp.contains("Ongoing", true) -> totalEp
-                                            else -> "$totalEp Episode"
-                                        }
-                                        Text(
-                                            text = epText,
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Glassmorphic Compact Metadata Card
-                            GlassmorphicCard(
+                        item {
+                            // Compact Info Details
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp),
-                                shape = RoundedCornerShape(24.dp)
+                                    .padding(horizontal = 16.dp)
+                                    .offset(y = (-8).dp)
                             ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    // Row 1: Score & Studio
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.Star,
-                                                contentDescription = "Skor",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                // Type & Episode Row
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                ) {
+                                    detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
+                                        Box(
+                                            modifier = Modifier
+                                                .frostGlass(shape = RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
                                             Text(
-                                                text = "${detail.score ?: "-"} / 10",
+                                                animeType,
                                                 color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp
-                                            )
-                                        }
-                                        detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
-                                            Text(
-                                                text = studio,
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
-                                    
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    // Row 2: Status, Durasi, Rilis
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Status", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(detail.status ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        }
-                                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text("Durasi", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(detail.duration ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        }
-                                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                            Text("Rilis", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(detail.releaseDate ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let { totalEp ->
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .frostGlass(shape = RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
+                                            val formattedTotal = AnimeIdUtils.formatEpisodeLabel(totalEp)
+                                            val epText = when {
+                                                formattedTotal.contains("Episode", true) || formattedTotal.contains("Tamat", true) || formattedTotal.contains("Ongoing", true) -> formattedTotal
+                                                else -> "$formattedTotal Episode"
+                                            }
+                                            Text(
+                                                text = epText,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
                                         }
                                     }
                                 }
-                            }
 
-                            // Genres Scrollable Row
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 16.dp)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                detail.genreList?.forEach { genre ->
-                                    Box(
-                                        modifier = Modifier
-                                            .background(FrostGlassBgTop, RoundedCornerShape(20.dp))
-                                            .border(1.dp, OutlineGrey, RoundedCornerShape(20.dp))
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            genre.genreName,
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                // Glassmorphic Compact Metadata Card
+                                GlassmorphicCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    shape = RoundedCornerShape(24.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        // Row 1: Score & Studio
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Star,
+                                                    contentDescription = "Skor",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = "${detail.score ?: "-"} / 10",
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp
+                                                )
+                                            }
+                                            detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
+                                                Text(
+                                                    text = studio,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // Row 2: Status, Durasi, Rilis
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("Status", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(detail.status ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text("Durasi", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(detail.duration ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                                                Text("Rilis", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(detail.releaseDate ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                        }
                                     }
                                 }
-                            }
 
-                            // Synopsis Section
-                            Text("Sinopsis", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            var isExpanded by remember { mutableStateOf(false) }
-                            Text(
-                                detail.synopsis ?: "Tidak ada sinopsis.",
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 18.sp,
-                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.clickable { isExpanded = !isExpanded }
-                            )
+                                // Genres Scrollable Row
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp)
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    detail.genreList?.forEach { genre ->
+                                        Box(
+                                            modifier = Modifier
+                                                .frostGlass(shape = RoundedCornerShape(20.dp))
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                genre.genreName,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
 
-                            Spacer(modifier = Modifier.height(20.dp))
-
-                            // Episode List
-                            Text("Daftar Episode", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            val episodes = (detail.episodeList ?: emptyList())
-                            if (episodes.isEmpty()) {
-                                Text("Episode belum tersedia", color = TextSecondary, fontSize = 13.sp)
-                            } else {
-                                episodes.forEach { episode ->
-                                    val epNum = extractEpisodeNumber(episode.title)
-                                    val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else episode.title
-                                    EpisodeRow(
-                                        title = displayTitle,
-                                        date = episode.uploadedOn ?: "",
-                                        onClick = { onEpisodeClick(episode.id, detail.animeId) }
+                                // Synopsis Section
+                                Text("Sinopsis", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                val synopsisText = detail.synopsis?.takeIf { it.isNotBlank() } ?: "Tidak ada sinopsis."
+                                var isSynopsisFocused by remember { mutableStateOf(false) }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .onFocusChanged { isSynopsisFocused = it.isFocused }
+                                        .clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                                        .padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        synopsisText,
+                                        color = TextSecondary,
+                                        fontSize = 13.sp,
+                                        lineHeight = 18.sp,
+                                        maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    if (synopsisText.length > 120) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = if (isSynopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isSynopsisFocused) FontWeight.Bold else FontWeight.SemiBold
+                                        )
+                                    }
                                 }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // Episode List Header + Sort Toggle
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Daftar Episode", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    if (rawEpisodes.size > 1) {
+                                        var isSortFocused by remember { mutableStateOf(false) }
+                                        Box(
+                                            modifier = Modifier
+                                                .frostGlass(
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    isFocused = isSortFocused,
+                                                    isSubtle = !isSortFocused
+                                                )
+                                                .onFocusChanged { isSortFocused = it.isFocused }
+                                                .clickable { isAscendingOrder = !isAscendingOrder }
+                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isAscendingOrder) "Urut: Ep 1 ▲" else "Urut: Terbaru ▼",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                if (displayedEpisodes.isEmpty()) {
+                                    Text("Episode belum tersedia", color = TextSecondary, fontSize = 13.sp)
+                                }
+                            }
+                        }
+
+                        items(displayedEpisodes, key = { it.id }) { episode ->
+                            val epNum = extractEpisodeNumber(episode.title)
+                            val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else AnimeIdUtils.formatEpisodeLabel(episode.title)
+                            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                EpisodeRow(
+                                    title = displayTitle,
+                                    date = episode.uploadedOn ?: "",
+                                    onClick = { onEpisodeClick(episode.id, detail.animeId) }
+                                )
                             }
                         }
                     }
@@ -354,9 +414,16 @@ fun DetailScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(state.message, color = Color.Red)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.fetchDetail() }) {
-                                Text("Coba Lagi")
+                            Spacer(modifier = Modifier.height(12.dp))
+                            var isRetryFocused by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .frostGlass(shape = RoundedCornerShape(14.dp), isFocused = isRetryFocused)
+                                    .onFocusChanged { isRetryFocused = it.isFocused }
+                                    .clickable { viewModel.fetchDetail() }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                            ) {
+                                Text("Coba Lagi", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -373,10 +440,16 @@ fun EpisodeRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Glassmorphic row for episode list
+    var isFocused by remember { mutableStateOf(false) }
+    val rowShape = RoundedCornerShape(16.dp)
+    // Glassmorphic row for episode list with rounded focus highlight
     GlassmorphicCard(
+        shape = rowShape,
+        isFocused = isFocused,
         modifier = modifier
             .fillMaxWidth()
+            .clip(rowShape)
+            .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
     ) {
         Row(
@@ -391,7 +464,7 @@ fun EpisodeRow(
                     title,
                     color = Color.White,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -407,9 +480,10 @@ fun EpisodeRow(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .border(1.dp, OutlineGrey, CircleShape),
+                    .frostGlass(
+                        shape = CircleShape,
+                        isFocused = isFocused
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

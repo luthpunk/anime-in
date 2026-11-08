@@ -68,6 +68,8 @@ import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.ui.components.GlassmorphicCard
+import com.animein.app.ui.components.frostGlassBgBrush
+import com.animein.app.ui.components.frostGlassBorderBrush
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -163,68 +165,85 @@ fun MainApp() {
                     containerColor = DarkSurface,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .border(width = 1.dp, color = com.animein.app.ui.theme.OutlineGreySubtle)
+                        .border(
+                            width = 1.dp,
+                            brush = frostGlassBorderBrush(isSubtle = true)
+                        )
                 ) {
                     // Push items to vertical center
                     Spacer(modifier = Modifier.weight(1f))
                     navItems.forEach { item ->
                         val selected = currentRoute == item.route
                         var isFocused by remember { mutableStateOf(false) }
-                        NavigationRailItem(
-                            selected = selected,
-                            onClick = {
-                                currentRoute = item.route
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                    tint = when {
-                                        isFocused -> Color.White
-                                        selected  -> Color.White
-                                        else      -> TextSecondary
-                                    }
-                                )
-                            },
-                            label = {
-                                Text(
-                                    item.label,
-                                    color = when {
-                                        isFocused -> Color.White
-                                        selected  -> Color.White
-                                        else      -> TextSecondary
-                                    },
-                                    fontWeight = if (isFocused || selected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationRailItemDefaults.colors(
-                                indicatorColor = if (isFocused) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.12f)
-                            ),
+                        val itemShape = RoundedCornerShape(18.dp)
+                        val scale by animateFloatAsState(
+                            targetValue = if (isFocused) 1.06f else 1f,
+                            animationSpec = tween(150),
+                            label = "tvNavScale"
+                        )
+                        Box(
                             modifier = Modifier
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                .width(68.dp)
+                                .height(60.dp)
+                                .scale(scale)
+                                .clip(itemShape)
+                                .then(
+                                    when {
+                                        isFocused -> Modifier
+                                            .background(brush = frostGlassBgBrush(isFocused = true), shape = itemShape)
+                                            .border(
+                                                width = 1.5.dp,
+                                                brush = frostGlassBorderBrush(isFocused = true),
+                                                shape = itemShape
+                                            )
+                                        selected -> Modifier
+                                            .background(brush = frostGlassBgBrush(isFocused = false), shape = itemShape)
+                                            .border(
+                                                width = 1.dp,
+                                                brush = frostGlassBorderBrush(isFocused = false),
+                                                shape = itemShape
+                                            )
+                                        else -> Modifier
+                                    }
+                                )
                                 .then(
                                     if (item.route == "home") Modifier.focusRequester(homeNavFocusRequester)
                                     else Modifier
                                 )
                                 .onFocusChanged { isFocused = it.isFocused }
-                                .then(
-                                    if (isFocused) {
-                                        Modifier
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
-                                            .border(1.5.dp, Color.White, RoundedCornerShape(16.dp))
-                                    } else {
-                                        Modifier
+                                .clickable {
+                                    currentRoute = item.route
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.startDestinationId) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    tint = if (isFocused || selected) Color.White else TextSecondary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                        )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = item.label,
+                                    color = if (isFocused || selected) Color.White else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isFocused || selected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -297,13 +316,14 @@ fun MainApp() {
                                         .width(indicatorWidthDp)
                                         .height(44.dp) // rounded rect height
                                         .align(Alignment.CenterStart)
+                                        .clip(RoundedCornerShape(20.dp))
                                         .background(
-                                            color = Color.White.copy(alpha = 0.14f),
+                                            brush = frostGlassBgBrush(isFocused = true),
                                             shape = RoundedCornerShape(20.dp)
                                         )
                                         .border(
                                             width = 1.dp,
-                                            color = com.animein.app.ui.theme.OutlineGrey.copy(alpha = 0.7f),
+                                            brush = frostGlassBorderBrush(isFocused = true),
                                             shape = RoundedCornerShape(20.dp)
                                         )
                                 )
