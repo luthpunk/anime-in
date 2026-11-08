@@ -122,9 +122,9 @@ fun HomeScreen(
                         cursorBrush = SolidColor(Color.White),
                         modifier = Modifier
                             .weight(0.73f)
-                            .height(48.dp)
+                            .height(42.dp)
                             .frostGlass(
-                                shape = RoundedCornerShape(24.dp),
+                                shape = RoundedCornerShape(21.dp),
                                 isFocused = isSearchFocused
                             )
                             .focusProperties { canFocus = allowSearchFocus }
@@ -139,7 +139,7 @@ fun HomeScreen(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = "Cari",
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Box(
@@ -154,13 +154,13 @@ fun HomeScreen(
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(
                                         onClick = { viewModel.onSearchQueryChanged("") },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(22.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = "Clear",
                                             tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                     }
                                 }
@@ -171,7 +171,7 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .weight(0.27f)
-                            .height(48.dp)
+                            .height(42.dp)
                     ) {
                         val activeLabel = when (activeSource) {
                             "otakudesu" -> "Server 1"
@@ -184,7 +184,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .frostGlass(
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = RoundedCornerShape(21.dp),
                                     isFocused = isServerFocused
                                 )
                                 .onFocusChanged { isServerFocused = it.isFocused }
@@ -219,6 +219,7 @@ fun HomeScreen(
                             expanded = showServerDropdown,
                             onDismissRequest = { showServerDropdown = false },
                             modifier = Modifier
+                                .width(IntrinsicSize.Max)
                                 .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                 .border(
                                     width = 1.dp,
@@ -229,49 +230,44 @@ fun HomeScreen(
                             listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
                                 val isSelected = activeSource == id
                                 var isItemFocused by remember { mutableStateOf(false) }
-                                DropdownMenuItem(
+                                val itemShape = RoundedCornerShape(8.dp)
+                                Box(
                                     modifier = Modifier
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .onFocusChanged { isItemFocused = it.isFocused }
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .clip(itemShape)
                                         .then(
-                                            if (isItemFocused) {
-                                                Modifier
-                                                    .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                            } else Modifier
-                                        ),
-                                    text = {
-                                        Box(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(6.dp)
-                                                        .background(
-                                                            if (isSelected) Color.White else Color.Transparent,
-                                                            RoundedCornerShape(50)
-                                                        )
-                                                )
-                                                Text(
-                                                    text = label,
-                                                    color = Color.White,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                )
+                                            when {
+                                                isItemFocused -> Modifier
+                                                    .background(frostGlassBgBrush(isFocused = true), itemShape)
+                                                    .border(1.5.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                isSelected -> Modifier
+                                                    .background(frostGlassBgBrush(isFocused = false), itemShape)
+                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                else -> Modifier
                                             }
+                                        )
+                                        .onFocusChanged { isItemFocused = it.isFocused }
+                                        .focusable()
+                                        .clickable {
+                                            viewModel.setActiveSource(id)
+                                            showServerDropdown = false
                                         }
-                                    },
-                                    onClick = {
-                                        viewModel.setActiveSource(id)
-                                        showServerDropdown = false
-                                    }
-                                )
+                                        .handleRemoteClick {
+                                            viewModel.setActiveSource(id)
+                                            showServerDropdown = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

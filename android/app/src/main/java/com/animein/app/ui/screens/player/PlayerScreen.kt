@@ -992,6 +992,7 @@ fun PlayerScreen(
                                                                  showQualityDropdown = false
                                                              },
                                                              modifier = Modifier
+                                                                 .width(IntrinsicSize.Max)
                                                                  .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                                                  .border(
                                                                      width = 1.dp,
@@ -1002,54 +1003,51 @@ fun PlayerScreen(
                                                              allMirrors.forEach { mirror ->
                                                                  val isSelected = selectedResolution == mirror.resolution
                                                                  var isItemFocused by remember { mutableStateOf(false) }
-                                                                 DropdownMenuItem(
+                                                                 val itemShape = RoundedCornerShape(8.dp)
+                                                                 Box(
                                                                      modifier = Modifier
-                                                                         .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                                         .clip(RoundedCornerShape(8.dp))
+                                                                         .fillMaxWidth()
+                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                         .clip(itemShape)
+                                                                         .then(
+                                                                             when {
+                                                                                 isItemFocused -> Modifier
+                                                                                     .background(frostGlassBgBrush(isFocused = true), itemShape)
+                                                                                     .border(1.5.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                 isSelected -> Modifier
+                                                                                     .background(frostGlassBgBrush(isFocused = false), itemShape)
+                                                                                     .border(1.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                 else -> Modifier
+                                                                             }
+                                                                         )
                                                                          .onFocusChanged {
                                                                              isItemFocused = it.isFocused
                                                                              if (it.isFocused) lastUserInteractionTick++
                                                                          }
-                                                                         .then(
-                                                                             if (isItemFocused) {
-                                                                                 Modifier
-                                                                                     .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                                                                     .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                                                             } else Modifier
-                                                                         ),
-                                                                     text = {
-                                                                         Box(
-                                                                             modifier = Modifier.fillMaxWidth(),
-                                                                             contentAlignment = Alignment.Center
-                                                                         ) {
-                                                                             Row(
-                                                                                 verticalAlignment = Alignment.CenterVertically,
-                                                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                                             ) {
-                                                                                 Box(
-                                                                                     modifier = Modifier
-                                                                                         .size(6.dp)
-                                                                                         .background(
-                                                                                             if (isSelected) Color.White else Color.Transparent,
-                                                                                             RoundedCornerShape(50)
-                                                                                         )
-                                                                                 )
-                                                                                 Text(
-                                                                                     text = mirror.resolution,
-                                                                                     color = Color.White,
-                                                                                     fontSize = 12.sp,
-                                                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                                 )
-                                                                             }
+                                                                         .focusable()
+                                                                         .clickable {
+                                                                             lastUserInteractionTick++
+                                                                             selectedResolution = mirror.resolution
+                                                                             viewModel.switchMirror(mirror.id)
+                                                                             showQualityDropdown = false
                                                                          }
-                                                                     },
-                                                                     onClick = {
-                                                                         lastUserInteractionTick++
-                                                                         selectedResolution = mirror.resolution
-                                                                         viewModel.switchMirror(mirror.id)
-                                                                         showQualityDropdown = false
-                                                                     }
-                                                                 )
+                                                                         .handleRemoteClick {
+                                                                             lastUserInteractionTick++
+                                                                             selectedResolution = mirror.resolution
+                                                                             viewModel.switchMirror(mirror.id)
+                                                                             showQualityDropdown = false
+                                                                         }
+                                                                         .padding(horizontal = 12.dp, vertical = 5.dp),
+                                                                     contentAlignment = Alignment.Center
+                                                                 ) {
+                                                                     Text(
+                                                                         text = mirror.resolution,
+                                                                         color = Color.White,
+                                                                         fontSize = 12.sp,
+                                                                         fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Normal,
+                                                                         maxLines = 1
+                                                                     )
+                                                                 }
                                                              }
                                                          }
                                                     }
@@ -1094,6 +1092,7 @@ fun PlayerScreen(
                                                                 showSpeedDropdown = false
                                                             },
                                                             modifier = Modifier
+                                                                .width(IntrinsicSize.Max)
                                                                 .background(DarkSurfaceVariant.copy(alpha = 0.96f))
                                                                 .border(
                                                                     width = 1.dp,
@@ -1104,53 +1103,49 @@ fun PlayerScreen(
                                                             listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
                                                                 val isSelected = speed == value
                                                                 var isItemFocused by remember { mutableStateOf(false) }
-                                                                DropdownMenuItem(
+                                                                val itemShape = RoundedCornerShape(8.dp)
+                                                                Box(
                                                                     modifier = Modifier
-                                                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                                                        .clip(RoundedCornerShape(8.dp))
+                                                                        .fillMaxWidth()
+                                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                        .clip(itemShape)
+                                                                        .then(
+                                                                            when {
+                                                                                isItemFocused -> Modifier
+                                                                                    .background(frostGlassBgBrush(isFocused = true), itemShape)
+                                                                                    .border(1.5.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                isSelected -> Modifier
+                                                                                    .background(frostGlassBgBrush(isFocused = false), itemShape)
+                                                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                else -> Modifier
+                                                                            }
+                                                                        )
                                                                         .onFocusChanged {
                                                                             isItemFocused = it.isFocused
                                                                             if (it.isFocused) lastUserInteractionTick++
                                                                         }
-                                                                        .then(
-                                                                            if (isItemFocused) {
-                                                                                Modifier
-                                                                                    .background(frostGlassBgBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), RoundedCornerShape(8.dp))
-                                                                            } else Modifier
-                                                                        ),
-                                                                    text = {
-                                                                        Box(
-                                                                            modifier = Modifier.fillMaxWidth(),
-                                                                            contentAlignment = Alignment.Center
-                                                                        ) {
-                                                                            Row(
-                                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                                            ) {
-                                                                                Box(
-                                                                                    modifier = Modifier
-                                                                                        .size(6.dp)
-                                                                                        .background(
-                                                                                            if (isSelected) Color.White else Color.Transparent,
-                                                                                            RoundedCornerShape(50)
-                                                                                        )
-                                                                                )
-                                                                                Text(
-                                                                                    text = "${value}x",
-                                                                                    color = Color.White,
-                                                                                    fontSize = 12.sp,
-                                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                                )
-                                                                            }
+                                                                        .focusable()
+                                                                        .clickable {
+                                                                            lastUserInteractionTick++
+                                                                            viewModel.setPlaybackSpeed(value)
+                                                                            showSpeedDropdown = false
                                                                         }
-                                                                    },
-                                                                    onClick = {
-                                                                        lastUserInteractionTick++
-                                                                        viewModel.setPlaybackSpeed(value)
-                                                                        showSpeedDropdown = false
-                                                                    }
-                                                                )
+                                                                        .handleRemoteClick {
+                                                                            lastUserInteractionTick++
+                                                                            viewModel.setPlaybackSpeed(value)
+                                                                            showSpeedDropdown = false
+                                                                        }
+                                                                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text(
+                                                                        text = "${value}x",
+                                                                        color = Color.White,
+                                                                        fontSize = 12.sp,
+                                                                        fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Normal,
+                                                                        maxLines = 1
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
