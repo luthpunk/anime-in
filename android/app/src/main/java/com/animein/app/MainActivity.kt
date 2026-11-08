@@ -167,7 +167,8 @@ fun MainApp() {
                         .fillMaxHeight()
                         .border(
                             width = 1.dp,
-                            brush = frostGlassBorderBrush(isSubtle = true)
+                            brush = frostGlassBorderBrush(isSubtle = true),
+                            shape = androidx.compose.ui.graphics.RectangleShape
                         )
                 ) {
                     // Push items to vertical center
