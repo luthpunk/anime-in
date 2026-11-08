@@ -27,9 +27,11 @@ import com.animein.app.data.model.DetailResponse
 import com.animein.app.ui.components.GlassmorphicCard
 import com.animein.app.ui.components.AppleGlassIcon
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.theme.DarkBackground
 import com.animein.app.ui.theme.DarkSurface
-import com.animein.app.ui.theme.NeonPink
-import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.FrostGlassBgTop
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.ui.theme.StarYellow
 
@@ -49,28 +51,13 @@ fun DetailScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF131018))
+                .background(DarkBackground)
                 .padding(innerPadding)
         ) {
-            // Ambient Immersive Glow (Top fading to bottom)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(350.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF8F6AFF).copy(alpha = 0.12f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-
             when (val state = uiState) {
                 is DetailUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        PremiumLoadingSpinner(color = NeonPurple)
+                        PremiumLoadingSpinner(color = Color.White)
                     }
                 }
                 is DetailUiState.Success -> {
@@ -100,15 +87,15 @@ fun DetailScreen(
                                         Brush.verticalGradient(
                                             colorStops = arrayOf(
                                                 0.0f to Color.Transparent,
-                                                0.5f to Color(0xFF131018).copy(alpha = 0.5f),
-                                                0.85f to Color(0xFF131018),
-                                                1.0f to Color(0xFF131018)
+                                                0.5f to DarkBackground.copy(alpha = 0.55f),
+                                                0.85f to DarkBackground,
+                                                1.0f to DarkBackground
                                             )
                                         )
                                     )
                             )
                             
-                            // Back button (top-left) with Apple Glass style
+                            // Back button (top-left) with Frost Glass style
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
@@ -118,7 +105,8 @@ fun DetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color.Black.copy(alpha = 0.40f), CircleShape)
+                                        .background(FrostGlassBgTop, CircleShape)
+                                        .border(1.dp, OutlineGrey, CircleShape)
                                         .clickable { onBackClick() },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -126,7 +114,7 @@ fun DetailScreen(
                                         imageVector = Icons.Default.ArrowBack,
                                         contentDescription = "Kembali",
                                         tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
@@ -141,15 +129,16 @@ fun DetailScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .background(Color.Black.copy(alpha = 0.40f), CircleShape)
+                                        .background(FrostGlassBgTop, CircleShape)
+                                        .border(1.dp, OutlineGrey, CircleShape)
                                         .clickable { viewModel.toggleFavorite(detail) },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                         contentDescription = "Favorit",
-                                        tint = if (isFavorite) NeonPink else Color.White,
-                                        modifier = Modifier.size(24.dp)
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
                             }
@@ -193,22 +182,15 @@ fun DetailScreen(
                                 modifier = Modifier.padding(bottom = 12.dp)
                             ) {
                                 detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
-                                    val (badgeColor, badgeEmoji) = when {
-                                        animeType.contains("Movie", ignoreCase = true) -> Pair(Color(0xFFFFD700), "🎬")
-                                        animeType.contains("OVA", ignoreCase = true) -> Pair(Color(0xFFAB47BC), "💿")
-                                        animeType.contains("Special", ignoreCase = true) -> Pair(Color(0xFF26A69A), "⭐")
-                                        animeType.contains("ONA", ignoreCase = true) -> Pair(Color(0xFFEF5350), "📡")
-                                        else -> Pair(NeonPurple, "📺")
-                                    }
                                     Box(
                                         modifier = Modifier
-                                            .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                                            .border(1.dp, badgeColor.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                            .background(FrostGlassBgTop, RoundedCornerShape(8.dp))
+                                            .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
                                             .padding(horizontal = 10.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            "$badgeEmoji $animeType",
-                                            color = badgeColor,
+                                            animeType,
+                                            color = Color.White,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -218,8 +200,8 @@ fun DetailScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Box(
                                         modifier = Modifier
-                                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                            .background(FrostGlassBgTop, RoundedCornerShape(8.dp))
+                                            .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
                                             .padding(horizontal = 10.dp, vertical = 4.dp)
                                     ) {
                                         val epText = when {
@@ -254,7 +236,7 @@ fun DetailScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Star,
                                                 contentDescription = "Skor",
-                                                tint = StarYellow,
+                                                tint = Color.White,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -268,7 +250,7 @@ fun DetailScreen(
                                         detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
                                             Text(
                                                 text = studio,
-                                                color = NeonPurple,
+                                                color = Color.White,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp,
                                                 maxLines = 1,
@@ -278,7 +260,7 @@ fun DetailScreen(
                                     }
                                     
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    Divider(color = Color.White.copy(alpha = 0.1f))
+                                    Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
                                     Spacer(modifier = Modifier.height(12.dp))
 
                                     // Row 2: Status, Durasi, Rilis
@@ -316,13 +298,13 @@ fun DetailScreen(
                                 detail.genreList?.forEach { genre ->
                                     Box(
                                         modifier = Modifier
-                                            .background(NeonPurple.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                                            .border(1.dp, NeonPurple.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                                            .background(FrostGlassBgTop, RoundedCornerShape(20.dp))
+                                            .border(1.dp, OutlineGrey, RoundedCornerShape(20.dp))
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             genre.genreName,
-                                            color = Color(0xFFE2D6FF),
+                                            color = Color.White,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium
                                         )
@@ -426,8 +408,8 @@ fun EpisodeRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(NeonPurple.copy(alpha = 0.2f))
-                    .border(1.dp, NeonPurple.copy(alpha = 0.5f), CircleShape),
+                    .background(Color.White.copy(alpha = 0.12f))
+                    .border(1.dp, OutlineGrey, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

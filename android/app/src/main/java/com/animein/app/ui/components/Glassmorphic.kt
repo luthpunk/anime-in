@@ -25,6 +25,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 
+import com.animein.app.ui.theme.FrostGlassBgBottom
+import com.animein.app.ui.theme.FrostGlassBgTop
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
+
 /**
  * Creates a custom squircle shape that resembles Apple's iOS icon shape.
  */
@@ -34,8 +39,7 @@ fun squircleShape(percent: Int = 30): Shape {
 
 /**
  * A container that provides a frosted-glass (glassmorphic) appearance.
- * Simulates transparency, specular reflections (via gradient border),
- * and inner depth.
+ * Uses dark grey frosted surface and a clean grey outline border without neon tint.
  */
 @Composable
 fun GlassmorphicCard(
@@ -50,8 +54,8 @@ fun GlassmorphicCard(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF251F30).copy(alpha = 0.88f),
-                        Color(0xFF191421).copy(alpha = 0.94f)
+                        FrostGlassBgTop,
+                        FrostGlassBgBottom
                     )
                 )
             )
@@ -59,8 +63,8 @@ fun GlassmorphicCard(
                 width = borderWidth,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFFFFFFF).copy(alpha = 0.16f),
-                        Color(0xFFFFFFFF).copy(alpha = 0.03f)
+                        OutlineGrey.copy(alpha = 0.85f),
+                        OutlineGreySubtle.copy(alpha = 0.55f)
                     )
                 ),
                 shape = shape
@@ -71,7 +75,7 @@ fun GlassmorphicCard(
 }
 
 /**
- * Apple-style Glassmorphic Icon composable with premium gloss and neon reflections.
+ * Frosted Glass Icon composable with neutral dark grey frost and grey outline (no neon).
  */
 @Composable
 fun AppleGlassIcon(
@@ -79,7 +83,7 @@ fun AppleGlassIcon(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     iconColor: Color = Color.White,
-    glowColor: Color = Color(0xFF9E00FF), // NeonPurple
+    glowColor: Color = OutlineGrey,
     onClick: (() -> Unit)? = null
 ) {
     val clickableModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
@@ -90,29 +94,16 @@ fun AppleGlassIcon(
             .then(clickableModifier)
             .clip(squircleShape())
             .background(
-                Brush.radialGradient(
+                Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.15f),
-                        Color.Black.copy(alpha = 0.4f)
+                        FrostGlassBgTop,
+                        FrostGlassBgBottom
                     )
                 )
             )
-            .drawBehind {
-                // Drawing an ambient glow/shadow to look 3D
-                drawCircle(
-                    color = glowColor.copy(alpha = 0.25f),
-                    radius = size.minDimension / 1.8f
-                )
-            }
             .border(
-                width = 1.2.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.35f),
-                        Color.White.copy(alpha = 0.05f),
-                        glowColor.copy(alpha = 0.4f)
-                    )
-                ),
+                width = 1.dp,
+                color = OutlineGrey,
                 shape = squircleShape()
             ),
         contentAlignment = Alignment.Center
@@ -126,26 +117,9 @@ fun AppleGlassIcon(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.10f),
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.15f)
-                        )
-                    )
-                )
-        )
-        
-        // Glowing reflection stripe across the top half (specular gloss)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.48f)
-                .align(Alignment.TopCenter)
-                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.18f),
-                            Color.White.copy(alpha = 0.02f)
+                            Color.Black.copy(alpha = 0.20f)
                         )
                     )
                 )
@@ -164,7 +138,7 @@ fun AppleGlassIcon(
 @Composable
 fun PremiumLoadingSpinner(
     modifier: Modifier = Modifier,
-    color: Color = com.animein.app.ui.theme.NeonPurple,
+    color: Color = Color.White,
     size: Dp = 48.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "loading")

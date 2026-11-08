@@ -211,7 +211,7 @@ class OtakudesuDirectScraper @Inject constructor(
         val ongoingElements = venz.getOrNull(0)?.select("ul > li")
         val completedElements = venz.getOrNull(1)?.select("ul > li")
 
-        val ongoingList = ongoingElements?.mapNotNull { item ->
+        val allOngoingList = ongoingElements?.mapNotNull { item ->
             val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
             val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
             val id = AnimeIdUtils.normalizeAnimeId(link)
@@ -231,6 +231,37 @@ class OtakudesuDirectScraper @Inject constructor(
                 link = link
             )
         }.orEmpty()
+
+        // Filter khusus rilis hari ini (0), 1 hari sebelumnya (-1), dan 2 hari sebelumnya (-2)
+        val validDatePrefixes = (-2..0).flatMap { offset ->
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_YEAR, offset)
+            val dom = cal.get(java.util.Calendar.DAY_OF_MONTH)
+            listOf(String.format("%02d ", dom), "$dom ")
+        }.toSet()
+        val validDayNames = (-2..0).map { offset ->
+            val cal = java.util.Calendar.getInstance()
+            cal.add(java.util.Calendar.DAY_OF_YEAR, offset)
+            when (cal.get(java.util.Calendar.DAY_OF_WEEK)) {
+                java.util.Calendar.MONDAY -> "senin"
+                java.util.Calendar.TUESDAY -> "selasa"
+                java.util.Calendar.WEDNESDAY -> "rabu"
+                java.util.Calendar.THURSDAY -> "kamis"
+                java.util.Calendar.FRIDAY -> "jumat"
+                java.util.Calendar.SATURDAY -> "sabtu"
+                java.util.Calendar.SUNDAY -> "minggu"
+                else -> ""
+            }
+        }.filter { it.isNotEmpty() }.toSet()
+
+        val filteredOngoing = allOngoingList.filter { anime ->
+            val uploaded = anime.uploadedOn?.trim().orEmpty()
+            val matchesDate = validDatePrefixes.any { prefix -> uploaded.startsWith(prefix, ignoreCase = true) }
+            val day = anime.dayUpdated?.trim()?.lowercase().orEmpty()
+            val matchesDay = uploaded.isBlank() && validDayNames.any { day.contains(it) }
+            matchesDate || matchesDay
+        }
+        val ongoingList = if (filteredOngoing.isNotEmpty()) filteredOngoing else allOngoingList
 
         val completedList = completedElements?.mapNotNull { item ->
             val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null

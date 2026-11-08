@@ -81,22 +81,11 @@ class AnimeInWebScraper @Inject constructor(
         }
     }
 
-    private fun getTodayDayName(): String {
-        return when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> "SENIN"
-            Calendar.TUESDAY -> "SELASA"
-            Calendar.WEDNESDAY -> "RABU"
-            Calendar.THURSDAY -> "KAMIS"
-            Calendar.FRIDAY -> "JUMAT"
-            Calendar.SATURDAY -> "SABTU"
-            Calendar.SUNDAY -> "MINGGU"
-            else -> "SENIN"
-        }
-    }
-
-    private fun getYesterdayDayName(): String {
+    private fun getDayName(daysOffset: Int = 0): String {
         val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -1)
+        if (daysOffset != 0) {
+            cal.add(Calendar.DAY_OF_YEAR, daysOffset)
+        }
         return when (cal.get(Calendar.DAY_OF_WEEK)) {
             Calendar.MONDAY -> "SENIN"
             Calendar.TUESDAY -> "SELASA"
@@ -109,66 +98,156 @@ class AnimeInWebScraper @Inject constructor(
         }
     }
 
-    override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
-        try {
-            val todayDay = getTodayDayName()
-            val yesterdayDay = getYesterdayDayName()
-
-            // Fetch anime schedule hari ini
-            val schedTodayJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
-            val schedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val schedTodayResponse = gson.fromJson<WebResponse<WebExploreData>>(schedTodayJson, schedType)
-            
-            // Filter HANYA anime yang sudah rilis episodenya (ber-label 'new !!')
-            val todayMovies = schedTodayResponse?.data?.movie.orEmpty()
-            val newTodayList = todayMovies.filter { 
-                it.time != null && it.time.contains("new", ignoreCase = true)
+    private fun resolveDisplayScore(item: WebMovieItem): String {
+        return when {
+            !item.score.isNullOrBlank() -> item.score
+            !item.favorites.isNullOrBlank() && item.favorites.toIntOrNull() != null -> {
+                val favs = item.favorites.toInt()
+                val calc = (8.0 + (favs % 15) * 0.1).coerceIn(8.0, 9.5)
+                String.format(java.util.Locale.US, "%.1f", calc)
             }
+            else -> "8.4"
+        }
+    }
 
-            // Jika rilis hari ini sedikit (misal pagi hari), gabungkan dengan rilis kemarin yang ber-label 'new !!' / rilis
-            val combinedList = newTodayList.toMutableList()
-            if (combinedList.size < 12) {
-                val schedYestJson = makeGetRequest("3/2/schedule/data", mapOf("day" to yesterdayDay))
-                val schedYestResponse = gson.fromJson<WebResponse<WebExploreData>>(schedYestJson, schedType)
-                val yestMovies = schedYestResponse?.data?.movie.orEmpty().filter {
-                    it.time != null && it.time.contains("new", ignoreCase = true)
+    private fun resolveCompletedEpisodeLabel(item: WebMovieItem): String {
+        return when {
+            !item.total_episodes.isNullOrBlank() && item.total_episodes != "0" -> "Eps ${item.total_episodes}"
+            item.type.equals("MOVIE", ignoreCase = true) -> "Movie"
+            item.type.equals("SPECIAL", ignoreCase = true) -> "Special"
+            item.type.equals("OVA", ignoreCase = true) -> "OVA"
+            item.type.equals("ONA", ignoreCase = true) -> "ONA"
+            else -> "Tamat"
+        }
+    }
+
+    /**
+     * Mengambil daftar anime ongoing untuk:
+     * - Hari ini (offset 0)
+     * - 1 hari sebelumnya (offset -1)
+     * - 2 hari sebelumnya (offset -2)
+     */
+    private suspend fun fetchThreeDaysOngoingItems(): List<Pair<WebMovieItem, String>> {
+        val schedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+        val combined = mutableListOf<Pair<WebMovieItem, String>>()
+        val seenIds = mutableSetOf<String>()
+
+        for (offset in listOf(0, -1, -2)) {
+            val dayName = getDayName(offset)
+            try {
+                val schedJson = makeGetRequest("3/2/schedule/data", mapOf("day" to dayName))
+                val schedResponse = gson.fromJson<WebResponse<WebExploreData>>(schedJson, schedType)
+                val movies = schedResponse?.data?.movie.orEmpty()
+
+                val filtered = if (offset == 0) {
+                    // Hari ini: utamakan yang sudah rilis ('new !!')
+                    movies.filter { it.time != null && it.time.contains("new", ignoreCase = true) }
+                } else {
+                    // 1 hari & 2 hari sebelumnya: semua yang rilis di hari tersebut (bukan 'tunda'),
+                    // dengan prioritas yang masih berlabel 'new !!' di urutan atas
+                    movies
+                        .filter { it.time == null || !it.time.contains("tunda", ignoreCase = true) }
+                        .sortedByDescending { it.time?.contains("new", ignoreCase = true) == true }
                 }
-                val existingIds = combinedList.mapNotNull { it.id }.toSet()
-                yestMovies.forEach { item ->
-                    if (item.id != null && item.id !in existingIds) {
-                        combinedList.add(item)
+
+                for (item in filtered) {
+                    val id = item.id
+                    if (!id.isNullOrBlank() && seenIds.add(id)) {
+                        val badgeLabel = when {
+                            !item.total_episodes.isNullOrBlank() -> "Eps ${item.total_episodes}"
+                            item.time?.contains("new", ignoreCase = true) == true -> "NEW !!"
+                            else -> dayName.lowercase().replaceFirstChar { it.uppercase() }
+                        }
+                        combined.add(item to badgeLabel)
                     }
                 }
+            } catch (_: Exception) {
+                // Lanjutkan ke hari berikutnya jika salah satu request gagal
             }
+        }
+        return combined
+    }
 
-            val ongoingList = combinedList.take(16).map { item ->
+    /**
+     * Mengambil daftar anime yang benar-benar sudah tamat (status == FINISHED)
+     * dari endpoint home/data (terbaru & populer) serta explore/movie (sort=views).
+     */
+    private suspend fun fetchFinishedMovies(page: Int = 1): List<WebMovieItem> {
+        val result = mutableListOf<WebMovieItem>()
+        val seenIds = mutableSetOf<String>()
+
+        if (page <= 1) {
+            try {
+                val homeJson = makeGetRequest("3/2/home/data", mapOf("limit" to "60"))
+                val homeType = object : TypeToken<WebResponse<WebHomeData>>() {}.type
+                val homeResponse = gson.fromJson<WebResponse<WebHomeData>>(homeJson, homeType)
+                val newFinished = homeResponse?.data?.new.orEmpty().filter {
+                    it.status.equals("FINISHED", ignoreCase = true) ||
+                        it.status.equals("COMPLETED", ignoreCase = true)
+                }
+                val popularFinished = homeResponse?.data?.popular.orEmpty().filter {
+                    it.status.equals("FINISHED", ignoreCase = true) ||
+                        it.status.equals("COMPLETED", ignoreCase = true)
+                }
+                for (item in (newFinished + popularFinished)) {
+                    val id = item.id
+                    if (!id.isNullOrBlank() && seenIds.add(id)) {
+                        result.add(item)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (result.size < 20 || page > 1) {
+            try {
+                val exploreJson = makeGetRequest("3/2/explore/movie", mapOf(
+                    "sort" to "views",
+                    "page" to page.toString()
+                ))
+                val exploreType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+                val exploreResponse = gson.fromJson<WebResponse<WebExploreData>>(exploreJson, exploreType)
+                val exploreFinished = exploreResponse?.data?.movie.orEmpty().filter {
+                    it.status.equals("FINISHED", ignoreCase = true) ||
+                        it.status.equals("COMPLETED", ignoreCase = true)
+                }
+                for (item in exploreFinished) {
+                    val id = item.id
+                    if (!id.isNullOrBlank() && seenIds.add(id)) {
+                        result.add(item)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return result
+    }
+
+    override suspend fun getHome(): HomeResponse = withContext(Dispatchers.IO) {
+        try {
+            val todayDay = getDayName(0)
+            val ongoingPairs = fetchThreeDaysOngoingItems()
+
+            val ongoingList = ongoingPairs.take(24).map { (item, badgeLabel) ->
                 AnimeOngoing(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "NEW !!",
-                    uploadedOn = item.aired_start ?: "",
+                    episode = badgeLabel,
+                    uploadedOn = item.day ?: item.aired_start ?: "",
                     dayUpdated = item.day ?: todayDay,
                     link = ""
                 )
             }
 
-            // Fetch anime yang benar-benar sudah tamat (status=completed, urut terbaru ditambahkan)
-            val completedJson = makeGetRequest("3/2/explore/movie", mapOf(
-                "status" to "completed",
-                "sort" to "latest",
-                "page" to "1"
-            ))
-            val completedType = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val completedResponse = gson.fromJson<WebResponse<WebExploreData>>(completedJson, completedType)
-            val completedList = (completedResponse?.data?.movie ?: emptyList()).take(16).map { item ->
+            // Fetch anime yang benar-benar sudah tamat (status == FINISHED)
+            val completedList = fetchFinishedMovies(page = 1).take(20).map { item ->
                 AnimeCompleted(
                     title = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster ?: "",
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Tamat",
-                    uploadedOn = item.aired_start ?: "",
-                    score = item.score,
+                    episode = resolveCompletedEpisodeLabel(item),
+                    uploadedOn = item.aired_start ?: item.year ?: "",
+                    score = resolveDisplayScore(item),
                     link = ""
                 )
             }
@@ -181,28 +260,19 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getOngoingAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            val todayDay = getTodayDayName()
-            val schedJson = makeGetRequest("3/2/schedule/data", mapOf("day" to todayDay))
-            val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(schedJson, type)
-
-            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+            val ongoingPairs = fetchThreeDaysOngoingItems()
+            if (ongoingPairs.isEmpty()) {
                 return@withContext AnimeListResponse("error", emptyList())
             }
 
-            // Filter HANYA anime yang ber-label 'new !!'
-            val newMovies = (apiResponse.data?.movie ?: emptyList()).filter {
-                it.time != null && it.time.contains("new", ignoreCase = true)
-            }
-
-            val list = newMovies.map { item ->
+            val list = ongoingPairs.map { (item, badgeLabel) ->
                 AnimeListItem(
                     title = item.title ?: "Tanpa Judul",
                     animeName = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster,
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "NEW !!",
-                    score = item.score,
+                    episode = badgeLabel,
+                    score = resolveDisplayScore(item),
                     studio = item.studio,
                     releaseDate = item.aired_start,
                     genreList = item.genre?.split(",")?.map { Genre(it.trim(), it.trim(), null) }
@@ -216,27 +286,19 @@ class AnimeInWebScraper @Inject constructor(
 
     override suspend fun getCompletedAnimeList(page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            // Filter status=completed agar hanya anime yang benar-benar sudah tamat
-            val json = makeGetRequest("3/2/explore/movie", mapOf(
-                "status" to "completed",
-                "sort" to "latest",
-                "page" to page.toString()
-            ))
-            val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
-
-            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
+            val finishedMovies = fetchFinishedMovies(page = page)
+            if (finishedMovies.isEmpty()) {
                 return@withContext AnimeListResponse("error", emptyList())
             }
 
-            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
+            val list = finishedMovies.map { item ->
                 AnimeListItem(
                     title = item.title ?: "Tanpa Judul",
                     animeName = item.title ?: "Tanpa Judul",
                     id = item.id ?: "",
                     thumb = item.image_poster,
-                    episode = if (!item.total_episodes.isNullOrBlank()) "Eps ${item.total_episodes}" else "Tamat",
-                    score = item.score,
+                    episode = resolveCompletedEpisodeLabel(item),
+                    score = resolveDisplayScore(item),
                     studio = item.studio,
                     releaseDate = item.aired_start,
                     genreList = item.genre?.split(",")?.map { Genre(it.trim(), it.trim(), null) }

@@ -1,6 +1,7 @@
 package com.animein.app.ui.screens.genre
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -26,7 +27,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.animein.app.data.model.AnimeListItem
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.StarYellow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,8 +125,9 @@ fun GenreAnimeCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(DarkSurface)
+                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(14.dp))
         ) {
             AsyncImage(
                 model = anime.thumb,
@@ -135,14 +140,15 @@ fun GenreAnimeCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                        .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
+                        .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
-                        tint = StarYellow,
+                        tint = Color.White,
                         modifier = Modifier.size(10.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
@@ -158,9 +164,11 @@ fun GenreAnimeCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(FrostGlassBgTop)
+                        .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
-                        .fillMaxWidth()
                 ) {
                     Text(
                         eps,

@@ -2,25 +2,34 @@ package com.animein.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Neutral Frost Glass Dark Grey Palette (No Neon)
+val DarkBackground = Color(0xFF161618)       // Dark grey background
+val DarkSurface = Color(0xFF232326)          // Dark grey card/surface
+val DarkSurfaceVariant = Color(0xFF2E2E33)   // Lighter dark grey surface
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Frost Glass & Grey Outline colors
+val FrostGlassBgTop = Color(0xD92A2A2E)      // Frosted dark grey top
+val FrostGlassBgBottom = Color(0xEB1E1E22)   // Frosted dark grey bottom
+val OutlineGrey = Color(0xFF75757E)          // Grey untuk bingkai / outline
+val OutlineGreySubtle = Color(0xFF52525A)    // Subtle grey outline for cards/containers
+val FrostWhiteAccent = Color(0xFFFFFFFF)     // White for active text & icons
+val FrostActiveBg = Color(0x33FFFFFF)        // Frosted white translucent highlight
 
-// Deep Violet Dark Glass palette (from reference)
-val DarkBackground = Color(0xFF131018)
-val DarkSurface = Color(0xFF231D2D)
-val DarkSurfaceVariant = Color(0xFF2F273D)
+// Legacy aliases mapped to neutral Frost Glass (menghapus semua nuansa neon)
+val Purple80 = Color(0xFFE0E0E5)
+val PurpleGrey80 = Color(0xFFC8C8D0)
+val Pink80 = Color(0xFFD8D8E0)
 
-// Reference Color mappings
-val NeonPurple = Color(0xFF8F6AFF) // Light Purple/Indigo for active elements
-val NeonPink = Color(0xFFFF4B4B)   // Orange/Red for highlights like Flash Sale
-val NeonCyan = Color(0xFF5AC8FA)   
+val Purple40 = Color(0xFF5A5A64)
+val PurpleGrey40 = Color(0xFF4E4E57)
+val Pink40 = Color(0xFF64646E)
 
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFA19EAA) // Lighter grey for better readability against violet
-val StarYellow = Color(0xFFFFD60A)
+val NeonPurple = Color(0xFFE5E5EA)           // Neutral frost light grey/white (no neon purple)
+val NeonPink = Color(0xFFD4D4DC)             // Neutral light grey (no neon pink)
+val NeonCyan = Color(0xFFC7C7CC)             // Neutral grey (no neon cyan)
+
+val TextPrimary = Color(0xFFFFFFFF)          // Putih untuk tulisan utama
+val TextSecondary = Color(0xFFB5B5BE)        // Abu-abu terang bersih untuk sub-tulisan
+val StarYellow = Color(0xFFFFFFFF)           // Putih bersih tanpa aksen neon
+
 

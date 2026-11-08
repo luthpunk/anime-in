@@ -27,7 +27,10 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import com.animein.app.data.model.ScheduleItem
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.animein.app.ui.components.PremiumLoadingSpinner
@@ -154,13 +157,13 @@ fun DayScheduleSection(
             Icon(
                 imageVector = Icons.Default.DateRange,
                 contentDescription = null,
-                tint = if (isToday) Color(0xFF4CAF50) else NeonPurple,
+                tint = Color.White,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = item.day,
-                color = if (isToday) Color(0xFF4CAF50) else Color.White,
+                color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -168,7 +171,8 @@ fun DayScheduleSection(
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFF4CAF50), RoundedCornerShape(4.dp))
+                        .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
+                        .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
@@ -192,14 +196,15 @@ fun DayScheduleSection(
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = if (isToday) DarkSurface.copy(alpha = 0.9f) else DarkSurface
+                containerColor = FrostGlassBgTop
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(14.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .then(
-                    if (isToday) Modifier.border(1.dp, Color(0xFF4CAF50).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                    else Modifier
+                .border(
+                    width = if (isToday) 1.5.dp else 1.dp,
+                    color = if (isToday) Color.White.copy(alpha = 0.7f) else OutlineGreySubtle,
+                    shape = RoundedCornerShape(14.dp)
                 )
         ) {
             Column(
@@ -236,13 +241,13 @@ fun DayScheduleSection(
                             Icon(
                                 imageVector = Icons.Default.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = if (isToday) Color(0xFF4CAF50).copy(alpha = 0.7f) else TextSecondary,
+                                tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                         if (index < item.animeList.size - 1) {
                             Divider(
-                                color = Color.White.copy(alpha = 0.06f),
+                                color = OutlineGreySubtle.copy(alpha = 0.5f),
                                 thickness = 1.dp,
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )

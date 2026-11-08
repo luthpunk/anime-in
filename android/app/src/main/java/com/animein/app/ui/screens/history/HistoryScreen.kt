@@ -1,6 +1,7 @@
 package com.animein.app.ui.screens.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,8 +25,10 @@ import coil.compose.AsyncImage
 import com.animein.app.data.local.entity.FavoriteEntity
 import com.animein.app.data.local.entity.HistoryEntity
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPink
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,8 +135,9 @@ fun FavoritesTabContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSurface)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FrostGlassBgTop)
+                        .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
                         .clickable { onItemClick(fav.id) }
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -186,8 +190,9 @@ fun HistoryTabContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSurface)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(FrostGlassBgTop)
+                        .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
                         .clickable { onItemClick(item.id) }
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically

@@ -1,6 +1,7 @@
 package com.animein.app.ui.screens.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -27,7 +28,10 @@ import coil.compose.AsyncImage
 import com.animein.app.data.model.GenreItem
 import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.StarYellow
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.util.AnimeIdUtils
@@ -70,11 +74,12 @@ fun SearchScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, OutlineGrey, RoundedCornerShape(14.dp)),
                 colors = TextFieldDefaults.textFieldColors(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White,
-                    containerColor = DarkSurface,
+                    containerColor = FrostGlassBgTop,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent
@@ -165,8 +170,9 @@ fun GenreGridCard(
         modifier = modifier
             .fillMaxWidth()
             .height(70.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
+            .clip(RoundedCornerShape(12.dp))
+            .background(FrostGlassBgTop)
+            .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -201,8 +207,9 @@ fun SearchResultCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
+            .clip(RoundedCornerShape(12.dp))
+            .background(FrostGlassBgTop)
+            .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
             .clickable { onClick() }
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically

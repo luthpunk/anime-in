@@ -53,7 +53,10 @@ import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.data.model.SearchItem
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.DarkSurfaceVariant
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.components.PremiumLoadingSpinner
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.util.AnimeIdUtils
@@ -111,11 +114,12 @@ fun HomeScreen(
                         onValueChange = { viewModel.onSearchQueryChanged(it) },
                         textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
                         singleLine = true,
-                        cursorBrush = SolidColor(NeonPurple),
+                        cursorBrush = SolidColor(Color.White),
                         modifier = Modifier
                             .weight(0.73f)
                             .height(48.dp)
-                            .background(DarkSurface, RoundedCornerShape(24.dp))
+                            .background(FrostGlassBgTop, RoundedCornerShape(24.dp))
+                            .border(1.dp, OutlineGrey, RoundedCornerShape(24.dp))
                             .padding(horizontal = 14.dp),
                         decorationBox = { innerTextField ->
                             Row(
@@ -125,7 +129,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = "Cari",
-                                    tint = TextSecondary,
+                                    tint = Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -171,7 +175,12 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(if (isServerFocused) NeonPurple.copy(alpha = 0.4f) else DarkSurface)
+                                .background(if (isServerFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop)
+                                .border(
+                                    width = if (isServerFocused) 1.5.dp else 1.dp,
+                                    color = if (isServerFocused) Color.White else OutlineGrey,
+                                    shape = RoundedCornerShape(24.dp)
+                                )
                                 .onFocusChanged { isServerFocused = it.isFocused }
                                 .focusable()
                                 .clickable { showServerDropdown = true }
@@ -204,15 +213,10 @@ fun HomeScreen(
                             expanded = showServerDropdown,
                             onDismissRequest = { showServerDropdown = false },
                             modifier = Modifier
-                                .background(DarkSurfaceVariant.copy(alpha = 0.85f))
+                                .background(DarkSurfaceVariant.copy(alpha = 0.94f))
                                 .border(
                                     width = 1.dp,
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.12f),
-                                            Color.White.copy(alpha = 0.02f)
-                                        )
-                                    ),
+                                    color = OutlineGrey,
                                     shape = RoundedCornerShape(8.dp)
                                 )
                         ) {
@@ -222,7 +226,7 @@ fun HomeScreen(
                                 DropdownMenuItem(
                                     modifier = Modifier
                                         .onFocusChanged { isItemFocused = it.isFocused }
-                                        .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
+                                        .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
                                     text = {
                                         Box(
                                             modifier = Modifier.fillMaxWidth(),
@@ -236,13 +240,13 @@ fun HomeScreen(
                                                     modifier = Modifier
                                                         .size(6.dp)
                                                         .background(
-                                                            if (isSelected) NeonPurple else Color.Transparent,
+                                                            if (isSelected) Color.White else Color.Transparent,
                                                             RoundedCornerShape(50)
                                                         )
                                                 )
                                                 Text(
                                                     text = label,
-                                                    color = if (isSelected) NeonPurple else Color.White,
+                                                    color = Color.White,
                                                     fontSize = 13.sp,
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                 )
@@ -408,6 +412,7 @@ fun HeroBanner(
             .height(250.dp)
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(24.dp))
+            .border(1.dp, OutlineGrey, RoundedCornerShape(24.dp))
             .clickable { onClick() }
     ) {
         AsyncImage(
@@ -421,7 +426,7 @@ fun HeroBanner(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))
+                        colors = listOf(Color.Transparent, Color(0xFF161618).copy(alpha = 0.92f))
                     )
                 )
         )
@@ -436,7 +441,8 @@ fun HeroBanner(
             }
             Box(
                 modifier = Modifier
-                    .background(NeonPurple, RoundedCornerShape(4.dp))
+                    .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
+                    .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -471,7 +477,7 @@ fun HeroBanner(
                 }
                 Text(
                     subtitleText,
-                    color = TextSecondary,
+                    color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -501,13 +507,21 @@ fun SectionHeader(
             fontWeight = FontWeight.Bold
         )
         if (onSeeAllClick != null) {
-            Text(
-                "Lihat Semua",
-                color = NeonPurple,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { onSeeAllClick() }
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(FrostGlassBgTop)
+                    .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
+                    .clickable { onSeeAllClick() }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    "Lihat Semua",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
@@ -529,6 +543,7 @@ fun OngoingAnimeCard(
                 .height(200.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
+                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
         ) {
             AsyncImage(
                 model = anime.thumb,
@@ -541,7 +556,8 @@ fun OngoingAnimeCard(
                     .align(Alignment.BottomStart)
                     .padding(8.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF231D2D).copy(alpha = 0.85f))
+                    .background(FrostGlassBgTop)
+                    .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -584,6 +600,7 @@ fun CompletedAnimeCard(
                 .height(200.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
+                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
         ) {
             AsyncImage(
                 model = anime.thumb,
@@ -596,14 +613,15 @@ fun CompletedAnimeCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
-                        .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                        .background(FrostGlassBgTop, RoundedCornerShape(6.dp))
+                        .border(1.dp, OutlineGrey, RoundedCornerShape(6.dp))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
-                        tint = StarYellow,
+                        tint = Color.White,
                         modifier = Modifier.size(10.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
@@ -620,7 +638,8 @@ fun CompletedAnimeCard(
                     .align(Alignment.BottomStart)
                     .padding(8.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF231D2D).copy(alpha = 0.85f))
+                    .background(FrostGlassBgTop)
+                    .border(1.dp, OutlineGrey, RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
@@ -691,6 +710,7 @@ fun ContinueWatchingCard(
                 .height(100.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(DarkSurface)
+                .border(1.dp, OutlineGreySubtle, RoundedCornerShape(16.dp))
         ) {
             if (item.thumb.isNotEmpty()) {
                 AsyncImage(
@@ -705,7 +725,7 @@ fun ContinueWatchingCard(
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(NeonPurple.copy(alpha = 0.6f), DarkSurface)
+                                colors = listOf(DarkSurfaceVariant, DarkSurface)
                             )
                         ),
                     contentAlignment = Alignment.Center
@@ -722,13 +742,14 @@ fun ContinueWatchingCard(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
+                    .background(Color.Black.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(36.dp)
-                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(18.dp)),
+                        .background(FrostGlassBgTop, RoundedCornerShape(18.dp))
+                        .border(1.dp, OutlineGrey, RoundedCornerShape(18.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -743,7 +764,8 @@ fun ContinueWatchingCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .background(NeonPurple.copy(alpha = 0.85f), RoundedCornerShape(topEnd = 6.dp))
+                    .background(FrostGlassBgTop, RoundedCornerShape(topEnd = 6.dp))
+                    .border(1.dp, OutlineGrey, RoundedCornerShape(topEnd = 6.dp))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
@@ -757,7 +779,7 @@ fun ContinueWatchingCard(
             // Progress bar at bottom
             LinearProgressIndicator(
                 progress = progressPercent,
-                color = NeonPurple,
+                color = Color.White,
                 trackColor = Color.White.copy(alpha = 0.2f),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -837,8 +859,9 @@ fun SearchResultCard(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(DarkSurface)
+            .clip(RoundedCornerShape(12.dp))
+            .background(FrostGlassBgTop)
+            .border(1.dp, OutlineGreySubtle, RoundedCornerShape(12.dp))
             .clickable { onClick() }
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically

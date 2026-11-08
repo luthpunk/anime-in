@@ -1,6 +1,7 @@
 package com.animein.app.ui.screens.genrelist
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -21,7 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.animein.app.ui.theme.DarkSurface
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.TextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,12 +69,13 @@ fun GenreListScreen(
                     ) {
                         items(state.genres) { genre ->
                             Card(
-                                colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = FrostGlassBgTop),
+                                shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(60.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .border(1.dp, OutlineGrey, RoundedCornerShape(14.dp))
                                     .clickable { onGenreClick(genre.id, genre.genreName) }
                             ) {
                                 Box(

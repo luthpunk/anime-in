@@ -147,7 +147,9 @@ fun MainApp() {
             if (showNav) {
                 NavigationRail(
                     containerColor = DarkSurface,
-                    modifier = Modifier.fillMaxHeight()
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .border(width = 1.dp, color = com.animein.app.ui.theme.OutlineGreySubtle)
                 ) {
                     // Push items to vertical center
                     Spacer(modifier = Modifier.weight(1f))
@@ -171,7 +173,7 @@ fun MainApp() {
                                     imageVector = item.icon,
                                     contentDescription = item.label,
                                     tint = when {
-                                        selected  -> NeonPurple
+                                        selected  -> Color.White
                                         isFocused -> Color.White
                                         else      -> TextSecondary
                                     }
@@ -188,7 +190,7 @@ fun MainApp() {
                                 )
                             },
                             colors = NavigationRailItemDefaults.colors(
-                                indicatorColor = NeonPurple.copy(alpha = 0.15f)
+                                indicatorColor = Color.White.copy(alpha = 0.16f)
                             ),
                             modifier = Modifier.onFocusChanged { isFocused = it.isFocused }
                         )
@@ -265,7 +267,12 @@ fun MainApp() {
                                         .height(44.dp) // rounded rect height
                                         .align(Alignment.CenterStart)
                                         .background(
-                                            color = Color.White.copy(alpha = 0.12f),
+                                            color = Color.White.copy(alpha = 0.14f),
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = com.animein.app.ui.theme.OutlineGrey.copy(alpha = 0.7f),
                                             shape = RoundedCornerShape(20.dp)
                                         )
                                 )
@@ -311,7 +318,7 @@ fun MainApp() {
                                             Icon(
                                                 imageVector = item.icon,
                                                 contentDescription = item.label,
-                                                tint = if (isSelected) com.animein.app.ui.theme.NeonPurple else com.animein.app.ui.theme.TextSecondary,
+                                                tint = if (isSelected) Color.White else com.animein.app.ui.theme.TextSecondary,
                                                 modifier = Modifier.size(26.dp)
                                             )
                                         }

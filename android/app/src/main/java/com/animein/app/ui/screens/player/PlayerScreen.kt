@@ -69,7 +69,10 @@ import com.animein.app.data.model.MirrorItem
 import com.animein.app.util.AnimeIdUtils
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.DarkSurfaceVariant
+import com.animein.app.ui.theme.FrostGlassBgTop
 import com.animein.app.ui.theme.NeonPurple
+import com.animein.app.ui.theme.OutlineGrey
+import com.animein.app.ui.theme.OutlineGreySubtle
 import com.animein.app.ui.theme.TextSecondary
 import com.animein.app.ui.components.PremiumLoadingSpinner
 import kotlinx.coroutines.delay
@@ -193,6 +196,8 @@ fun PlayerScreen(
 
                              var showControls by remember { mutableStateOf(true) }
                              var isLocked by remember { mutableStateOf(false) }
+                             var lastUserInteractionTick by remember { mutableLongStateOf(0L) }
+                             var suppressNextCenterUp by remember { mutableStateOf(false) }
                              val playPauseFocusRequester = remember { FocusRequester() }
 
                             LaunchedEffect(showControls) {
@@ -358,11 +363,17 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Hide controls after 3.5 seconds, unless settings dropdown is open or a control is focused
-                            val isAnyControlFocused = isPrevFocused || isPlayFocused || isNextFocused || isResFocused || isSpeedFocused || isFullscreenBtnFocused || isSliderFocused || isLockBtnFocused
-                            LaunchedEffect(showControls, isPlaying, showQualityDropdown, showSpeedDropdown, isAnyControlFocused, isLocked) {
-                                if (showControls && isPlaying && !showQualityDropdown && !showSpeedDropdown && !isAnyControlFocused) {
-                                    delay(3500)
+                            // Auto-hide controls after 3.5 seconds of no remote input / focus movement / touch interaction
+                            LaunchedEffect(
+                                showControls,
+                                isPlaying,
+                                showQualityDropdown,
+                                showSpeedDropdown,
+                                isLocked,
+                                lastUserInteractionTick
+                            ) {
+                                if (showControls && !showQualityDropdown && !showSpeedDropdown) {
+                                    delay(3500L)
                                     showControls = false
                                 }
                             }
@@ -469,20 +480,41 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .focusable()
-                                    .onKeyEvent { keyEvent ->
-                                         if (!isTV) return@onKeyEvent false
-                                         
-                                         if (keyEvent.type == KeyEventType.KeyDown) {
-                                             if (!showControls) {
-                                                 showControls = true
-                                                 try {
-                                                     playPauseFocusRequester.requestFocus()
-                                                 } catch (e: Exception) {}
-                                                 return@onKeyEvent true
-                                             }
-                                         }
-                                         false
-                                     }
+                                    .onPreviewKeyEvent { keyEvent ->
+                                        if (!isTV) return@onPreviewKeyEvent false
+
+                                        val isWakeKey = keyEvent.key == Key.DirectionCenter ||
+                                            keyEvent.key == Key.Enter ||
+                                            keyEvent.key == Key.DirectionLeft ||
+                                            keyEvent.key == Key.DirectionRight ||
+                                            keyEvent.key == Key.DirectionUp ||
+                                            keyEvent.key == Key.DirectionDown
+
+                                        if (!showControls) {
+                                            if (keyEvent.type == KeyEventType.KeyDown && isWakeKey) {
+                                                showControls = true
+                                                lastUserInteractionTick++
+                                                suppressNextCenterUp = true
+                                                try {
+                                                    playPauseFocusRequester.requestFocus()
+                                                } catch (e: Exception) {}
+                                                return@onPreviewKeyEvent true
+                                            }
+                                            return@onPreviewKeyEvent false
+                                        } else {
+                                            // Controls are currently visible: reset auto-hide timer on any remote key activity
+                                            if (keyEvent.type == KeyEventType.KeyDown || keyEvent.type == KeyEventType.KeyUp) {
+                                                lastUserInteractionTick++
+                                            }
+                                            if (suppressNextCenterUp && keyEvent.type == KeyEventType.KeyUp &&
+                                                (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter)
+                                            ) {
+                                                suppressNextCenterUp = false
+                                                return@onPreviewKeyEvent true
+                                            }
+                                            return@onPreviewKeyEvent false
+                                        }
+                                    }
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
                                         detectTapGestures(
@@ -517,6 +549,7 @@ fun PlayerScreen(
                                             onTap = {
                                                 // Tap: tampilkan/sembunyikan kontrol (termasuk saat terkunci agar bisa unlock)
                                                 showControls = !showControls
+                                                if (showControls) lastUserInteractionTick++
                                             }
                                         )
                                     }
@@ -638,7 +671,7 @@ fun PlayerScreen(
                                         isLeft = true,
                                         progress = brightnessValue,
                                         icon = BrightnessIcon,
-                                        color = Color(0xFFFFC107),
+                                        color = Color.White,
                                         modifier = Modifier.align(Alignment.CenterStart)
                                     )
                                 }
@@ -647,7 +680,7 @@ fun PlayerScreen(
                                         isLeft = false,
                                         progress = volumePercent,
                                         icon = VolumeUpIcon,
-                                        color = Color(0xFF4FC3F7),
+                                        color = Color.White,
                                         modifier = Modifier.align(Alignment.CenterEnd)
                                     )
                                 }
@@ -682,17 +715,29 @@ fun PlayerScreen(
                                                     .size(40.dp)
                                                     .clip(RoundedCornerShape(20.dp))
                                                     .background(
-                                                        if (isLocked) NeonPurple.copy(alpha = 0.85f)
-                                                        else Color.Black.copy(alpha = 0.45f)
+                                                        if (isLocked) Color.White.copy(alpha = 0.25f)
+                                                        else FrostGlassBgTop
                                                     )
-                                                    .onFocusChanged { isLockBtnFocused = it.isFocused }
+                                                    .border(
+                                                        width = if (isLockBtnFocused || isLocked) 1.5.dp else 1.dp,
+                                                        color = if (isLockBtnFocused || isLocked) Color.White else OutlineGrey,
+                                                        shape = RoundedCornerShape(20.dp)
+                                                    )
+                                                    .onFocusChanged {
+                                                        isLockBtnFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
+                                                    }
                                                     .focusable()
                                                     .clickable {
                                                         isLocked = !isLocked
-                                                        // Setelah unlock, tampilkan kontrol sebentar
+                                                        lastUserInteractionTick++
                                                         if (!isLocked) showControls = true
                                                     }
-                                                    .handleRemoteClick { isLocked = !isLocked; if (!isLocked) showControls = true },
+                                                    .handleRemoteClick {
+                                                        isLocked = !isLocked
+                                                        lastUserInteractionTick++
+                                                        if (!isLocked) showControls = true
+                                                    },
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
@@ -756,16 +801,30 @@ fun PlayerScreen(
 
                                             // Previous Episode Button
                                             IconButton(
-                                                onClick = { if (prevEpId != null) viewModel.selectEpisode(prevEpId!!) },
+                                                onClick = {
+                                                    lastUserInteractionTick++
+                                                    if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
+                                                },
                                                 enabled = prevEpId != null,
                                                 modifier = Modifier
                                                     .size(48.dp)
-                                                    .onFocusChanged { isPrevFocused = it.isFocused }
+                                                    .onFocusChanged {
+                                                        isPrevFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
+                                                    }
                                                     .focusable()
-                                                    .handleRemoteClick { if (prevEpId != null) viewModel.selectEpisode(prevEpId!!) }
+                                                    .handleRemoteClick {
+                                                        lastUserInteractionTick++
+                                                        if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
+                                                    }
                                                     .background(
-                                                        if (isPrevFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                        if (isPrevFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
                                                         RoundedCornerShape(24.dp)
+                                                    )
+                                                    .border(
+                                                        width = if (isPrevFocused) 1.5.dp else 1.dp,
+                                                        color = if (isPrevFocused) Color.White else OutlineGrey,
+                                                        shape = RoundedCornerShape(24.dp)
                                                     )
                                             ) {
                                                 Icon(
@@ -779,6 +838,7 @@ fun PlayerScreen(
                                             // Play/Pause Button
                                             IconButton(
                                                 onClick = {
+                                                    lastUserInteractionTick++
                                                     if (exoPlayer.isPlaying) {
                                                         exoPlayer.pause()
                                                     } else {
@@ -788,12 +848,23 @@ fun PlayerScreen(
                                                 modifier = Modifier
                                                     .size(56.dp)
                                                     .focusRequester(playPauseFocusRequester)
-                                                    .onFocusChanged { isPlayFocused = it.isFocused }
+                                                    .onFocusChanged {
+                                                        isPlayFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
+                                                    }
                                                     .focusable()
-                                                    .handleRemoteClick { if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play() }
+                                                    .handleRemoteClick {
+                                                        lastUserInteractionTick++
+                                                        if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
+                                                    }
                                                     .background(
-                                                        if (isPlayFocused) NeonPurple else Color.White.copy(alpha = 0.2f),
+                                                        if (isPlayFocused) Color.White.copy(alpha = 0.25f) else FrostGlassBgTop,
                                                         RoundedCornerShape(28.dp)
+                                                    )
+                                                    .border(
+                                                        width = if (isPlayFocused) 1.5.dp else 1.dp,
+                                                        color = if (isPlayFocused) Color.White else OutlineGrey,
+                                                        shape = RoundedCornerShape(28.dp)
                                                     )
                                             ) {
                                                 Icon(
@@ -806,16 +877,30 @@ fun PlayerScreen(
 
                                             // Next Episode Button
                                             IconButton(
-                                                onClick = { if (nextEpId != null) viewModel.selectEpisode(nextEpId!!) },
+                                                onClick = {
+                                                    lastUserInteractionTick++
+                                                    if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
+                                                },
                                                 enabled = nextEpId != null,
                                                 modifier = Modifier
                                                     .size(48.dp)
-                                                    .onFocusChanged { isNextFocused = it.isFocused }
+                                                    .onFocusChanged {
+                                                        isNextFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
+                                                    }
                                                     .focusable()
-                                                    .handleRemoteClick { if (nextEpId != null) viewModel.selectEpisode(nextEpId!!) }
+                                                    .handleRemoteClick {
+                                                        lastUserInteractionTick++
+                                                        if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
+                                                    }
                                                     .background(
-                                                        if (isNextFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                        if (isNextFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
                                                         RoundedCornerShape(24.dp)
+                                                    )
+                                                    .border(
+                                                        width = if (isNextFocused) 1.5.dp else 1.dp,
+                                                        color = if (isNextFocused) Color.White else OutlineGrey,
+                                                        shape = RoundedCornerShape(24.dp)
                                                     )
                                             ) {
                                                 Icon(
@@ -849,12 +934,26 @@ fun PlayerScreen(
                                                             .height(32.dp)
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .background(
-                                                                if (isResFocused) NeonPurple.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
+                                                                if (isResFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
                                                             )
-                                                            .onFocusChanged { isResFocused = it.isFocused }
+                                                            .border(
+                                                                width = if (isResFocused) 1.5.dp else 1.dp,
+                                                                color = if (isResFocused) Color.White else OutlineGrey,
+                                                                shape = RoundedCornerShape(8.dp)
+                                                            )
+                                                            .onFocusChanged {
+                                                                isResFocused = it.isFocused
+                                                                if (it.isFocused) lastUserInteractionTick++
+                                                            }
                                                             .focusable()
-                                                            .clickable { showQualityDropdown = true }
-                                                            .handleRemoteClick { showQualityDropdown = true }
+                                                            .clickable {
+                                                                lastUserInteractionTick++
+                                                                showQualityDropdown = true
+                                                            }
+                                                            .handleRemoteClick {
+                                                                lastUserInteractionTick++
+                                                                showQualityDropdown = true
+                                                            }
                                                             .padding(horizontal = 10.dp),
                                                         contentAlignment = Alignment.Center
                                                     ) {
@@ -868,17 +967,15 @@ fun PlayerScreen(
 
                                                     DropdownMenu(
                                                          expanded = showQualityDropdown,
-                                                         onDismissRequest = { showQualityDropdown = false },
+                                                         onDismissRequest = {
+                                                             lastUserInteractionTick++
+                                                             showQualityDropdown = false
+                                                         },
                                                          modifier = Modifier
-                                                             .background(DarkSurfaceVariant.copy(alpha = 0.85f))
+                                                             .background(DarkSurfaceVariant.copy(alpha = 0.94f))
                                                              .border(
                                                                  width = 1.dp,
-                                                                 brush = Brush.verticalGradient(
-                                                                     colors = listOf(
-                                                                         Color.White.copy(alpha = 0.12f),
-                                                                         Color.White.copy(alpha = 0.02f)
-                                                                     )
-                                                                 ),
+                                                                 color = OutlineGrey,
                                                                  shape = RoundedCornerShape(8.dp)
                                                              )
                                                      ) {
@@ -887,8 +984,11 @@ fun PlayerScreen(
                                                              var isItemFocused by remember { mutableStateOf(false) }
                                                              DropdownMenuItem(
                                                                  modifier = Modifier
-                                                                     .onFocusChanged { isItemFocused = it.isFocused }
-                                                                     .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
+                                                                     .onFocusChanged {
+                                                                         isItemFocused = it.isFocused
+                                                                         if (it.isFocused) lastUserInteractionTick++
+                                                                     }
+                                                                     .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
                                                                  text = {
                                                                      Box(
                                                                          modifier = Modifier.fillMaxWidth(),
@@ -902,13 +1002,13 @@ fun PlayerScreen(
                                                                                  modifier = Modifier
                                                                                      .size(6.dp)
                                                                                      .background(
-                                                                                         if (isSelected) NeonPurple else Color.Transparent,
+                                                                                         if (isSelected) Color.White else Color.Transparent,
                                                                                          RoundedCornerShape(50)
                                                                                      )
                                                                              )
                                                                              Text(
                                                                                  text = mirror.resolution,
-                                                                                 color = if (isSelected) NeonPurple else Color.White,
+                                                                                 color = Color.White,
                                                                                  fontSize = 13.sp,
                                                                                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                              )
@@ -916,6 +1016,7 @@ fun PlayerScreen(
                                                                      }
                                                                  },
                                                                  onClick = {
+                                                                     lastUserInteractionTick++
                                                                      selectedResolution = mirror.resolution
                                                                      viewModel.switchMirror(mirror.id)
                                                                      showQualityDropdown = false
@@ -934,12 +1035,26 @@ fun PlayerScreen(
                                                             .height(32.dp)
                                                             .clip(RoundedCornerShape(8.dp))
                                                             .background(
-                                                                if (isSpeedFocused) NeonPurple.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f)
+                                                                if (isSpeedFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
                                                             )
-                                                            .onFocusChanged { isSpeedFocused = it.isFocused }
+                                                            .border(
+                                                                width = if (isSpeedFocused) 1.5.dp else 1.dp,
+                                                                color = if (isSpeedFocused) Color.White else OutlineGrey,
+                                                                shape = RoundedCornerShape(8.dp)
+                                                            )
+                                                            .onFocusChanged {
+                                                                isSpeedFocused = it.isFocused
+                                                                if (it.isFocused) lastUserInteractionTick++
+                                                            }
                                                             .focusable()
-                                                            .clickable { showSpeedDropdown = true }
-                                                            .handleRemoteClick { showSpeedDropdown = true }
+                                                            .clickable {
+                                                                lastUserInteractionTick++
+                                                                showSpeedDropdown = true
+                                                            }
+                                                            .handleRemoteClick {
+                                                                lastUserInteractionTick++
+                                                                showSpeedDropdown = true
+                                                            }
                                                             .padding(horizontal = 10.dp),
                                                         contentAlignment = Alignment.Center
                                                     ) {
@@ -953,17 +1068,15 @@ fun PlayerScreen(
 
                                                     DropdownMenu(
                                                         expanded = showSpeedDropdown,
-                                                        onDismissRequest = { showSpeedDropdown = false },
+                                                        onDismissRequest = {
+                                                            lastUserInteractionTick++
+                                                            showSpeedDropdown = false
+                                                        },
                                                         modifier = Modifier
-                                                            .background(DarkSurfaceVariant.copy(alpha = 0.85f))
+                                                            .background(DarkSurfaceVariant.copy(alpha = 0.94f))
                                                             .border(
                                                                 width = 1.dp,
-                                                                brush = Brush.verticalGradient(
-                                                                    colors = listOf(
-                                                                        Color.White.copy(alpha = 0.12f),
-                                                                        Color.White.copy(alpha = 0.02f)
-                                                                    )
-                                                                ),
+                                                                color = OutlineGrey,
                                                                 shape = RoundedCornerShape(8.dp)
                                                             )
                                                     ) {
@@ -972,8 +1085,11 @@ fun PlayerScreen(
                                                             var isItemFocused by remember { mutableStateOf(false) }
                                                             DropdownMenuItem(
                                                                 modifier = Modifier
-                                                                    .onFocusChanged { isItemFocused = it.isFocused }
-                                                                    .background(if (isItemFocused) NeonPurple.copy(alpha = 0.25f) else Color.Transparent),
+                                                                    .onFocusChanged {
+                                                                        isItemFocused = it.isFocused
+                                                                        if (it.isFocused) lastUserInteractionTick++
+                                                                    }
+                                                                    .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
                                                                 text = {
                                                                     Box(
                                                                         modifier = Modifier.fillMaxWidth(),
@@ -987,13 +1103,13 @@ fun PlayerScreen(
                                                                                 modifier = Modifier
                                                                                     .size(6.dp)
                                                                                     .background(
-                                                                                        if (isSelected) NeonPurple else Color.Transparent,
+                                                                                        if (isSelected) Color.White else Color.Transparent,
                                                                                         RoundedCornerShape(50)
                                                                                     )
                                                                             )
                                                                             Text(
                                                                                 text = "${value}x",
-                                                                                color = if (isSelected) NeonPurple else Color.White,
+                                                                                color = Color.White,
                                                                                 fontSize = 13.sp,
                                                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                                             )
@@ -1002,6 +1118,7 @@ fun PlayerScreen(
                                                                 },
 
                                                                 onClick = {
+                                                                    lastUserInteractionTick++
                                                                     viewModel.setPlaybackSpeed(value)
                                                                     showSpeedDropdown = false
                                                                 }
@@ -1013,22 +1130,36 @@ fun PlayerScreen(
                                                 Spacer(modifier = Modifier.width(8.dp))
 
                                                 IconButton(
-                                                    onClick = { isFullscreen = !isFullscreen },
+                                                    onClick = {
+                                                        lastUserInteractionTick++
+                                                        isFullscreen = !isFullscreen
+                                                    },
                                                     modifier = Modifier
                                                         .size(36.dp)
-                                                        .onFocusChanged { isFullscreenBtnFocused = it.isFocused }
+                                                        .onFocusChanged {
+                                                            isFullscreenBtnFocused = it.isFocused
+                                                            if (it.isFocused) lastUserInteractionTick++
+                                                        }
                                                         .focusable()
-                                                        .handleRemoteClick { isFullscreen = !isFullscreen }
+                                                        .handleRemoteClick {
+                                                            lastUserInteractionTick++
+                                                            isFullscreen = !isFullscreen
+                                                        }
                                                         .background(
-                                                            if (isFullscreenBtnFocused) NeonPurple.copy(alpha = 0.4f) else Color.Transparent,
+                                                            if (isFullscreenBtnFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
                                                             RoundedCornerShape(18.dp)
+                                                        )
+                                                        .border(
+                                                            width = if (isFullscreenBtnFocused) 1.5.dp else 1.dp,
+                                                            color = if (isFullscreenBtnFocused) Color.White else OutlineGrey,
+                                                            shape = RoundedCornerShape(18.dp)
                                                         )
                                                 ) {
                                                     Icon(
                                                         imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
                                                         contentDescription = "Fullscreen",
                                                         tint = Color.White,
-                                                        modifier = Modifier.size(24.dp)
+                                                        modifier = Modifier.size(22.dp)
                                                     )
                                                 }
                                             }
@@ -1046,6 +1177,7 @@ fun PlayerScreen(
                                                 Slider(
                                                     value = if (duration > 0) currentPosition.toFloat() else 0f,
                                                     onValueChange = {
+                                                        lastUserInteractionTick++
                                                         currentPosition = it.toLong()
                                                         exoPlayer.seekTo(currentPosition)
                                                     },
@@ -1053,18 +1185,23 @@ fun PlayerScreen(
                                                     modifier = Modifier
                                                         .weight(1f)
                                                         .padding(horizontal = 6.dp)
-                                                        .onFocusChanged { isSliderFocused = it.isFocused }
+                                                        .onFocusChanged {
+                                                            isSliderFocused = it.isFocused
+                                                            if (it.isFocused) lastUserInteractionTick++
+                                                        }
                                                         .focusable()
                                                         .onKeyEvent { keyEvent ->
                                                             if (keyEvent.type == KeyEventType.KeyDown) {
                                                                 when (keyEvent.key) {
                                                                     Key.DirectionLeft -> {
+                                                                        lastUserInteractionTick++
                                                                         val target = (currentPosition - 10000).coerceAtLeast(0L)
                                                                         currentPosition = target
                                                                         exoPlayer.seekTo(target)
                                                                         true
                                                                     }
                                                                     Key.DirectionRight -> {
+                                                                        lastUserInteractionTick++
                                                                         val target = (currentPosition + 10000).coerceAtMost(duration)
                                                                         currentPosition = target
                                                                         exoPlayer.seekTo(target)
@@ -1075,9 +1212,9 @@ fun PlayerScreen(
                                                             } else false
                                                         },
                                                     colors = SliderDefaults.colors(
-                                                        thumbColor = NeonPurple,
-                                                        activeTrackColor = NeonPurple,
-                                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                                        thumbColor = Color.White,
+                                                        activeTrackColor = Color.White,
+                                                        inactiveTrackColor = OutlineGrey.copy(alpha = 0.5f)
                                                     )
                                                 )
                                                 Text(
@@ -1148,7 +1285,7 @@ fun PlayerScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     if (synopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
-                                    color = NeonPurple,
+                                    color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
@@ -1180,7 +1317,14 @@ fun PlayerScreen(
                                                     .weight(1f)
                                                     .height(36.dp)
                                                     .clip(RoundedCornerShape(10.dp))
-                                                    .background(if (isCurrent) NeonPurple else DarkSurface)
+                                                    .background(
+                                                        if (isCurrent) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                    )
+                                                    .border(
+                                                        width = if (isCurrent) 1.5.dp else 1.dp,
+                                                        color = if (isCurrent) Color.White else OutlineGreySubtle,
+                                                        shape = RoundedCornerShape(10.dp)
+                                                    )
                                                     .clickable {
                                                         viewModel.selectEpisode(episode.id)
                                                     },
@@ -1327,7 +1471,8 @@ fun SideGestureIndicator(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(36.dp)
-                .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                .background(FrostGlassBgTop, RoundedCornerShape(18.dp))
+                .border(1.dp, OutlineGrey, RoundedCornerShape(18.dp))
                 .padding(vertical = 12.dp, horizontal = 6.dp)
         ) {
             Icon(
@@ -1600,7 +1745,7 @@ val LockClosedIcon: ImageVector
             close()
         }
         // Titik di tengah (keyhole)
-        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF8B5CF6))) {
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF232326))) {
             moveTo(12f, 17f)
             arcTo(1.5f, 1.5f, 0f, false, true, 10.5f, 15.5f)
             arcTo(1.5f, 1.5f, 0f, false, true, 12f, 14f)
@@ -1645,7 +1790,7 @@ val LockOpenIcon: ImageVector
             close()
         }
         // Titik di tengah
-        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF374151))) {
+        path(fill = androidx.compose.ui.graphics.SolidColor(Color(0xFF232326))) {
             moveTo(12f, 17f)
             arcTo(1.5f, 1.5f, 0f, false, true, 10.5f, 15.5f)
             arcTo(1.5f, 1.5f, 0f, false, true, 12f, 14f)

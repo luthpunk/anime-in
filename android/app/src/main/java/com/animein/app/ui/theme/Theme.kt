@@ -17,13 +17,15 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = NeonPurple,
-    secondary = NeonPink,
-    tertiary = NeonCyan,
+    primary = FrostWhiteAccent,
+    secondary = OutlineGrey,
+    tertiary = TextSecondary,
     background = DarkBackground,
     surface = DarkSurface,
     surfaceVariant = DarkSurfaceVariant,
-    onPrimary = Color.White,
+    outline = OutlineGrey,
+    outlineVariant = OutlineGreySubtle,
+    onPrimary = DarkBackground,
     onSecondary = Color.White,
     onBackground = TextPrimary,
     onSurface = TextPrimary,
