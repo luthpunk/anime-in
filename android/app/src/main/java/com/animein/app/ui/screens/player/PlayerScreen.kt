@@ -215,13 +215,29 @@ fun PlayerScreen(
                              var isLocked by remember { mutableStateOf(false) }
                              var lastUserInteractionTick by remember { mutableLongStateOf(0L) }
                              var suppressNextCenterUp by remember { mutableStateOf(false) }
+                             val playerContainerFocusRequester = remember { FocusRequester() }
                              val playPauseFocusRequester = remember { FocusRequester() }
+                             val lockBtnFocusRequester = remember { FocusRequester() }
 
-                            LaunchedEffect(showControls) {
-                                if (showControls && isTV) {
-                                    try {
-                                        playPauseFocusRequester.requestFocus()
-                                    } catch (e: Exception) {}
+                            LaunchedEffect(showControls, isLocked) {
+                                if (isTV) {
+                                    if (showControls && !isLocked) {
+                                        delay(25)
+                                        try {
+                                            playPauseFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    } else if (showControls && isLocked) {
+                                        delay(25)
+                                        try {
+                                            lockBtnFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    } else {
+                                        // Saat kontrol tersembunyi, fokuskan langsung ke container utama player
+                                        // agar cukup 1x tekan tombol OK/D-pad untuk memunculkan menu kontrol
+                                        try {
+                                            playerContainerFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    }
                                 }
                             }
                             var isPlaying by remember { mutableStateOf(true) }
@@ -496,7 +512,6 @@ fun PlayerScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .focusable()
                                     .onPreviewKeyEvent { keyEvent ->
                                         if (!isTV) return@onPreviewKeyEvent false
 
@@ -511,10 +526,9 @@ fun PlayerScreen(
                                             if (keyEvent.type == KeyEventType.KeyDown && isWakeKey) {
                                                 showControls = true
                                                 lastUserInteractionTick++
-                                                suppressNextCenterUp = true
-                                                try {
-                                                    playPauseFocusRequester.requestFocus()
-                                                } catch (e: Exception) {}
+                                                if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+                                                    suppressNextCenterUp = true
+                                                }
                                                 return@onPreviewKeyEvent true
                                             }
                                             return@onPreviewKeyEvent false
@@ -532,6 +546,8 @@ fun PlayerScreen(
                                             return@onPreviewKeyEvent false
                                         }
                                     }
+                                    .focusRequester(playerContainerFocusRequester)
+                                    .focusable()
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
                                         detectTapGestures(
@@ -626,6 +642,8 @@ fun PlayerScreen(
                                             player = exoPlayer
                                             useController = false
                                             keepScreenOn = true
+                                            isFocusable = false
+                                            isFocusableInTouchMode = false
                                             layoutParams = ViewGroup.LayoutParams(
                                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -738,17 +756,12 @@ fun PlayerScreen(
                                                         shape = controlChipShape,
                                                         isFocused = isLockBtnFocused || isLocked
                                                     )
+                                                    .focusRequester(lockBtnFocusRequester)
                                                     .onFocusChanged {
                                                         isLockBtnFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable()
                                                     .clickable {
-                                                        isLocked = !isLocked
-                                                        lastUserInteractionTick++
-                                                        if (!isLocked) showControls = true
-                                                    }
-                                                    .handleRemoteClick {
                                                         isLocked = !isLocked
                                                         lastUserInteractionTick++
                                                         if (!isLocked) showControls = true
@@ -834,12 +847,7 @@ fun PlayerScreen(
                                                         isPrevFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable(enabled = prevEpId != null)
                                                     .clickable(enabled = prevEpId != null) {
-                                                        lastUserInteractionTick++
-                                                        if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
-                                                    }
-                                                    .handleRemoteClick {
                                                         lastUserInteractionTick++
                                                         if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
                                                     },
@@ -866,18 +874,16 @@ fun PlayerScreen(
                                                         isPlayFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable()
                                                     .clickable {
                                                         lastUserInteractionTick++
-                                                        if (exoPlayer.isPlaying) {
+                                                        if (exoPlayer.isPlaying || exoPlayer.playWhenReady) {
                                                             exoPlayer.pause()
                                                         } else {
+                                                            if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                                                                exoPlayer.seekTo(0)
+                                                            }
                                                             exoPlayer.play()
                                                         }
-                                                    }
-                                                    .handleRemoteClick {
-                                                        lastUserInteractionTick++
-                                                        if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
                                                     },
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -909,12 +915,7 @@ fun PlayerScreen(
                                                         isNextFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable(enabled = nextEpId != null)
                                                     .clickable(enabled = nextEpId != null) {
-                                                        lastUserInteractionTick++
-                                                        if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
-                                                    }
-                                                    .handleRemoteClick {
                                                         lastUserInteractionTick++
                                                         if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
                                                     },
@@ -984,12 +985,7 @@ fun PlayerScreen(
                                                                     isResFocused = it.isFocused
                                                                     if (it.isFocused) lastUserInteractionTick++
                                                                 }
-                                                                .focusable()
                                                                 .clickable {
-                                                                    lastUserInteractionTick++
-                                                                    showQualityDropdown = true
-                                                                }
-                                                                .handleRemoteClick {
                                                                     lastUserInteractionTick++
                                                                     showQualityDropdown = true
                                                                 }
@@ -1043,14 +1039,7 @@ fun PlayerScreen(
                                                                              isItemFocused = it.isFocused
                                                                              if (it.isFocused) lastUserInteractionTick++
                                                                          }
-                                                                         .focusable()
                                                                          .clickable {
-                                                                             lastUserInteractionTick++
-                                                                             selectedResolution = mirror.resolution
-                                                                             viewModel.switchMirror(mirror.id)
-                                                                             showQualityDropdown = false
-                                                                         }
-                                                                         .handleRemoteClick {
                                                                              lastUserInteractionTick++
                                                                              selectedResolution = mirror.resolution
                                                                              viewModel.switchMirror(mirror.id)
@@ -1084,12 +1073,7 @@ fun PlayerScreen(
                                                                     isSpeedFocused = it.isFocused
                                                                     if (it.isFocused) lastUserInteractionTick++
                                                                 }
-                                                                .focusable()
                                                                 .clickable {
-                                                                    lastUserInteractionTick++
-                                                                    showSpeedDropdown = true
-                                                                }
-                                                                .handleRemoteClick {
                                                                     lastUserInteractionTick++
                                                                     showSpeedDropdown = true
                                                                 }
@@ -1143,13 +1127,7 @@ fun PlayerScreen(
                                                                             isItemFocused = it.isFocused
                                                                             if (it.isFocused) lastUserInteractionTick++
                                                                         }
-                                                                        .focusable()
                                                                         .clickable {
-                                                                            lastUserInteractionTick++
-                                                                            viewModel.setPlaybackSpeed(value)
-                                                                            showSpeedDropdown = false
-                                                                        }
-                                                                        .handleRemoteClick {
                                                                             lastUserInteractionTick++
                                                                             viewModel.setPlaybackSpeed(value)
                                                                             showSpeedDropdown = false
@@ -1182,12 +1160,7 @@ fun PlayerScreen(
                                                                 isFullscreenBtnFocused = it.isFocused
                                                                 if (it.isFocused) lastUserInteractionTick++
                                                             }
-                                                            .focusable()
                                                             .clickable {
-                                                                lastUserInteractionTick++
-                                                                isFullscreen = !isFullscreen
-                                                            }
-                                                            .handleRemoteClick {
                                                                 lastUserInteractionTick++
                                                                 isFullscreen = !isFullscreen
                                                             },
@@ -1217,11 +1190,6 @@ fun PlayerScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .height(if (isFullscreen) 22.dp else 18.dp)
-                                                    .onFocusChanged {
-                                                        isSliderFocused = it.isFocused
-                                                        if (it.isFocused) lastUserInteractionTick++
-                                                    }
-                                                    .focusable()
                                                     .onKeyEvent { keyEvent ->
                                                         if (keyEvent.type == KeyEventType.KeyDown) {
                                                             when (keyEvent.key) {
@@ -1242,7 +1210,12 @@ fun PlayerScreen(
                                                                 else -> false
                                                             }
                                                         } else false
-                                                    },
+                                                    }
+                                                    .onFocusChanged {
+                                                        isSliderFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
+                                                    }
+                                                    .focusable(),
                                                 colors = SliderDefaults.colors(
                                                     thumbColor = Color.White,
                                                     activeTrackColor = Color.White,

@@ -3,13 +3,17 @@ package com.animein.app.ui.screens.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.local.entity.FavoriteEntity
 import com.animein.app.data.model.DetailResponse
 import com.animein.app.data.repository.AnimeRepository
 import com.animein.app.util.AnimeIdUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,6 +32,10 @@ class DetailViewModel @Inject constructor(
 
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite
+
+    val continueWatchingList: StateFlow<List<ContinueWatchingEntity>> =
+        repository.getContinueWatchingList()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         fetchDetail()

@@ -1,5 +1,6 @@
 package com.animein.app.ui.screens.detail
 
+import android.content.res.Configuration
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,10 +18,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,6 +48,10 @@ fun DetailScreen(
 ) {
     val uiState by viewModel.detailState.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
+    val continueWatchingList by viewModel.continueWatchingList.collectAsState()
+    val configuration = LocalConfiguration.current
+    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+            Configuration.UI_MODE_TYPE_TELEVISION
 
     Scaffold(
         modifier = modifier
@@ -192,173 +200,427 @@ fun DetailScreen(
                                     .padding(horizontal = 16.dp)
                                     .offset(y = (-8).dp)
                             ) {
-                                // Type & Episode Row
+                                val normAnimeId = remember(detail.animeId, viewModel.animeId) {
+                                    AnimeIdUtils.normalizeAnimeId(detail.animeId.ifBlank { viewModel.animeId })
+                                }
+                                val latestWatched = remember(continueWatchingList, normAnimeId, rawEpisodes) {
+                                    val episodeIds = rawEpisodes.map { AnimeIdUtils.normalizeEpisodeId(it.id) }.toSet()
+                                    continueWatchingList.firstOrNull { cw ->
+                                        AnimeIdUtils.normalizeAnimeId(cw.animeId) == normAnimeId ||
+                                            AnimeIdUtils.normalizeEpisodeId(cw.episodeId) in episodeIds
+                                    }
+                                }
+                                val firstEpisode = remember(rawEpisodes) {
+                                    rawEpisodes.lastOrNull { extractEpisodeNumber(it.title) == "1" }
+                                        ?: rawEpisodes.lastOrNull()
+                                }
+                                val targetWatchEpisodeId = latestWatched?.episodeId ?: firstEpisode?.id
+                                val watchButtonLabel = remember(latestWatched, rawEpisodes) {
+                                    if (latestWatched != null) {
+                                        val epNum = extractEpisodeNumber(latestWatched.episodeTitle).ifEmpty {
+                                            rawEpisodes.firstOrNull {
+                                                AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(latestWatched.episodeId)
+                                            }?.let { extractEpisodeNumber(it.title) } ?: ""
+                                        }
+                                        when {
+                                            epNum.equals("Movie", true) || epNum.equals("OVA", true) || epNum.equals("Special", true) ->
+                                                "Lanjut $epNum"
+                                            epNum.isNotEmpty() -> "Lanjut Episode $epNum"
+                                            else -> "Lanjut Tonton"
+                                        }
+                                    } else {
+                                        "Mulai Tonton"
+                                    }
+                                }
+                                val watchBtnFocusRequester = remember { FocusRequester() }
+                                var isWatchBtnFocused by remember { mutableStateOf(false) }
+
+                                LaunchedEffect(targetWatchEpisodeId) {
+                                    if (isTV && targetWatchEpisodeId != null) {
+                                        kotlinx.coroutines.delay(100)
+                                        try {
+                                            watchBtnFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+
+                                // Type, Total Episode Badges (Kiri) & Tombol Mulai/Lanjut Tonton (Kanan)
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(bottom = 12.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
-                                        Box(
-                                            modifier = Modifier
-                                                .frostGlass(shape = RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                animeType,
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        detail.type?.takeIf { it.isNotBlank() }?.let { animeType ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .frostGlass(shape = RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
+                                                Text(
+                                                    animeType,
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let { totalEp ->
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .frostGlass(shape = RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            ) {
+                                                val formattedTotal = AnimeIdUtils.formatEpisodeLabel(totalEp)
+                                                val epText = when {
+                                                    formattedTotal.contains("Episode", true) || formattedTotal.contains("Tamat", true) || formattedTotal.contains("Ongoing", true) -> formattedTotal
+                                                    else -> "$formattedTotal Episode"
+                                                }
+                                                Text(
+                                                    text = epText,
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
                                         }
                                     }
-                                    detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let { totalEp ->
-                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                    if (targetWatchEpisodeId != null) {
+                                        val watchBtnShape = RoundedCornerShape(18.dp)
                                         Box(
                                             modifier = Modifier
-                                                .frostGlass(shape = RoundedCornerShape(8.dp))
-                                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                .height(34.dp)
+                                                .frostGlass(
+                                                    shape = watchBtnShape,
+                                                    isFocused = isWatchBtnFocused
+                                                )
+                                                .clip(watchBtnShape)
+                                                .focusRequester(watchBtnFocusRequester)
+                                                .onFocusChanged { isWatchBtnFocused = it.isFocused }
+                                                .clickable {
+                                                    onEpisodeClick(targetWatchEpisodeId, detail.animeId.ifBlank { viewModel.animeId })
+                                                }
+                                                .padding(horizontal = 12.dp),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            val formattedTotal = AnimeIdUtils.formatEpisodeLabel(totalEp)
-                                            val epText = when {
-                                                formattedTotal.contains("Episode", true) || formattedTotal.contains("Tamat", true) || formattedTotal.contains("Ongoing", true) -> formattedTotal
-                                                else -> "$formattedTotal Episode"
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayArrow,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    text = watchButtonLabel,
+                                                    color = Color.White,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1
+                                                )
                                             }
-                                            Text(
-                                                text = epText,
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
                                         }
                                     }
                                 }
 
-                                // Glassmorphic Compact Metadata Card
-                                GlassmorphicCard(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    shape = RoundedCornerShape(24.dp)
-                                ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
-                                        // Row 1: Score & Studio
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                val synopsisText = detail.synopsis?.takeIf { it.isNotBlank() } ?: "Tidak ada sinopsis."
+                                var isSynopsisFocused by remember { mutableStateOf(false) }
+
+                                if (isTV) {
+                                    // Layout 2 Kolom di Android TV: Kiri (Info & Genre) + Kanan (Kartu Sinopsis)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(IntrinsicSize.Min)
+                                            .padding(bottom = 20.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        // Kolom Kiri (~38%): Metadata + Genre
+                                        GlassmorphicCard(
+                                            modifier = Modifier
+                                                .weight(0.38f)
+                                                .fillMaxHeight(),
+                                            shape = RoundedCornerShape(20.dp)
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Star,
-                                                    contentDescription = "Skor",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = "${detail.score ?: "-"} / 10",
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.sp
-                                                )
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(14.dp),
+                                                verticalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Column {
+                                                    // Row 1: Score & Studio
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Star,
+                                                                contentDescription = "Skor",
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(4.dp))
+                                                            Text(
+                                                                text = "${detail.score ?: "-"} / 10",
+                                                                color = Color.White,
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 13.sp
+                                                            )
+                                                        }
+                                                        detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
+                                                            Text(
+                                                                text = studio,
+                                                                color = Color.White,
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 12.sp,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.height(10.dp))
+                                                    Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
+                                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                                    // Row 2: Status, Durasi, Rilis
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text("Status", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                            Text(detail.status ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        }
+                                                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                            Text("Durasi", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                            Text(detail.duration ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        }
+                                                        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                                                            Text("Rilis", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                            Text(detail.releaseDate ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                        }
+                                                    }
+                                                }
+
+                                                if (!detail.genreList.isNullOrEmpty()) {
+                                                    Column {
+                                                        Spacer(modifier = Modifier.height(10.dp))
+                                                        Divider(color = OutlineGreySubtle.copy(alpha = 0.4f))
+                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .horizontalScroll(rememberScrollState()),
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            detail.genreList.forEach { genre ->
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .frostGlass(shape = RoundedCornerShape(14.dp), isSubtle = true)
+                                                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                                ) {
+                                                                    Text(
+                                                                        genre.genreName,
+                                                                        color = Color.White,
+                                                                        fontSize = 10.sp,
+                                                                        fontWeight = FontWeight.Medium
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
-                                            detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
+                                        }
+
+                                        // Kolom Kanan (~62%): Kartu Sinopsis
+                                        val synopsisShape = RoundedCornerShape(20.dp)
+                                        GlassmorphicCard(
+                                            shape = synopsisShape,
+                                            isFocused = isSynopsisFocused,
+                                            modifier = Modifier
+                                                .weight(0.62f)
+                                                .fillMaxHeight()
+                                                .clip(synopsisShape)
+                                                .onFocusChanged { isSynopsisFocused = it.isFocused }
+                                                .clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(14.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        "Sinopsis",
+                                                        color = Color.White,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    if (synopsisText.length > 160) {
+                                                        Text(
+                                                            text = if (isSynopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
+                                                            color = Color.White,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = if (isSynopsisFocused) FontWeight.Bold else FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(8.dp))
                                                 Text(
-                                                    text = studio,
-                                                    color = Color.White,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.sp,
-                                                    maxLines = 1,
+                                                    synopsisText,
+                                                    color = TextSecondary,
+                                                    fontSize = 13.sp,
+                                                    lineHeight = 19.sp,
+                                                    maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 4,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        // Row 2: Status, Durasi, Rilis
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text("Status", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(detail.status ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    }
+                                } else {
+                                    // Glassmorphic Compact Metadata Card (Tampilan Android HP)
+                                    GlassmorphicCard(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 16.dp),
+                                        shape = RoundedCornerShape(24.dp)
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp)) {
+                                            // Row 1: Score & Studio
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Star,
+                                                        contentDescription = "Skor",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "${detail.score ?: "-"} / 10",
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+                                                detail.studio?.takeIf { it.isNotBlank() }?.let { studio ->
+                                                    Text(
+                                                        text = studio,
+                                                        color = Color.White,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
                                             }
-                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Durasi", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(detail.duration ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                            }
-                                            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                                Text("Rilis", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(detail.releaseDate ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Divider(color = OutlineGreySubtle.copy(alpha = 0.6f))
+                                            Spacer(modifier = Modifier.height(12.dp))
+
+                                            // Row 2: Status, Durasi, Rilis
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("Status", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(detail.status ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Durasi", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(detail.duration ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                                                    Text("Rilis", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(detail.releaseDate ?: "-", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                // Genres Scrollable Row
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp)
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    detail.genreList?.forEach { genre ->
-                                        Box(
-                                            modifier = Modifier
-                                                .frostGlass(shape = RoundedCornerShape(20.dp))
-                                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                                        ) {
+                                    // Genres Scrollable Row
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 16.dp)
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        detail.genreList?.forEach { genre ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .frostGlass(shape = RoundedCornerShape(20.dp))
+                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    genre.genreName,
+                                                    color = Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Synopsis Section
+                                    Text("Sinopsis", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .onFocusChanged { isSynopsisFocused = it.isFocused }
+                                            .clickable { isSynopsisExpanded = !isSynopsisExpanded }
+                                            .padding(vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            synopsisText,
+                                            color = TextSecondary,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (synopsisText.length > 120) {
+                                            Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                genre.genreName,
+                                                text = if (isSynopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
                                                 color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSynopsisFocused) FontWeight.Bold else FontWeight.SemiBold
                                             )
                                         }
                                     }
-                                }
 
-                                // Synopsis Section
-                                Text("Sinopsis", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val synopsisText = detail.synopsis?.takeIf { it.isNotBlank() } ?: "Tidak ada sinopsis."
-                                var isSynopsisFocused by remember { mutableStateOf(false) }
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .onFocusChanged { isSynopsisFocused = it.isFocused }
-                                        .clickable { isSynopsisExpanded = !isSynopsisExpanded }
-                                        .padding(vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        synopsisText,
-                                        color = TextSecondary,
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp,
-                                        maxLines = if (isSynopsisExpanded) Int.MAX_VALUE else 3,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (synopsisText.length > 120) {
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = if (isSynopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (isSynopsisFocused) FontWeight.Bold else FontWeight.SemiBold
-                                        )
-                                    }
+                                    Spacer(modifier = Modifier.height(20.dp))
                                 }
-
-                                Spacer(modifier = Modifier.height(20.dp))
 
                                 // Episode List Header + Sort Toggle
                                 Row(
@@ -397,15 +659,44 @@ fun DetailScreen(
                             }
                         }
 
-                        items(displayedEpisodes, key = { it.id }) { episode ->
-                            val epNum = extractEpisodeNumber(episode.title)
-                            val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else AnimeIdUtils.formatEpisodeLabel(episode.title)
-                            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                                EpisodeRow(
-                                    title = displayTitle,
-                                    date = episode.uploadedOn ?: "",
-                                    onClick = { onEpisodeClick(episode.id, detail.animeId) }
-                                )
+                        if (isTV) {
+                            val episodeRows = displayedEpisodes.chunked(3)
+                            items(episodeRows, key = { row -> row.first().id }) { rowEpisodes ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 5.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    rowEpisodes.forEach { episode ->
+                                        val epNum = extractEpisodeNumber(episode.title)
+                                        val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else AnimeIdUtils.formatEpisodeLabel(episode.title)
+                                        EpisodeRow(
+                                            title = displayTitle,
+                                            date = episode.uploadedOn ?: "",
+                                            onClick = { onEpisodeClick(episode.id, detail.animeId) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    val emptySlots = 3 - rowEpisodes.size
+                                    if (emptySlots > 0) {
+                                        repeat(emptySlots) {
+                                            Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            items(displayedEpisodes, key = { it.id }) { episode ->
+                                val epNum = extractEpisodeNumber(episode.title)
+                                val displayTitle = if (epNum.isNotEmpty()) "Episode $epNum" else AnimeIdUtils.formatEpisodeLabel(episode.title)
+                                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                    EpisodeRow(
+                                        title = displayTitle,
+                                        date = episode.uploadedOn ?: "",
+                                        onClick = { onEpisodeClick(episode.id, detail.animeId) }
+                                    )
+                                }
                             }
                         }
                     }

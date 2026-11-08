@@ -40,8 +40,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.Key
@@ -90,11 +94,25 @@ fun HomeScreen(
             Configuration.UI_MODE_TYPE_TELEVISION
     var allowSearchFocus by remember { mutableStateOf(!isTV) }
     var isSearchFocused by remember { mutableStateOf(false) }
+    var isSearchEditing by remember { mutableStateOf(false) }
+    val searchBoxFocusRequester = remember { FocusRequester() }
+    val searchInputFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         if (isTV) {
             kotlinx.coroutines.delay(400)
             allowSearchFocus = true
+        }
+    }
+
+    LaunchedEffect(isSearchEditing) {
+        if (isTV && isSearchEditing) {
+            kotlinx.coroutines.delay(30)
+            try {
+                searchInputFocusRequester.requestFocus()
+                keyboardController?.show()
+            } catch (_: Exception) {}
         }
     }
 
@@ -114,63 +132,119 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.onSearchQueryChanged(it) },
-                        textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
-                        singleLine = true,
-                        cursorBrush = SolidColor(Color.White),
+                    Box(
                         modifier = Modifier
-                            .weight(0.73f)
+                            .then(
+                                if (isTV) Modifier.weight(1f) else Modifier.weight(0.73f)
+                            )
                             .height(42.dp)
                             .frostGlass(
                                 shape = RoundedCornerShape(21.dp),
-                                isFocused = isSearchFocused
+                                isFocused = isSearchFocused || isSearchEditing
                             )
-                            .focusProperties { canFocus = allowSearchFocus }
-                            .onFocusChanged { isSearchFocused = it.isFocused }
-                            .padding(horizontal = 14.dp),
-                        decorationBox = { innerTextField ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Cari",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier.weight(1f),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    if (searchQuery.isEmpty()) {
-                                        Text("Cari anime...", color = TextSecondary, fontSize = 13.sp)
-                                    }
-                                    innerTextField()
+                            .then(
+                                if (isTV) {
+                                    Modifier
+                                        .focusRequester(searchBoxFocusRequester)
+                                        .focusProperties { canFocus = allowSearchFocus && !isSearchEditing }
+                                        .onFocusChanged { isSearchFocused = it.isFocused }
+                                        .clickable(enabled = allowSearchFocus && !isSearchEditing) {
+                                            isSearchEditing = true
+                                        }
+                                } else {
+                                    Modifier
                                 }
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { viewModel.onSearchQueryChanged("") },
-                                        modifier = Modifier.size(22.dp)
+                            )
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { viewModel.onSearchQueryChanged(it) },
+                            enabled = !isTV || isSearchEditing,
+                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                            singleLine = true,
+                            cursorBrush = SolidColor(Color.White),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    keyboardController?.hide()
+                                    if (isTV) {
+                                        isSearchEditing = false
+                                        try {
+                                            searchBoxFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            ),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .focusRequester(searchInputFocusRequester)
+                                .focusProperties { canFocus = if (isTV) isSearchEditing else true }
+                                .onKeyEvent { event ->
+                                    if (isTV && isSearchEditing && event.type == KeyEventType.KeyDown &&
+                                        (event.key == Key.Back || event.key == Key.Escape || event.key == Key.DirectionDown)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Clear",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(15.dp)
-                                        )
+                                        isSearchEditing = false
+                                        keyboardController?.hide()
+                                        try {
+                                            searchBoxFocusRequester.requestFocus()
+                                        } catch (_: Exception) {}
+                                        true
+                                    } else false
+                                }
+                                .onFocusChanged { state ->
+                                    if (!isTV) {
+                                        isSearchFocused = state.isFocused
+                                    } else if (!state.isFocused && isSearchEditing) {
+                                        isSearchEditing = false
+                                        keyboardController?.hide()
+                                    }
+                                },
+                            decorationBox = { innerTextField ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Cari",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (searchQuery.isEmpty()) {
+                                            Text("Cari anime...", color = TextSecondary, fontSize = 13.sp)
+                                        }
+                                        innerTextField()
+                                    }
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { viewModel.onSearchQueryChanged("") },
+                                            modifier = Modifier.size(22.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Clear",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
 
                     Box(
                         modifier = Modifier
-                            .weight(0.27f)
+                            .then(
+                                if (isTV) Modifier.width(105.dp) else Modifier.weight(0.27f)
+                            )
                             .height(42.dp)
                     ) {
                         val activeLabel = when (activeSource) {
@@ -188,9 +262,7 @@ fun HomeScreen(
                                     isFocused = isServerFocused
                                 )
                                 .onFocusChanged { isServerFocused = it.isFocused }
-                                .focusable()
                                 .clickable { showServerDropdown = true }
-                                .handleRemoteClick { showServerDropdown = true }
                                 .padding(horizontal = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -248,12 +320,7 @@ fun HomeScreen(
                                             }
                                         )
                                         .onFocusChanged { isItemFocused = it.isFocused }
-                                        .focusable()
                                         .clickable {
-                                            viewModel.setActiveSource(id)
-                                            showServerDropdown = false
-                                        }
-                                        .handleRemoteClick {
                                             viewModel.setActiveSource(id)
                                             showServerDropdown = false
                                         }
