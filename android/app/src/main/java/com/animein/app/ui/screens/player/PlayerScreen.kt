@@ -704,16 +704,22 @@ fun PlayerScreen(
                                             .background(Color.Black.copy(alpha = if (isLocked) 0.3f else 0.6f))
                                     ) {
 
-                                        // ========== TOMBOL KUNCI (Selalu tampil di kiri bawah saat controls muncul) ==========
+                                        val controlChipHeight = if (isFullscreen) 30.dp else 26.dp
+                                        val controlChipShape = RoundedCornerShape(8.dp)
+                                        val centerOffsetY = if (isFullscreen) 0.dp else (-8).dp
+
+                                        // ========== TOMBOL KUNCI MINIMALIS (Sisi kiri tengah) ==========
                                         Box(
                                             modifier = Modifier
                                                 .align(Alignment.CenterStart)
-                                                .padding(start = 16.dp)
+                                                .offset(y = centerOffsetY)
+                                                .padding(start = if (isFullscreen) 16.dp else 12.dp)
                                         ) {
+                                            val lockSize = if (isFullscreen) 34.dp else 30.dp
                                             Box(
                                                 modifier = Modifier
-                                                    .size(40.dp)
-                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .size(lockSize)
+                                                    .clip(controlChipShape)
                                                     .background(
                                                         if (isLocked) Color.White.copy(alpha = 0.25f)
                                                         else FrostGlassBgTop
@@ -721,7 +727,7 @@ fun PlayerScreen(
                                                     .border(
                                                         width = if (isLockBtnFocused || isLocked) 1.5.dp else 1.dp,
                                                         color = if (isLockBtnFocused || isLocked) Color.White else OutlineGrey,
-                                                        shape = RoundedCornerShape(20.dp)
+                                                        shape = controlChipShape
                                                     )
                                                     .onFocusChanged {
                                                         isLockBtnFocused = it.isFocused
@@ -744,7 +750,7 @@ fun PlayerScreen(
                                                     imageVector = if (isLocked) LockClosedIcon else LockOpenIcon,
                                                     contentDescription = if (isLocked) "Buka Kunci" else "Kunci Layar",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(20.dp)
+                                                    modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                                                 )
                                             }
                                         }
@@ -759,10 +765,10 @@ fun PlayerScreen(
                                                     .align(Alignment.TopStart)
                                                     .background(
                                                         brush = Brush.verticalGradient(
-                                                            colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                                                            colors = listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
                                                         )
                                                     )
-                                                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                                                    .padding(horizontal = 20.dp, vertical = 12.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
@@ -779,8 +785,8 @@ fun PlayerScreen(
                                                         detail.title
                                                     },
                                                     color = Color.White,
-                                                    fontSize = 16.sp,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.SemiBold,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                     modifier = Modifier.weight(1f)
@@ -788,441 +794,461 @@ fun PlayerScreen(
                                             }
                                         }
 
-                                        // 2. Center row: Previous Ep + Play/Pause + Next Ep
+                                        // 2. Center row: Minimalist Previous Ep + Play/Pause + Next Ep
+                                        val sideBtnSize = if (isFullscreen) 40.dp else 34.dp
+                                        val sideIconSize = if (isFullscreen) 20.dp else 17.dp
+                                        val mainBtnSize = if (isFullscreen) 48.dp else 40.dp
+                                        val mainIconSize = if (isFullscreen) 24.dp else 20.dp
+                                        val centerSpacing = if (isFullscreen) 24.dp else 16.dp
+
                                         Row(
                                             modifier = Modifier
                                                 .align(Alignment.Center)
-                                                .fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterHorizontally),
+                                                .offset(y = centerOffsetY),
+                                            horizontalArrangement = Arrangement.spacedBy(centerSpacing, Alignment.CenterHorizontally),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             val prevEpId by viewModel.prevEpisodeId.collectAsState()
                                             val nextEpId by viewModel.nextEpisodeId.collectAsState()
 
-                                            // Previous Episode Button
-                                            IconButton(
-                                                onClick = {
-                                                    lastUserInteractionTick++
-                                                    if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
-                                                },
-                                                enabled = prevEpId != null,
+                                            // Previous Episode Button (Minimalist Circle)
+                                            Box(
                                                 modifier = Modifier
-                                                    .size(48.dp)
+                                                    .size(sideBtnSize)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (isPrevFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                    )
+                                                    .border(
+                                                        width = if (isPrevFocused) 1.5.dp else 1.dp,
+                                                        color = if (isPrevFocused) Color.White else OutlineGrey.copy(alpha = if (prevEpId != null) 0.9f else 0.4f),
+                                                        shape = RoundedCornerShape(50)
+                                                    )
                                                     .onFocusChanged {
                                                         isPrevFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable()
-                                                    .handleRemoteClick {
+                                                    .focusable(enabled = prevEpId != null)
+                                                    .clickable(enabled = prevEpId != null) {
                                                         lastUserInteractionTick++
                                                         if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
                                                     }
-                                                    .background(
-                                                        if (isPrevFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
-                                                        RoundedCornerShape(24.dp)
-                                                    )
-                                                    .border(
-                                                        width = if (isPrevFocused) 1.5.dp else 1.dp,
-                                                        color = if (isPrevFocused) Color.White else OutlineGrey,
-                                                        shape = RoundedCornerShape(24.dp)
-                                                    )
+                                                    .handleRemoteClick {
+                                                        lastUserInteractionTick++
+                                                        if (prevEpId != null) viewModel.selectEpisode(prevEpId!!)
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = SkipPreviousIcon,
                                                     contentDescription = "Episode Sebelumnya",
                                                     tint = if (prevEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
-                                                    modifier = Modifier.size(28.dp)
+                                                    modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
 
-                                            // Play/Pause Button
-                                            IconButton(
-                                                onClick = {
-                                                    lastUserInteractionTick++
-                                                    if (exoPlayer.isPlaying) {
-                                                        exoPlayer.pause()
-                                                    } else {
-                                                        exoPlayer.play()
-                                                    }
-                                                },
+                                            // Play/Pause Button (Minimalist Circle)
+                                            Box(
                                                 modifier = Modifier
-                                                    .size(56.dp)
+                                                    .size(mainBtnSize)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (isPlayFocused) Color.White.copy(alpha = 0.25f) else FrostGlassBgTop
+                                                    )
+                                                    .border(
+                                                        width = if (isPlayFocused) 1.5.dp else 1.dp,
+                                                        color = if (isPlayFocused) Color.White else OutlineGrey,
+                                                        shape = RoundedCornerShape(50)
+                                                    )
                                                     .focusRequester(playPauseFocusRequester)
                                                     .onFocusChanged {
                                                         isPlayFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
                                                     .focusable()
+                                                    .clickable {
+                                                        lastUserInteractionTick++
+                                                        if (exoPlayer.isPlaying) {
+                                                            exoPlayer.pause()
+                                                        } else {
+                                                            exoPlayer.play()
+                                                        }
+                                                    }
                                                     .handleRemoteClick {
                                                         lastUserInteractionTick++
                                                         if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
-                                                    }
-                                                    .background(
-                                                        if (isPlayFocused) Color.White.copy(alpha = 0.25f) else FrostGlassBgTop,
-                                                        RoundedCornerShape(28.dp)
-                                                    )
-                                                    .border(
-                                                        width = if (isPlayFocused) 1.5.dp else 1.dp,
-                                                        color = if (isPlayFocused) Color.White else OutlineGrey,
-                                                        shape = RoundedCornerShape(28.dp)
-                                                    )
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                                     contentDescription = "Play/Pause",
                                                     tint = Color.White,
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.size(mainIconSize)
                                                 )
                                             }
 
-                                            // Next Episode Button
-                                            IconButton(
-                                                onClick = {
-                                                    lastUserInteractionTick++
-                                                    if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
-                                                },
-                                                enabled = nextEpId != null,
+                                            // Next Episode Button (Minimalist Circle)
+                                            Box(
                                                 modifier = Modifier
-                                                    .size(48.dp)
+                                                    .size(sideBtnSize)
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(
+                                                        if (isNextFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                    )
+                                                    .border(
+                                                        width = if (isNextFocused) 1.5.dp else 1.dp,
+                                                        color = if (isNextFocused) Color.White else OutlineGrey.copy(alpha = if (nextEpId != null) 0.9f else 0.4f),
+                                                        shape = RoundedCornerShape(50)
+                                                    )
                                                     .onFocusChanged {
                                                         isNextFocused = it.isFocused
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
-                                                    .focusable()
-                                                    .handleRemoteClick {
+                                                    .focusable(enabled = nextEpId != null)
+                                                    .clickable(enabled = nextEpId != null) {
                                                         lastUserInteractionTick++
                                                         if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
                                                     }
-                                                    .background(
-                                                        if (isNextFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
-                                                        RoundedCornerShape(24.dp)
-                                                    )
-                                                    .border(
-                                                        width = if (isNextFocused) 1.5.dp else 1.dp,
-                                                        color = if (isNextFocused) Color.White else OutlineGrey,
-                                                        shape = RoundedCornerShape(24.dp)
-                                                    )
+                                                    .handleRemoteClick {
+                                                        lastUserInteractionTick++
+                                                        if (nextEpId != null) viewModel.selectEpisode(nextEpId!!)
+                                                    },
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = SkipNextIcon,
                                                     contentDescription = "Episode Selanjutnya",
                                                     tint = if (nextEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
-                                                    modifier = Modifier.size(28.dp)
+                                                    modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
                                         }
 
-                                        // 3. Bottom controls — settings & fullscreen on top, seekbar below
+                                        // 3. Bottom controls — Waktu di kiri, Resolusi + Kecepatan + Fullscreen serasi di kanan, Seekbar tipis di bawah
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 12.dp, vertical = 2.dp)
+                                                .background(
+                                                    brush = Brush.verticalGradient(
+                                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                                                    )
+                                                )
+                                                .padding(
+                                                    start = if (isFullscreen) 16.dp else 12.dp,
+                                                    end = if (isFullscreen) 16.dp else 12.dp,
+                                                    top = 4.dp,
+                                                    bottom = if (isFullscreen) 8.dp else 4.dp
+                                                )
                                         ) {
                                             Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Waktu putar minimalis di sisi kiri
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = formatTime(currentPosition),
+                                                        color = Color.White,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                    Text(
+                                                        text = " / ${formatTime(duration)}",
+                                                        color = TextSecondary,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+
+                                                // Deretan tombol serasi: Resolusi, Kecepatan, Fullscreen
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // 1. Resolution Dropdown Button
+                                                    Box {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .height(controlChipHeight)
+                                                                .clip(controlChipShape)
+                                                                .background(
+                                                                    if (isResFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                                )
+                                                                .border(
+                                                                    width = if (isResFocused) 1.5.dp else 1.dp,
+                                                                    color = if (isResFocused) Color.White else OutlineGrey,
+                                                                    shape = controlChipShape
+                                                                )
+                                                                .onFocusChanged {
+                                                                    isResFocused = it.isFocused
+                                                                    if (it.isFocused) lastUserInteractionTick++
+                                                                }
+                                                                .focusable()
+                                                                .clickable {
+                                                                    lastUserInteractionTick++
+                                                                    showQualityDropdown = true
+                                                                }
+                                                                .handleRemoteClick {
+                                                                    lastUserInteractionTick++
+                                                                    showQualityDropdown = true
+                                                                }
+                                                                .padding(horizontal = 9.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = selectedResolution,
+                                                                color = Color.White,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.SemiBold
+                                                            )
+                                                        }
+
+                                                        DropdownMenu(
+                                                             expanded = showQualityDropdown,
+                                                             onDismissRequest = {
+                                                                 lastUserInteractionTick++
+                                                                 showQualityDropdown = false
+                                                             },
+                                                             modifier = Modifier
+                                                                 .background(DarkSurfaceVariant.copy(alpha = 0.94f))
+                                                                 .border(
+                                                                     width = 1.dp,
+                                                                     color = OutlineGrey,
+                                                                     shape = RoundedCornerShape(8.dp)
+                                                                 )
+                                                         ) {
+                                                             allMirrors.forEach { mirror ->
+                                                                 val isSelected = selectedResolution == mirror.resolution
+                                                                 var isItemFocused by remember { mutableStateOf(false) }
+                                                                 DropdownMenuItem(
+                                                                     modifier = Modifier
+                                                                         .onFocusChanged {
+                                                                             isItemFocused = it.isFocused
+                                                                             if (it.isFocused) lastUserInteractionTick++
+                                                                         }
+                                                                         .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
+                                                                     text = {
+                                                                         Box(
+                                                                             modifier = Modifier.fillMaxWidth(),
+                                                                             contentAlignment = Alignment.Center
+                                                                         ) {
+                                                                             Row(
+                                                                                 verticalAlignment = Alignment.CenterVertically,
+                                                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                                             ) {
+                                                                                 Box(
+                                                                                     modifier = Modifier
+                                                                                         .size(6.dp)
+                                                                                         .background(
+                                                                                             if (isSelected) Color.White else Color.Transparent,
+                                                                                             RoundedCornerShape(50)
+                                                                                         )
+                                                                                 )
+                                                                                 Text(
+                                                                                     text = mirror.resolution,
+                                                                                     color = Color.White,
+                                                                                     fontSize = 12.sp,
+                                                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                                                 )
+                                                                             }
+                                                                         }
+                                                                     },
+                                                                     onClick = {
+                                                                         lastUserInteractionTick++
+                                                                         selectedResolution = mirror.resolution
+                                                                         viewModel.switchMirror(mirror.id)
+                                                                         showQualityDropdown = false
+                                                                     }
+                                                                 )
+                                                             }
+                                                         }
+                                                    }
+
+                                                    // 2. Playback Speed Dropdown Button
+                                                    Box {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .height(controlChipHeight)
+                                                                .clip(controlChipShape)
+                                                                .background(
+                                                                    if (isSpeedFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                                )
+                                                                .border(
+                                                                    width = if (isSpeedFocused) 1.5.dp else 1.dp,
+                                                                    color = if (isSpeedFocused) Color.White else OutlineGrey,
+                                                                    shape = controlChipShape
+                                                                )
+                                                                .onFocusChanged {
+                                                                    isSpeedFocused = it.isFocused
+                                                                    if (it.isFocused) lastUserInteractionTick++
+                                                                }
+                                                                .focusable()
+                                                                .clickable {
+                                                                    lastUserInteractionTick++
+                                                                    showSpeedDropdown = true
+                                                                }
+                                                                .handleRemoteClick {
+                                                                    lastUserInteractionTick++
+                                                                    showSpeedDropdown = true
+                                                                }
+                                                                .padding(horizontal = 9.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "${speed}x",
+                                                                color = Color.White,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.SemiBold
+                                                            )
+                                                        }
+
+                                                        DropdownMenu(
+                                                            expanded = showSpeedDropdown,
+                                                            onDismissRequest = {
+                                                                lastUserInteractionTick++
+                                                                showSpeedDropdown = false
+                                                            },
+                                                            modifier = Modifier
+                                                                .background(DarkSurfaceVariant.copy(alpha = 0.94f))
+                                                                .border(
+                                                                    width = 1.dp,
+                                                                    color = OutlineGrey,
+                                                                    shape = RoundedCornerShape(8.dp)
+                                                                )
+                                                        ) {
+                                                            listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                                                val isSelected = speed == value
+                                                                var isItemFocused by remember { mutableStateOf(false) }
+                                                                DropdownMenuItem(
+                                                                    modifier = Modifier
+                                                                        .onFocusChanged {
+                                                                            isItemFocused = it.isFocused
+                                                                            if (it.isFocused) lastUserInteractionTick++
+                                                                        }
+                                                                        .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
+                                                                    text = {
+                                                                        Box(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            contentAlignment = Alignment.Center
+                                                                        ) {
+                                                                            Row(
+                                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                                            ) {
+                                                                                Box(
+                                                                                    modifier = Modifier
+                                                                                        .size(6.dp)
+                                                                                        .background(
+                                                                                            if (isSelected) Color.White else Color.Transparent,
+                                                                                            RoundedCornerShape(50)
+                                                                                        )
+                                                                                )
+                                                                                Text(
+                                                                                    text = "${value}x",
+                                                                                    color = Color.White,
+                                                                                    fontSize = 12.sp,
+                                                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    onClick = {
+                                                                        lastUserInteractionTick++
+                                                                        viewModel.setPlaybackSpeed(value)
+                                                                        showSpeedDropdown = false
+                                                                    }
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 3. Fullscreen Button — serasi ukuran, bentuk, background, & outline dengan Resolusi dan Kecepatan
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .height(controlChipHeight)
+                                                            .width(if (isFullscreen) 34.dp else 30.dp)
+                                                            .clip(controlChipShape)
+                                                            .background(
+                                                                if (isFullscreenBtnFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
+                                                            )
+                                                            .border(
+                                                                width = if (isFullscreenBtnFocused) 1.5.dp else 1.dp,
+                                                                color = if (isFullscreenBtnFocused) Color.White else OutlineGrey,
+                                                                shape = controlChipShape
+                                                            )
+                                                            .onFocusChanged {
+                                                                isFullscreenBtnFocused = it.isFocused
+                                                                if (it.isFocused) lastUserInteractionTick++
+                                                            }
+                                                            .focusable()
+                                                            .clickable {
+                                                                lastUserInteractionTick++
+                                                                isFullscreen = !isFullscreen
+                                                            }
+                                                            .handleRemoteClick {
+                                                                lastUserInteractionTick++
+                                                                isFullscreen = !isFullscreen
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
+                                                            contentDescription = "Fullscreen",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(if (isFullscreen) 16.dp else 14.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(if (isFullscreen) 4.dp else 2.dp))
+
+                                            // Row 2: Seekbar minimalis — tanpa tinggi berlebih agar tidak bertumpuk
+                                            Slider(
+                                                value = if (duration > 0) currentPosition.toFloat() else 0f,
+                                                onValueChange = {
+                                                    lastUserInteractionTick++
+                                                    currentPosition = it.toLong()
+                                                    exoPlayer.seekTo(currentPosition)
+                                                },
+                                                valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(bottom = 2.dp),
-                                                horizontalArrangement = Arrangement.End,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Settings dropdown menu containing speed and resolution
-                                                // 1. Resolution Dropdown Button
-                                                Box {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .height(32.dp)
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .background(
-                                                                if (isResFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                            )
-                                                            .border(
-                                                                width = if (isResFocused) 1.5.dp else 1.dp,
-                                                                color = if (isResFocused) Color.White else OutlineGrey,
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                            .onFocusChanged {
-                                                                isResFocused = it.isFocused
-                                                                if (it.isFocused) lastUserInteractionTick++
-                                                            }
-                                                            .focusable()
-                                                            .clickable {
-                                                                lastUserInteractionTick++
-                                                                showQualityDropdown = true
-                                                            }
-                                                            .handleRemoteClick {
-                                                                lastUserInteractionTick++
-                                                                showQualityDropdown = true
-                                                            }
-                                                            .padding(horizontal = 10.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            text = selectedResolution,
-                                                            color = Color.White,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
+                                                    .height(if (isFullscreen) 22.dp else 18.dp)
+                                                    .onFocusChanged {
+                                                        isSliderFocused = it.isFocused
+                                                        if (it.isFocused) lastUserInteractionTick++
                                                     }
-
-                                                    DropdownMenu(
-                                                         expanded = showQualityDropdown,
-                                                         onDismissRequest = {
-                                                             lastUserInteractionTick++
-                                                             showQualityDropdown = false
-                                                         },
-                                                         modifier = Modifier
-                                                             .background(DarkSurfaceVariant.copy(alpha = 0.94f))
-                                                             .border(
-                                                                 width = 1.dp,
-                                                                 color = OutlineGrey,
-                                                                 shape = RoundedCornerShape(8.dp)
-                                                             )
-                                                     ) {
-                                                         allMirrors.forEach { mirror ->
-                                                             val isSelected = selectedResolution == mirror.resolution
-                                                             var isItemFocused by remember { mutableStateOf(false) }
-                                                             DropdownMenuItem(
-                                                                 modifier = Modifier
-                                                                     .onFocusChanged {
-                                                                         isItemFocused = it.isFocused
-                                                                         if (it.isFocused) lastUserInteractionTick++
-                                                                     }
-                                                                     .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
-                                                                 text = {
-                                                                     Box(
-                                                                         modifier = Modifier.fillMaxWidth(),
-                                                                         contentAlignment = Alignment.Center
-                                                                     ) {
-                                                                         Row(
-                                                                             verticalAlignment = Alignment.CenterVertically,
-                                                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                                         ) {
-                                                                             Box(
-                                                                                 modifier = Modifier
-                                                                                     .size(6.dp)
-                                                                                     .background(
-                                                                                         if (isSelected) Color.White else Color.Transparent,
-                                                                                         RoundedCornerShape(50)
-                                                                                     )
-                                                                             )
-                                                                             Text(
-                                                                                 text = mirror.resolution,
-                                                                                 color = Color.White,
-                                                                                 fontSize = 13.sp,
-                                                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                             )
-                                                                         }
-                                                                     }
-                                                                 },
-                                                                 onClick = {
-                                                                     lastUserInteractionTick++
-                                                                     selectedResolution = mirror.resolution
-                                                                     viewModel.switchMirror(mirror.id)
-                                                                     showQualityDropdown = false
-                                                                 }
-                                                             )
-                                                         }
-                                                     }
-                                                }
-
-                                                Spacer(modifier = Modifier.width(8.dp))
-
-                                                // 2. Playback Speed Dropdown Button
-                                                Box {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .height(32.dp)
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .background(
-                                                                if (isSpeedFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop
-                                                            )
-                                                            .border(
-                                                                width = if (isSpeedFocused) 1.5.dp else 1.dp,
-                                                                color = if (isSpeedFocused) Color.White else OutlineGrey,
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                            .onFocusChanged {
-                                                                isSpeedFocused = it.isFocused
-                                                                if (it.isFocused) lastUserInteractionTick++
-                                                            }
-                                                            .focusable()
-                                                            .clickable {
-                                                                lastUserInteractionTick++
-                                                                showSpeedDropdown = true
-                                                            }
-                                                            .handleRemoteClick {
-                                                                lastUserInteractionTick++
-                                                                showSpeedDropdown = true
-                                                            }
-                                                            .padding(horizontal = 10.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            text = "${speed}x",
-                                                            color = Color.White,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-
-                                                    DropdownMenu(
-                                                        expanded = showSpeedDropdown,
-                                                        onDismissRequest = {
-                                                            lastUserInteractionTick++
-                                                            showSpeedDropdown = false
-                                                        },
-                                                        modifier = Modifier
-                                                            .background(DarkSurfaceVariant.copy(alpha = 0.94f))
-                                                            .border(
-                                                                width = 1.dp,
-                                                                color = OutlineGrey,
-                                                                shape = RoundedCornerShape(8.dp)
-                                                            )
-                                                    ) {
-                                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
-                                                            val isSelected = speed == value
-                                                            var isItemFocused by remember { mutableStateOf(false) }
-                                                            DropdownMenuItem(
-                                                                modifier = Modifier
-                                                                    .onFocusChanged {
-                                                                        isItemFocused = it.isFocused
-                                                                        if (it.isFocused) lastUserInteractionTick++
-                                                                    }
-                                                                    .background(if (isItemFocused) Color.White.copy(alpha = 0.16f) else Color.Transparent),
-                                                                text = {
-                                                                    Box(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        contentAlignment = Alignment.Center
-                                                                    ) {
-                                                                        Row(
-                                                                            verticalAlignment = Alignment.CenterVertically,
-                                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                                        ) {
-                                                                            Box(
-                                                                                modifier = Modifier
-                                                                                    .size(6.dp)
-                                                                                    .background(
-                                                                                        if (isSelected) Color.White else Color.Transparent,
-                                                                                        RoundedCornerShape(50)
-                                                                                    )
-                                                                            )
-                                                                            Text(
-                                                                                text = "${value}x",
-                                                                                color = Color.White,
-                                                                                fontSize = 13.sp,
-                                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                                            )
-                                                                        }
-                                                                    }
-                                                                },
-
-                                                                onClick = {
+                                                    .focusable()
+                                                    .onKeyEvent { keyEvent ->
+                                                        if (keyEvent.type == KeyEventType.KeyDown) {
+                                                            when (keyEvent.key) {
+                                                                Key.DirectionLeft -> {
                                                                     lastUserInteractionTick++
-                                                                    viewModel.setPlaybackSpeed(value)
-                                                                    showSpeedDropdown = false
+                                                                    val target = (currentPosition - 10000).coerceAtLeast(0L)
+                                                                    currentPosition = target
+                                                                    exoPlayer.seekTo(target)
+                                                                    true
                                                                 }
-                                                            )
-                                                        }
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.width(8.dp))
-
-                                                IconButton(
-                                                    onClick = {
-                                                        lastUserInteractionTick++
-                                                        isFullscreen = !isFullscreen
-                                                    },
-                                                    modifier = Modifier
-                                                        .size(36.dp)
-                                                        .onFocusChanged {
-                                                            isFullscreenBtnFocused = it.isFocused
-                                                            if (it.isFocused) lastUserInteractionTick++
-                                                        }
-                                                        .focusable()
-                                                        .handleRemoteClick {
-                                                            lastUserInteractionTick++
-                                                            isFullscreen = !isFullscreen
-                                                        }
-                                                        .background(
-                                                            if (isFullscreenBtnFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
-                                                            RoundedCornerShape(18.dp)
-                                                        )
-                                                        .border(
-                                                            width = if (isFullscreenBtnFocused) 1.5.dp else 1.dp,
-                                                            color = if (isFullscreenBtnFocused) Color.White else OutlineGrey,
-                                                            shape = RoundedCornerShape(18.dp)
-                                                        )
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
-                                                        contentDescription = "Fullscreen",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(22.dp)
-                                                    )
-                                                }
-                                            }
-
-                                            // Row 2: Seekbar — paling bawah
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = formatTime(currentPosition),
-                                                    color = Color.White,
-                                                    fontSize = 11.sp
-                                                )
-                                                Slider(
-                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
-                                                    onValueChange = {
-                                                        lastUserInteractionTick++
-                                                        currentPosition = it.toLong()
-                                                        exoPlayer.seekTo(currentPosition)
-                                                    },
-                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .padding(horizontal = 6.dp)
-                                                        .onFocusChanged {
-                                                            isSliderFocused = it.isFocused
-                                                            if (it.isFocused) lastUserInteractionTick++
-                                                        }
-                                                        .focusable()
-                                                        .onKeyEvent { keyEvent ->
-                                                            if (keyEvent.type == KeyEventType.KeyDown) {
-                                                                when (keyEvent.key) {
-                                                                    Key.DirectionLeft -> {
-                                                                        lastUserInteractionTick++
-                                                                        val target = (currentPosition - 10000).coerceAtLeast(0L)
-                                                                        currentPosition = target
-                                                                        exoPlayer.seekTo(target)
-                                                                        true
-                                                                    }
-                                                                    Key.DirectionRight -> {
-                                                                        lastUserInteractionTick++
-                                                                        val target = (currentPosition + 10000).coerceAtMost(duration)
-                                                                        currentPosition = target
-                                                                        exoPlayer.seekTo(target)
-                                                                        true
-                                                                    }
-                                                                    else -> false
+                                                                Key.DirectionRight -> {
+                                                                    lastUserInteractionTick++
+                                                                    val target = (currentPosition + 10000).coerceAtMost(duration)
+                                                                    currentPosition = target
+                                                                    exoPlayer.seekTo(target)
+                                                                    true
                                                                 }
-                                                            } else false
-                                                        },
-                                                    colors = SliderDefaults.colors(
-                                                        thumbColor = Color.White,
-                                                        activeTrackColor = Color.White,
-                                                        inactiveTrackColor = OutlineGrey.copy(alpha = 0.5f)
-                                                    )
+                                                                else -> false
+                                                            }
+                                                        } else false
+                                                    },
+                                                colors = SliderDefaults.colors(
+                                                    thumbColor = Color.White,
+                                                    activeTrackColor = Color.White,
+                                                    inactiveTrackColor = OutlineGrey.copy(alpha = 0.5f)
                                                 )
-                                                Text(
-                                                    text = formatTime(duration),
-                                                    color = Color.White,
-                                                    fontSize = 11.sp
-                                                )
-                                            }
+                                            )
                                         }
                                         } // end if (!isLocked)
                                     } // end controls Box
