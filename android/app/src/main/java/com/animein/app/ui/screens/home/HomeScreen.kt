@@ -81,15 +81,13 @@ fun HomeScreen(
     val configuration = LocalConfiguration.current
     val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
             Configuration.UI_MODE_TYPE_TELEVISION
-    val firstChipFocusRequester = remember { FocusRequester() }
+    var allowSearchFocus by remember { mutableStateOf(!isTV) }
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (isTV) {
-            try {
-                firstChipFocusRequester.requestFocus()
-            } catch (e: Exception) {
-                // ignore
-            }
+            kotlinx.coroutines.delay(400)
+            allowSearchFocus = true
         }
     }
 
@@ -118,8 +116,17 @@ fun HomeScreen(
                         modifier = Modifier
                             .weight(0.73f)
                             .height(48.dp)
-                            .background(FrostGlassBgTop, RoundedCornerShape(24.dp))
-                            .border(1.dp, OutlineGrey, RoundedCornerShape(24.dp))
+                            .focusProperties { canFocus = allowSearchFocus }
+                            .onFocusChanged { isSearchFocused = it.isFocused }
+                            .background(
+                                if (isSearchFocused) Color.White.copy(alpha = 0.22f) else FrostGlassBgTop,
+                                RoundedCornerShape(24.dp)
+                            )
+                            .border(
+                                width = if (isSearchFocused) 1.5.dp else 1.dp,
+                                color = if (isSearchFocused) Color.White else OutlineGrey,
+                                shape = RoundedCornerShape(24.dp)
+                            )
                             .padding(horizontal = 14.dp),
                         decorationBox = { innerTextField ->
                             Row(

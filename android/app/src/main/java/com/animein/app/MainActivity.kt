@@ -27,11 +27,14 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -143,6 +146,17 @@ fun MainApp() {
 
     if (isTV) {
         // ── Android TV layout: NavigationRail on left ──────────────────────
+        val homeNavFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            try {
+                homeNavFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+            kotlinx.coroutines.delay(150)
+            try {
+                homeNavFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+
         Row(modifier = Modifier.fillMaxSize()) {
             if (showNav) {
                 NavigationRail(
@@ -173,8 +187,8 @@ fun MainApp() {
                                     imageVector = item.icon,
                                     contentDescription = item.label,
                                     tint = when {
-                                        selected  -> Color.White
                                         isFocused -> Color.White
+                                        selected  -> Color.White
                                         else      -> TextSecondary
                                     }
                                 )
@@ -183,16 +197,33 @@ fun MainApp() {
                                 Text(
                                     item.label,
                                     color = when {
-                                        selected  -> Color.White
                                         isFocused -> Color.White
+                                        selected  -> Color.White
                                         else      -> TextSecondary
-                                    }
+                                    },
+                                    fontWeight = if (isFocused || selected) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = NavigationRailItemDefaults.colors(
-                                indicatorColor = Color.White.copy(alpha = 0.16f)
+                                indicatorColor = if (isFocused) Color.White.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.12f)
                             ),
-                            modifier = Modifier.onFocusChanged { isFocused = it.isFocused }
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .then(
+                                    if (item.route == "home") Modifier.focusRequester(homeNavFocusRequester)
+                                    else Modifier
+                                )
+                                .onFocusChanged { isFocused = it.isFocused }
+                                .then(
+                                    if (isFocused) {
+                                        Modifier
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                                            .border(1.5.dp, Color.White, RoundedCornerShape(16.dp))
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
