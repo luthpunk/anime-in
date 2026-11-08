@@ -104,10 +104,12 @@ fun HomeScreen(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 val activeSource by viewModel.activeSource.collectAsState()
                 var showServerDropdown by remember { mutableStateOf(false) }
+                val topControlHeight = 36.dp
+                val topControlShape = RoundedCornerShape(18.dp)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -117,19 +119,19 @@ fun HomeScreen(
                     BasicTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.onSearchQueryChanged(it) },
-                        textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                        textStyle = TextStyle(color = Color.White, fontSize = 12.sp),
                         singleLine = true,
                         cursorBrush = SolidColor(Color.White),
                         modifier = Modifier
-                            .weight(0.73f)
-                            .height(48.dp)
+                            .weight(1f)
+                            .height(topControlHeight)
                             .frostGlass(
-                                shape = RoundedCornerShape(24.dp),
+                                shape = topControlShape,
                                 isFocused = isSearchFocused
                             )
                             .focusProperties { canFocus = allowSearchFocus }
                             .onFocusChanged { isSearchFocused = it.isFocused }
-                            .padding(horizontal = 14.dp),
+                            .padding(horizontal = 12.dp),
                         decorationBox = { innerTextField ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -138,29 +140,29 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = "Cari",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier.weight(1f),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
                                     if (searchQuery.isEmpty()) {
-                                        Text("Cari anime...", color = TextSecondary, fontSize = 13.sp)
+                                        Text("Cari anime...", color = TextSecondary, fontSize = 12.sp)
                                     }
                                     innerTextField()
                                 }
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(
                                         onClick = { viewModel.onSearchQueryChanged("") },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = "Clear",
                                             tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(14.dp)
                                         )
                                     }
                                 }
@@ -170,8 +172,8 @@ fun HomeScreen(
 
                     Box(
                         modifier = Modifier
-                            .weight(0.27f)
-                            .height(48.dp)
+                            .wrapContentWidth()
+                            .height(topControlHeight)
                     ) {
                         val activeLabel = when (activeSource) {
                             "otakudesu" -> "Server 1"
@@ -182,27 +184,27 @@ fun HomeScreen(
                         var isServerFocused by remember { mutableStateOf(false) }
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .height(topControlHeight)
                                 .frostGlass(
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = topControlShape,
                                     isFocused = isServerFocused
                                 )
                                 .onFocusChanged { isServerFocused = it.isFocused }
                                 .focusable()
                                 .clickable { showServerDropdown = true }
                                 .handleRemoteClick { showServerDropdown = true }
-                                .padding(horizontal = 10.dp),
+                                .padding(horizontal = 11.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 Text(
                                     text = activeLabel,
                                     color = Color.White,
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -210,7 +212,7 @@ fun HomeScreen(
                                     imageVector = Icons.Default.ArrowDropDown,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
