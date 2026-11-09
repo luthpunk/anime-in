@@ -34,12 +34,12 @@ class PreferencesManager(private val context: Context) {
     }
 
     val activeSourceFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[ACTIVE_SOURCE_KEY] ?: "otakudesu"
+        preferences[ACTIVE_SOURCE_KEY] ?: "animeinweb"
     }
 
     suspend fun getActiveSource(): String {
         val preferences = context.dataStore.data.first()
-        return preferences[ACTIVE_SOURCE_KEY] ?: "otakudesu"
+        return preferences[ACTIVE_SOURCE_KEY] ?: "animeinweb"
     }
 
     suspend fun setActiveSource(source: String) {

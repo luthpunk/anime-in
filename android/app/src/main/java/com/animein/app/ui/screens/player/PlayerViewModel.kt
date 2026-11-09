@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.EpisodeDetailResponse
+import com.animein.app.data.remote.AniSkipManager
+import com.animein.app.data.remote.SkipInterval
 import com.animein.app.data.repository.AnimeRepository
 import com.animein.app.util.AnimeIdUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +22,8 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     private val repository: AnimeRepository,
     savedStateHandle: SavedStateHandle,
-    val simpleCache: SimpleCache
+    val simpleCache: SimpleCache,
+    private val aniSkipManager: AniSkipManager
 ) : ViewModel() {
 
     val initialEpisodeId: String = savedStateHandle.get<String>("episodeId")?.let {
@@ -62,10 +65,14 @@ class PlayerViewModel @Inject constructor(
     private val _currentEpisodeTitle = MutableStateFlow("")
     val currentEpisodeTitle: StateFlow<String> = _currentEpisodeTitle
 
+    private val _introInterval = MutableStateFlow<SkipInterval?>(null)
+    val introInterval: StateFlow<SkipInterval?> = _introInterval
+
     init {
         viewModelScope.launch {
             _currentEpisodeId.collect { epId ->
                 if (epId.isNotEmpty()) {
+                    _introInterval.value = null
                     fetchEpisodeDetail(epId)
                     loadSavedProgress(epId)
                     loadAdjacentEpisodes(epId)
@@ -234,6 +241,7 @@ class PlayerViewModel @Inject constructor(
                 if (currentEp != null) {
                     _currentEpisodeTitle.value = currentEp.title
                 }
+                loadIntroSkipTimes(detail.title, currentEp?.title ?: epId, epId)
                 val currentIndex = episodesList.indexOfFirst {
                     AnimeIdUtils.normalizeEpisodeId(it.id) == AnimeIdUtils.normalizeEpisodeId(epId)
                 }
@@ -264,6 +272,18 @@ class PlayerViewModel @Inject constructor(
             .replace("_", " ")
         val matches = Regex("\\d+").findAll(cleaned).map { it.value }.toList()
         return if (matches.isNotEmpty()) matches.last().toIntOrNull() ?: 0 else 0
+    }
+
+    private fun loadIntroSkipTimes(animeTitle: String, episodeTitle: String, episodeId: String) {
+        viewModelScope.launch {
+            try {
+                val epNum = aniSkipManager.extractEpisodeNumber(episodeTitle, episodeId)
+                val interval = aniSkipManager.getIntroSkipInterval(animeTitle, epNum)
+                _introInterval.value = interval
+            } catch (_: Exception) {
+                _introInterval.value = null
+            }
+        }
     }
 }
 

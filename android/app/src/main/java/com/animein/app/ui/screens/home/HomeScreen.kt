@@ -248,8 +248,8 @@ fun HomeScreen(
                             .height(42.dp)
                     ) {
                         val activeLabel = when (activeSource) {
-                            "otakudesu" -> "Server 1"
-                            "animeinweb" -> "Server 2"
+                            "animeinweb" -> "Server 1"
+                            "otakudesu" -> "Server 2"
                             else -> "Server 1"
                         }
                         
@@ -299,7 +299,7 @@ fun HomeScreen(
                                     shape = RoundedCornerShape(10.dp)
                                 )
                         ) {
-                            listOf("otakudesu" to "Server 1", "animeinweb" to "Server 2").forEach { (id, label) ->
+                            listOf("animeinweb" to "Server 1", "otakudesu" to "Server 2").forEach { (id, label) ->
                                 val isSelected = activeSource == id
                                 var isItemFocused by remember { mutableStateOf(false) }
                                 val itemShape = RoundedCornerShape(8.dp)

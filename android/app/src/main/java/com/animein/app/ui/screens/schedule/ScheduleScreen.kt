@@ -138,7 +138,7 @@ fun ScheduleScreen(
                                                     Modifier.frostGlass(
                                                         shape = tabShape,
                                                         isFocused = isTabFocused,
-                                                        isSubtle = !isTabFocused
+                                                        isSubtle = !isTabFocused && !isToday
                                                     )
                                                 }
                                             )
@@ -147,34 +147,16 @@ fun ScheduleScreen(
                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = item.day,
-                                                color = if (isSelected) Color.White else TextSecondary,
-                                                fontSize = 13.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                            )
-                                            if (isToday) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(
-                                                            color = if (isSelected) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.12f),
-                                                            shape = RoundedCornerShape(4.dp)
-                                                        )
-                                                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "Hari Ini",
-                                                        color = Color.White,
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        Text(
+                                            text = item.day,
+                                            color = when {
+                                                isSelected -> Color.White
+                                                isToday -> Color(0xFF90CAF9)
+                                                else -> TextSecondary
+                                            },
+                                            fontSize = 13.sp,
+                                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium
+                                        )
                                     }
                                 }
                             }

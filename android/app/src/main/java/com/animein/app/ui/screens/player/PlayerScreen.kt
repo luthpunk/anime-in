@@ -14,6 +14,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
@@ -253,6 +259,12 @@ fun PlayerScreen(
                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
                             var duration by remember { mutableLongStateOf(0L) }
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
+
+                            val introInterval by viewModel.introInterval.collectAsState()
+                            val isInsideIntro = remember(currentPosition, introInterval) {
+                                val interval = introInterval
+                                interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
+                            }
 
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }
@@ -1225,6 +1237,61 @@ fun PlayerScreen(
                                         }
                                         } // end if (!isLocked)
                                     } // end controls Box
+                                }
+
+                                // Floating "Lewati Intro" Button (AniSkip - Hanya saat intro berlangsung)
+                                AnimatedVisibility(
+                                    visible = isInsideIntro && !isLocked,
+                                    enter = fadeIn() + slideInHorizontally { it / 2 },
+                                    exit = fadeOut() + slideOutHorizontally { it / 2 },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(
+                                            end = if (isFullscreen) 32.dp else 16.dp,
+                                            bottom = if (showControls && !isLocked) {
+                                                if (isFullscreen) 92.dp else 70.dp
+                                            } else {
+                                                if (isFullscreen) 36.dp else 20.dp
+                                            }
+                                        )
+                                ) {
+                                    var isSkipFocused by remember { mutableStateOf(false) }
+                                    val skipShape = RoundedCornerShape(20.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(skipShape)
+                                            .frostGlass(
+                                                shape = skipShape,
+                                                isFocused = isSkipFocused
+                                            )
+                                            .onFocusChanged { isSkipFocused = it.isFocused }
+                                            .clickable {
+                                                introInterval?.let { interval ->
+                                                    exoPlayer.seekTo(interval.endTimeMs)
+                                                    currentPosition = interval.endTimeMs
+                                                }
+                                            }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FastForward,
+                                                contentDescription = "Lewati Intro",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Lewati Intro",
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
                         }
                         } // end Video Player Area Box
