@@ -218,6 +218,7 @@ fun PlayerScreen(
                              val playerContainerFocusRequester = remember { FocusRequester() }
                              val playPauseFocusRequester = remember { FocusRequester() }
                              val lockBtnFocusRequester = remember { FocusRequester() }
+                             val skipIntroFocusRequester = remember { FocusRequester() }
 
                             LaunchedEffect(showControls, isLocked) {
                                 if (isTV) {
@@ -258,6 +259,17 @@ fun PlayerScreen(
                             val isInsideIntro = remember(currentPosition, introInterval) {
                                 val interval = introInterval
                                 interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
+                            }
+                            var hasAutoFocusedIntro by remember(introInterval, currentEpisodeId) { mutableStateOf(false) }
+
+                            LaunchedEffect(isInsideIntro) {
+                                if (isInsideIntro && isTV && !hasAutoFocusedIntro) {
+                                    hasAutoFocusedIntro = true
+                                    delay(120)
+                                    try {
+                                        skipIntroFocusRequester.requestFocus()
+                                    } catch (_: Exception) {}
+                                }
                             }
 
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
@@ -1233,26 +1245,26 @@ fun PlayerScreen(
                                     } // end controls Box
                                 }
 
-                                // Floating "Lewati Intro" Button (AniSkip - Hanya saat intro berlangsung)
+                                // Floating "Lewati Intro" Button (AniSkip - Pojok Kanan Atas & Ukuran Serasi)
                                 if (isInsideIntro && !isLocked) {
                                     var isSkipFocused by remember { mutableStateOf(false) }
-                                    val skipShape = RoundedCornerShape(20.dp)
+                                    val skipChipHeight = if (isFullscreen) 30.dp else 26.dp
+                                    val skipChipShape = RoundedCornerShape(8.dp)
+
                                     Box(
                                         modifier = Modifier
-                                            .align(Alignment.BottomEnd)
+                                            .align(Alignment.TopEnd)
                                             .padding(
-                                                end = if (isFullscreen) 32.dp else 16.dp,
-                                                bottom = if (showControls && !isLocked) {
-                                                    if (isFullscreen) 92.dp else 70.dp
-                                                } else {
-                                                    if (isFullscreen) 36.dp else 20.dp
-                                                }
+                                                top = if (isFullscreen) 14.dp else 10.dp,
+                                                end = if (isFullscreen) 20.dp else 12.dp
                                             )
-                                            .clip(skipShape)
+                                            .height(skipChipHeight)
+                                            .clip(skipChipShape)
                                             .frostGlass(
-                                                shape = skipShape,
+                                                shape = skipChipShape,
                                                 isFocused = isSkipFocused
                                             )
+                                            .focusRequester(skipIntroFocusRequester)
                                             .onFocusChanged { isSkipFocused = it.isFocused }
                                             .clickable {
                                                 introInterval?.let { interval ->
@@ -1260,23 +1272,23 @@ fun PlayerScreen(
                                                     currentPosition = interval.endTimeMs
                                                 }
                                             }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                            .padding(horizontal = 10.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                                         ) {
                                             Icon(
                                                 imageVector = SkipNextIcon,
                                                 contentDescription = "Lewati Intro",
                                                 tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(if (isFullscreen) 14.dp else 12.dp)
                                             )
                                             Text(
                                                 text = "Lewati Intro",
                                                 color = Color.White,
-                                                fontSize = 12.sp,
+                                                fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
