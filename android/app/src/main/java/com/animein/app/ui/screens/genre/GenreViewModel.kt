@@ -34,14 +34,14 @@ class GenreViewModel @Inject constructor(
     }
 
     fun fetchAnimeByGenre() {
-        if (genreId.isEmpty()) {
+        if (genreId.isEmpty() && (genreName.isEmpty() || genreName == "Genre")) {
             _genreState.value = GenreUiState.Error("ID Genre tidak valid")
             return
         }
         viewModelScope.launch {
             _genreState.value = GenreUiState.Loading
             try {
-                val response = repository.getAnimeByGenre(genreId, currentPage)
+                val response = repository.getAnimeByGenre(genreId, genreName, currentPage)
                 _genreState.value = GenreUiState.Success(response.animeList)
             } catch (e: Exception) {
                 _genreState.value = GenreUiState.Error(e.localizedMessage ?: "Gagal memuat anime untuk genre ini")

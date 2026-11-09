@@ -46,6 +46,7 @@ fun DetailScreen(
     viewModel: DetailViewModel,
     onBackClick: () -> Unit,
     onEpisodeClick: (String, String) -> Unit, // episodeId, animeId
+    onGenreClick: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.detailState.collectAsState()
@@ -517,9 +518,16 @@ fun DetailScreen(
                                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                         ) {
                                                             detail.genreList.forEach { genre ->
+                                                                var isChipFocused by remember { mutableStateOf(false) }
+                                                                val chipShape = RoundedCornerShape(14.dp)
                                                                 Box(
                                                                     modifier = Modifier
-                                                                        .frostGlass(shape = RoundedCornerShape(14.dp), isSubtle = true)
+                                                                        .frostGlass(shape = chipShape, isFocused = isChipFocused, isSubtle = !isChipFocused)
+                                                                        .onFocusChanged { isChipFocused = it.isFocused }
+                                                                        .clickable {
+                                                                            val gId = genre.genreId.ifBlank { genre.genreName }
+                                                                            onGenreClick(gId, genre.genreName)
+                                                                        }
                                                                         .padding(horizontal = 10.dp, vertical = 4.dp)
                                                                 ) {
                                                                     Text(
@@ -664,9 +672,16 @@ fun DetailScreen(
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         detail.genreList?.forEach { genre ->
+                                            var isChipFocused by remember { mutableStateOf(false) }
+                                            val chipShape = RoundedCornerShape(20.dp)
                                             Box(
                                                 modifier = Modifier
-                                                    .frostGlass(shape = RoundedCornerShape(20.dp))
+                                                    .frostGlass(shape = chipShape, isFocused = isChipFocused, isSubtle = !isChipFocused)
+                                                    .onFocusChanged { isChipFocused = it.isFocused }
+                                                    .clickable {
+                                                        val gId = genre.genreId.ifBlank { genre.genreName }
+                                                        onGenreClick(gId, genre.genreName)
+                                                    }
                                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                                             ) {
                                                 Text(

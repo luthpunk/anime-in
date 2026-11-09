@@ -660,9 +660,16 @@ class OtakudesuDirectScraper @Inject constructor(
         }
     }
 
-    override suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getAnimeByGenre(genreId: String, genreName: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         val baseUrl = getBaseUrl()
-        val url = if (page == 1) "${baseUrl}genres/$genreId/" else "${baseUrl}genres/$genreId/page/$page/"
+        val cleanSlug = if (genreId.isNotBlank() && !genreId.all { it.isDigit() }) {
+            genreId.trim().trim('/').removePrefix("genres/").lowercase()
+        } else if (genreName.isNotBlank()) {
+            genreName.trim().lowercase().replace(" ", "-")
+        } else {
+            genreId.trim().trim('/').removePrefix("genres/").lowercase()
+        }
+        val url = if (page == 1) "${baseUrl}genres/$cleanSlug/" else "${baseUrl}genres/$cleanSlug/page/$page/"
         val doc = fetchDocument(url)
         val elements = doc.select(".page .col-md-4")
         

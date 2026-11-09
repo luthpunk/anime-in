@@ -360,17 +360,37 @@ class AnimeInWebScraper @Inject constructor(
         }
     }
 
-    override suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
+    override suspend fun getAnimeByGenre(genreId: String, genreName: String, page: Int): AnimeListResponse = withContext(Dispatchers.IO) {
         try {
-            val json = makeGetRequest("3/2/explore/movie", mapOf("genreIds[]" to genreId, "page" to page.toString()))
-            val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
-            val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
+            val targetGenre = genreName.trim().lowercase()
+            val startPage = (page - 1) * 2 + 1
+            val fetchedMovies = mutableListOf<WebMovieItem>()
 
-            if (apiResponse?.error == true || apiResponse?.status != 200 || apiResponse?.data == null) {
-                return@withContext AnimeListResponse("error", emptyList())
+            for (p in startPage..(startPage + 1)) {
+                try {
+                    val json = makeGetRequest("3/2/explore/movie", mapOf("page" to p.toString()))
+                    val type = object : TypeToken<WebResponse<WebExploreData>>() {}.type
+                    val apiResponse = gson.fromJson<WebResponse<WebExploreData>>(json, type)
+                    val movies = apiResponse?.data?.movie ?: emptyList()
+                    fetchedMovies.addAll(movies)
+                    if (movies.isEmpty()) break
+                } catch (_: Exception) {
+                    break
+                }
             }
 
-            val list = (apiResponse.data?.movie ?: emptyList()).map { item ->
+            val filteredMovies = if (targetGenre.isNotEmpty()) {
+                fetchedMovies.filter { movie ->
+                    movie.genre?.split(",")?.any { g ->
+                        val trimmed = g.trim().lowercase()
+                        trimmed == targetGenre || trimmed.contains(targetGenre) || targetGenre.contains(trimmed)
+                    } == true
+                }
+            } else {
+                fetchedMovies
+            }
+
+            val list = filteredMovies.map { item ->
                 AnimeListItem(
                     title = item.title ?: "Tanpa Judul",
                     animeName = item.title ?: "Tanpa Judul",

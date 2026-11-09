@@ -453,6 +453,9 @@ private fun NavGraphBuilder.appNavGraph(
             onBackClick = { navController.popBackStack() },
             onEpisodeClick = { episodeId, animeId ->
                 navigateToPlayer(navController, episodeId, animeId)
+            },
+            onGenreClick = { genreId, genreName ->
+                navController.navigate("genre/${Uri.encode(genreId)}/${Uri.encode(genreName)}")
             }
         )
     }

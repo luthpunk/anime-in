@@ -199,9 +199,9 @@ class AnimeRepository @Inject constructor(
         }
     }
 
-    suspend fun getAnimeByGenre(genreId: String, page: Int): AnimeListResponse {
+    suspend fun getAnimeByGenre(genreId: String, genreName: String = "", page: Int): AnimeListResponse {
         return try {
-            getActiveScraper().getAnimeByGenre(genreId, page)
+            getActiveScraper().getAnimeByGenre(genreId, genreName, page)
         } catch (e: Exception) {
             AnimeListResponse("error", emptyList())
         }
@@ -284,15 +284,63 @@ class AnimeRepository @Inject constructor(
     suspend fun getSchedule(forceRefresh: Boolean = false): ScheduleResponse {
         val scraper = getActiveScraper()
         return try {
-            getCachedOrFetch(
+            val response = getCachedOrFetch(
                 cacheKey = "schedule_data",
                 expiryMillis = 12 * 60 * 60 * 1000L, // 12 hours
                 forceRefresh = forceRefresh,
                 clazz = ScheduleResponse::class.java,
                 fetcher = { scraper.getSchedule() }
             )
+            val enrichedList = enrichScheduleThumbs(response.scheduleList)
+            ScheduleResponse(enrichedList)
         } catch (e: Exception) {
             ScheduleResponse(emptyList())
+        }
+    }
+
+    private suspend fun enrichScheduleThumbs(scheduleList: List<ScheduleItem>): List<ScheduleItem> {
+        val hasMissingThumbs = scheduleList.any { day -> day.animeList.any { it.thumb.isNullOrBlank() } }
+        if (!hasMissingThumbs) return scheduleList
+
+        val thumbMap = mutableMapOf<String, String>()
+        // 1. InMemory home cache
+        inMemoryHome?.home?.ongoing?.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+        inMemoryHome?.home?.complete?.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+        // 2. InMemory ongoing cache
+        inMemoryOngoing?.animeList?.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+
+        // 3. Fallback to cached DB entries
+        if (thumbMap.isEmpty()) {
+            val source = preferencesManager.getActiveSource()
+            try {
+                val homeCache = animeDao.getCache("home_data_$source")
+                if (homeCache != null) {
+                    val homeResp = gson.fromJson(homeCache.jsonResponse, HomeResponse::class.java)
+                    homeResp.home.ongoing.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+                    homeResp.home.complete.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+                }
+            } catch (_: Exception) {}
+            try {
+                val ongoingCache = animeDao.getCache("ongoing_data_$source")
+                if (ongoingCache != null) {
+                    val ongoingResp = gson.fromJson(ongoingCache.jsonResponse, AnimeListResponse::class.java)
+                    ongoingResp.animeList.forEach { if (!it.thumb.isNullOrBlank()) thumbMap[it.id] = it.thumb }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (thumbMap.isEmpty()) return scheduleList
+
+        return scheduleList.map { day ->
+            day.copy(
+                animeList = day.animeList.map { anime ->
+                    if (anime.thumb.isNullOrBlank() && thumbMap.containsKey(anime.id)) {
+                        anime.copy(thumb = thumbMap[anime.id])
+                    } else {
+                        anime
+                    }
+                }
+            )
         }
     }
 }
