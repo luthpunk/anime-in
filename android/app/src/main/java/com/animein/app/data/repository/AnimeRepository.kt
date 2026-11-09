@@ -285,7 +285,7 @@ class AnimeRepository @Inject constructor(
         val scraper = getActiveScraper()
         return try {
             val response = getCachedOrFetch(
-                cacheKey = "schedule_data",
+                cacheKey = "schedule_data_v2",
                 expiryMillis = 12 * 60 * 60 * 1000L, // 12 hours
                 forceRefresh = forceRefresh,
                 clazz = ScheduleResponse::class.java,

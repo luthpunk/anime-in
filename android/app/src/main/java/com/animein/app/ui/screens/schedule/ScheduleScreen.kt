@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,6 +58,15 @@ fun ScheduleScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Jadwal Rilis", fontWeight = FontWeight.Bold, color = Color.White) },
+                actions = {
+                    IconButton(onClick = { viewModel.fetchSchedule(forceRefresh = true) }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Muat Ulang Jadwal",
+                            tint = Color.White
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )

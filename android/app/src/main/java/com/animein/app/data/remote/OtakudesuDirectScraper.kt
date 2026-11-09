@@ -15,6 +15,9 @@ import com.animein.app.data.model.SearchResponse
 import com.animein.app.data.model.ScheduleResponse
 import com.animein.app.util.AnimeIdUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -719,6 +722,38 @@ class OtakudesuDirectScraper @Inject constructor(
         val baseUrl = getBaseUrl()
         val doc = fetchDocument("${baseUrl}jadwal-rilis/")
         val elements = doc.select(".kgjdwl321 .kglist321")
+
+        // Concurrently fetch ongoing anime posters (pages 1 to 4) to populate posters for schedule items
+        val thumbMap = mutableMapOf<String, String>()
+        try {
+            coroutineScope {
+                val ongoingJobs = (1..4).map { page ->
+                    async {
+                        try {
+                            val pageSegment = if (page <= 1) "" else "page/$page/"
+                            val ongoingDoc = fetchDocument("${baseUrl}ongoing-anime/$pageSegment")
+                            val items = ongoingDoc.select(".venz").first()?.children()?.getOrNull(0)?.select("ul > li")
+                                ?: ongoingDoc.select(".venz ul > li")
+                            items.mapNotNull { item ->
+                                val anchor = item.select(".thumb > a").first() ?: return@mapNotNull null
+                                val link = anchor.absUrl("href").ifBlank { anchor.attr("href") }
+                                val id = AnimeIdUtils.normalizeAnimeId(link)
+                                val thumb = item.select(".thumb img").first()?.absUrl("src").orEmpty()
+                                if (id.isNotBlank() && thumb.isNotBlank()) id to thumb else null
+                            }
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                }
+                ongoingJobs.awaitAll().forEach { list ->
+                    list.forEach { (id, thumb) ->
+                        thumbMap[id] = thumb
+                        thumbMap[id.trim('/')] = thumb
+                    }
+                }
+            }
+        } catch (_: Exception) {}
         
         val list = elements.map { item ->
             val day = item.select("h2").text().trim()
@@ -728,10 +763,12 @@ class OtakudesuDirectScraper @Inject constructor(
                 val animeName = anchor?.text().orEmpty().trim()
                 val link = anchor?.absUrl("href").orEmpty()
                 val id = AnimeIdUtils.normalizeAnimeId(link)
+                val thumb = thumbMap[id] ?: thumbMap[id.trim('/')]
                 com.animein.app.data.model.ScheduleAnimeItem(
                     animeName = animeName,
                     id = id,
-                    link = link
+                    link = link,
+                    thumb = thumb
                 )
             }
             com.animein.app.data.model.ScheduleItem(
