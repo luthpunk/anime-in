@@ -287,11 +287,35 @@ class OtakudesuDirectScraper @Inject constructor(
             )
         }.orEmpty()
 
+        // Otakudesu tidak memiliki endpoint hot terpisah; prioritaskan anime skor tertinggi (Populer) + update terhangat
+        val popularCompletedFeatured = completedList
+            .sortedByDescending { it.score?.trim()?.toDoubleOrNull() ?: 0.0 }
+            .take(5)
+            .map { comp ->
+                com.animein.app.data.model.AnimeOngoing(
+                    title = comp.title,
+                    id = comp.id,
+                    thumb = comp.thumb,
+                    episode = comp.episode,
+                    uploadedOn = comp.score?.takeIf { it.isNotBlank() }?.let { "★ $it" } ?: comp.uploadedOn,
+                    dayUpdated = null,
+                    link = comp.link,
+                    bannerTag = "POPULER MINGGU INI"
+                )
+            }
+        val trendingOngoingFeatured = ongoingList.take(3).map {
+            it.copy(bannerTag = "TRENDING MINGGU INI")
+        }
+        val featuredList = (trendingOngoingFeatured + popularCompletedFeatured)
+            .distinctBy { it.id }
+            .take(8)
+
         HomeResponse(
             status = "success",
             home = com.animein.app.data.model.HomeData(
                 ongoing = ongoingList,
-                complete = completedList
+                complete = completedList,
+                featured = featuredList
             )
         )
     }

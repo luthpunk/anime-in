@@ -235,8 +235,68 @@ class AnimeInWebScraper @Inject constructor(
                     episode = badgeLabel,
                     uploadedOn = item.day ?: item.aired_start ?: "",
                     dayUpdated = item.day ?: todayDay,
-                    link = ""
+                    link = "",
+                    cover = item.image_cover?.takeIf { it.isNotBlank() }
                 )
+            }
+
+            // Ambil data home/data (berisi hot, popular, new) untuk Carousel Hot/Populer & Anime Tamat
+            var rawHomeData: WebHomeData? = null
+            try {
+                val homeJson = makeGetRequest("3/2/home/data", mapOf("limit" to "60"))
+                val homeType = object : TypeToken<WebResponse<WebHomeData>>() {}.type
+                rawHomeData = gson.fromJson<WebResponse<WebHomeData>>(homeJson, homeType)?.data
+            } catch (_: Exception) {}
+
+            // Prioritas Carousel: Hot Minggu Ini -> Populer Minggu Ini -> Fallback Ongoing
+            val featuredCandidates = mutableListOf<Pair<WebMovieItem, String>>()
+            val seenFeaturedIds = mutableSetOf<String>()
+            rawHomeData?.hot.orEmpty().forEach { item ->
+                val id = item.id
+                if (!id.isNullOrBlank() && seenFeaturedIds.add(id)) {
+                    featuredCandidates.add(item to "HOT MINGGU INI")
+                }
+            }
+            if (featuredCandidates.size < 6) {
+                rawHomeData?.popular.orEmpty().forEach { item ->
+                    val id = item.id
+                    if (!id.isNullOrBlank() && seenFeaturedIds.add(id)) {
+                        featuredCandidates.add(item to "POPULER MINGGU INI")
+                    }
+                }
+            }
+
+            val featuredList = if (featuredCandidates.isNotEmpty()) {
+                featuredCandidates.take(8).map { (item, tag) ->
+                    val epLabel = when {
+                        !item.total_episodes.isNullOrBlank() && item.total_episodes != "0" -> "Eps ${item.total_episodes}"
+                        item.status.equals("FINISHED", ignoreCase = true) -> "Tamat"
+                        else -> "Ongoing"
+                    }
+                    val metaInfo = buildString {
+                        val sc = item.score?.takeIf { it.isNotBlank() }
+                        if (sc != null) append("★ $sc")
+                        val yr = item.year?.takeIf { it.isNotBlank() }
+                        if (yr != null) {
+                            if (isNotEmpty()) append(" • ")
+                            append(yr)
+                        }
+                    }.ifBlank { item.aired_start ?: "" }
+
+                    AnimeOngoing(
+                        title = item.title ?: "Tanpa Judul",
+                        id = item.id ?: "",
+                        thumb = item.image_poster?.takeIf { it.isNotBlank() } ?: item.image_cover ?: "",
+                        episode = epLabel,
+                        uploadedOn = metaInfo,
+                        dayUpdated = item.day ?: todayDay,
+                        link = "",
+                        bannerTag = tag,
+                        cover = item.image_cover?.takeIf { it.isNotBlank() }
+                    )
+                }
+            } else {
+                ongoingList.take(6).map { it.copy(bannerTag = "HOT MINGGU INI") }
             }
 
             // Fetch anime yang benar-benar sudah tamat (status == FINISHED)
@@ -252,9 +312,9 @@ class AnimeInWebScraper @Inject constructor(
                 )
             }
 
-            HomeResponse("ok", HomeData(ongoingList, completedList))
+            HomeResponse("ok", HomeData(ongoingList, completedList, featuredList))
         } catch (e: Exception) {
-            HomeResponse("error", HomeData(emptyList(), emptyList()))
+            HomeResponse("error", HomeData(emptyList(), emptyList(), emptyList()))
         }
     }
 

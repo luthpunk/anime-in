@@ -1,7 +1,6 @@
 package com.animein.app.ui.screens.home
 
 import android.content.res.Configuration
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -13,7 +12,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,7 +44,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -53,9 +52,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,13 +73,17 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import coil.compose.AsyncImage
 import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.AnimeCompleted
@@ -114,6 +117,7 @@ import com.animein.app.ui.theme.Surface4
 import com.animein.app.util.AnimeIdUtils
 import java.util.Calendar
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -429,7 +433,10 @@ fun HomeScreen(
                         val complete = remember(state.data.home.complete) {
                             state.data.home.complete.distinctBy { it.id }
                         }
-                        val featuredItems = remember(ongoing) { ongoing.take(5) }
+                        val featuredItems = remember(state.data.home.featured, ongoing) {
+                            val hotOrPopular = state.data.home.featured.orEmpty().distinctBy { it.id }
+                            if (hotOrPopular.isNotEmpty()) hotOrPopular.take(8) else ongoing.take(6)
+                        }
                         val horizontalPadding = if (isTV) 20.dp else 16.dp
 
                         Column(
@@ -611,6 +618,7 @@ private fun ServerSelectorPill(
     modifier: Modifier = Modifier
 ) {
     val accent = LocalAccentPreset.current
+    val density = LocalDensity.current
     var showDropdown by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
 
@@ -632,7 +640,7 @@ private fun ServerSelectorPill(
                     focusedContainerColor = Surface3
                 )
                 .onFocusChanged { isFocused = it.isFocused }
-                .clickable { showDropdown = true }
+                .clickable { showDropdown = !showDropdown }
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -665,64 +673,75 @@ private fun ServerSelectorPill(
             }
         }
 
-        DropdownMenu(
-            expanded = showDropdown,
-            onDismissRequest = { showDropdown = false },
-            modifier = Modifier
-                .width(IntrinsicSize.Max)
-                .background(Surface2)
-                .border(1.dp, HairlineStrong, RoundedCornerShape(12.dp))
-        ) {
-            listOf(
-                "animeinweb" to "Server 1",
-                "otakudesu" to "Server 2"
-            ).forEach { (id, label) ->
-                val isSelected = activeSource == id
-                var isItemFocused by remember { mutableStateOf(false) }
-                val itemShape = RoundedCornerShape(10.dp)
-                Box(
+        if (showDropdown) {
+            val yOffsetPx = with(density) { 50.dp.roundToPx() }
+            Popup(
+                alignment = Alignment.TopEnd,
+                offset = IntOffset(x = 0, y = yOffsetPx),
+                onDismissRequest = { showDropdown = false },
+                properties = PopupProperties(focusable = true)
+            ) {
+                val popupShape = RoundedCornerShape(14.dp)
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                        .clip(itemShape)
-                        .background(
-                            when {
-                                isItemFocused -> Surface3
-                                isSelected -> accent.accentSoft
-                                else -> Color.Transparent
-                            },
-                            itemShape
-                        )
-                        .then(
-                            if (isItemFocused) Modifier.border(2.dp, accent.accent, itemShape)
-                            else if (isSelected) Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
-                            else Modifier
-                        )
-                        .onFocusChanged { isItemFocused = it.isFocused }
-                        .clickable {
-                            onSelectSource(id)
-                            showDropdown = false
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .width(148.dp)
+                        .clip(popupShape)
+                        .background(Surface2, popupShape)
+                        .border(1.dp, HairlineStrong, popupShape)
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    listOf(
+                        "animeinweb" to "Server 1",
+                        "otakudesu" to "Server 2"
+                    ).forEach { (id, label) ->
+                        val isSelected = activeSource == id
+                        var isItemFocused by remember { mutableStateOf(false) }
+                        val itemShape = RoundedCornerShape(10.dp)
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) accent.accent else FgTertiary.copy(alpha = 0.4f))
-                        )
-                        Text(
-                            text = label,
-                            color = if (isSelected) accent.accent else FgPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1
-                        )
+                                .fillMaxWidth()
+                                .clip(itemShape)
+                                .background(
+                                    when {
+                                        isItemFocused -> Surface3
+                                        isSelected -> accent.accentSoft
+                                        else -> Color.Transparent
+                                    },
+                                    itemShape
+                                )
+                                .then(
+                                    if (isItemFocused) Modifier.border(2.dp, accent.accent, itemShape)
+                                    else if (isSelected) Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
+                                    else Modifier
+                                )
+                                .onFocusChanged { isItemFocused = it.isFocused }
+                                .clickable {
+                                    onSelectSource(id)
+                                    showDropdown = false
+                                }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) accent.accent else FgTertiary.copy(alpha = 0.4f))
+                                )
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) accent.accent else FgPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -731,9 +750,11 @@ private fun ServerSelectorPill(
 }
 
 /**
- * Musike-style Featured Spotlight Card with smooth Crossfade over up to 5 featured ongoing anime,
- * crisp poster + ambient tinted backdrop, monospace episode badge, and solid AccentPill CTA.
+ * Swipeable Featured Spotlight Carousel (HorizontalPager) displaying Hot / Trending / Popular
+ * anime from the active source. Swipe directly on the banner image on Mobile, or use D-pad
+ * Left/Right while focused on Android TV.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FeaturedSpotlightBanner(
     items: List<AnimeOngoing>,
@@ -742,18 +763,16 @@ fun FeaturedSpotlightBanner(
     modifier: Modifier = Modifier
 ) {
     val accent = LocalAccentPreset.current
-    var activeIndex by remember(items) { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { items.size })
+    val scope = rememberCoroutineScope()
     var isBannerFocused by remember { mutableStateOf(false) }
-    val safeIndex = activeIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-    val activeAnime = items[safeIndex]
 
-    // Auto-cycle smoothly when not focused (paused while TV user focuses the banner)
-    LaunchedEffect(items, isBannerFocused) {
-        if (items.size > 1 && !isBannerFocused) {
-            while (true) {
-                delay(6000L)
-                activeIndex = (activeIndex + 1) % items.size
-            }
+    // Auto-advance smoothly when not focused and not being swiped
+    LaunchedEffect(items.size, isBannerFocused, pagerState.isScrollInProgress) {
+        if (items.size > 1 && !isBannerFocused && !pagerState.isScrollInProgress) {
+            delay(6000L)
+            val next = (pagerState.currentPage + 1) % items.size
+            pagerState.animateScrollToPage(next)
         }
     }
 
@@ -764,163 +783,196 @@ fun FeaturedSpotlightBanner(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
+        HorizontalPager(
+            state = pagerState,
+            pageSpacing = 12.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(bannerHeight)
                 .clip(bannerShape)
-                .background(Surface2, bannerShape)
                 .border(
                     width = if (isBannerFocused) 2.5.dp else 1.dp,
                     color = if (isBannerFocused) accent.accent else Hairline,
                     shape = bannerShape
                 )
-                .onFocusChanged { isBannerFocused = it.isFocused }
-                .clickable { onAnimeClick(activeAnime.id) }
-        ) {
-            Crossfade(
-                targetState = activeAnime,
-                animationSpec = tween(420),
-                label = "featuredSpotlightCrossfade"
-            ) { anime ->
-                val formattedEpisode = remember(anime.episode) {
-                    AnimeIdUtils.formatEpisodeLabel(anime.episode)
-                }
+                .then(
+                    if (isTV) {
+                        Modifier
+                            .onFocusChanged { isBannerFocused = it.isFocused }
+                            .onKeyEvent { event ->
+                                if (event.type == KeyEventType.KeyDown) {
+                                    when (event.key) {
+                                        Key.DirectionRight -> {
+                                            if (pagerState.currentPage < items.lastIndex) {
+                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                                true
+                                            } else false
+                                        }
+                                        Key.DirectionLeft -> {
+                                            if (pagerState.currentPage > 0) {
+                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                                true
+                                            } else false // let edge Left return focus to TV sidebar
+                                        }
+                                        else -> false
+                                    }
+                                } else false
+                            }
+                            .clickable {
+                                items.getOrNull(pagerState.currentPage)?.let { onAnimeClick(it.id) }
+                            }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) { page ->
+            val anime = items[page]
+            val formattedEpisode = remember(anime.episode) {
+                AnimeIdUtils.formatEpisodeLabel(anime.episode)
+            }
+            val backdropModel = anime.cover?.takeIf { it.isNotBlank() } ?: anime.thumb
+            val tagText = anime.bannerTag?.takeIf { it.isNotBlank() } ?: "HOT MINGGU INI"
 
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Background artwork
-                    AsyncImage(
-                        model = anime.thumb,
-                        contentDescription = anime.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Surface2)
+                    .then(
+                        if (!isTV) Modifier.clickable { onAnimeClick(anime.id) } else Modifier
                     )
+            ) {
+                // Background artwork (prefer widescreen cover if available)
+                AsyncImage(
+                    model = backdropModel,
+                    contentDescription = anime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-                    // Rich Musike dark graphite scrim + subtle accent wash
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    colorStops = arrayOf(
-                                        0.0f to BgGraphite.copy(alpha = 0.94f),
-                                        0.55f to BgGraphite.copy(alpha = 0.78f),
-                                        1.0f to BgGraphite.copy(alpha = 0.35f)
-                                    )
+                // Dark graphite horizontal + vertical scrim
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.horizontalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to BgGraphite.copy(alpha = 0.94f),
+                                    0.55f to BgGraphite.copy(alpha = 0.78f),
+                                    1.0f to BgGraphite.copy(alpha = 0.35f)
                                 )
                             )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        accent.accent.copy(alpha = 0.08f),
-                                        Color.Transparent,
-                                        BgGraphite.copy(alpha = 0.90f)
-                                    )
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    accent.accent.copy(alpha = 0.08f),
+                                    Color.Transparent,
+                                    BgGraphite.copy(alpha = 0.90f)
                                 )
                             )
-                    )
+                        )
+                )
 
-                    Row(
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(if (isTV) 20.dp else 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Crisp portrait poster on the left
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(if (isTV) 20.dp else 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .width(if (isTV) 124.dp else 104.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(RadiusTile))
+                            .background(Surface3)
+                            .border(1.dp, HairlineStrong, RoundedCornerShape(RadiusTile))
                     ) {
-                        // Crisp uncropped portrait poster on the left (prevents face cropping!)
-                        Box(
-                            modifier = Modifier
-                                .width(if (isTV) 124.dp else 104.dp)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(RadiusTile))
-                                .background(Surface3)
-                                .border(1.dp, HairlineStrong, RoundedCornerShape(RadiusTile))
+                        AsyncImage(
+                            model = anime.thumb,
+                            contentDescription = anime.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    // Metadata & CTA on the right
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AsyncImage(
-                                model = anime.thumb,
-                                contentDescription = anime.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                            MonoBadge(
+                                text = tagText,
+                                isAccent = true
+                            )
+                            if (formattedEpisode.isNotBlank()) {
+                                MonoBadge(text = formattedEpisode)
+                            }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = anime.title,
+                                color = FgPrimary,
+                                fontSize = if (isTV) 21.sp else 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.4).sp,
+                                lineHeight = if (isTV) 26.sp else 22.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            val subtitleText = anime.uploadedOn?.takeIf { it.isNotBlank() }
+                                ?: "Pilihan terpopuler minggu ini"
+                            Text(
+                                text = subtitleText,
+                                style = MonoTextStyle.copy(
+                                    color = FgSecondary,
+                                    fontSize = 11.sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        // Metadata & Solid Accent CTA on the right
-                        Column(
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            verticalArrangement = Arrangement.SpaceBetween
+                                .height(34.dp)
+                                .clip(CircleShape)
+                                .background(accent.accent)
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                MonoBadge(
-                                    text = if (formattedEpisode.isNotBlank() &&
-                                        formattedEpisode != "Ongoing" &&
-                                        formattedEpisode != "Update"
-                                    ) formattedEpisode.uppercase() else "ONGOING",
-                                    isAccent = true
-                                )
-                                if (!anime.uploadedOn.isNullOrBlank()) {
-                                    MonoBadge(text = anime.uploadedOn)
-                                }
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = anime.title,
-                                    color = FgPrimary,
-                                    fontSize = if (isTV) 21.sp else 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-0.4).sp,
-                                    lineHeight = if (isTV) 26.sp else 22.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Update terbaru • Siap ditonton",
-                                    color = FgSecondary,
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-
-                            // Non-focusable visual CTA inside clickable banner so TV D-pad doesn't double-stop
-                            Row(
-                                modifier = Modifier
-                                    .height(34.dp)
-                                    .clip(CircleShape)
-                                    .background(accent.accent)
-                                    .padding(horizontal = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = accent.onAccent,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text(
-                                    text = "Tonton Sekarang",
-                                    color = accent.onAccent,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                tint = accent.onAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Tonton Sekarang",
+                                color = accent.onAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
             }
         }
 
-        // Compact interactive indicator pills below banner
+        // Interactive indicator pills synced with HorizontalPager
         if (items.size > 1) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -928,7 +980,7 @@ fun FeaturedSpotlightBanner(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items.forEachIndexed { index, _ ->
-                    val selected = index == safeIndex
+                    val selected = index == pagerState.currentPage
                     val pillWidth by animateDpAsState(
                         targetValue = if (selected) 22.dp else 6.dp,
                         animationSpec = tween(220),
@@ -946,7 +998,9 @@ fun FeaturedSpotlightBanner(
                                     Modifier.clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
-                                    ) { activeIndex = index }
+                                    ) {
+                                        scope.launch { pagerState.animateScrollToPage(index) }
+                                    }
                                 } else Modifier
                             )
                     )

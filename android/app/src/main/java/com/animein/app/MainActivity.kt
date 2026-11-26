@@ -254,14 +254,14 @@ fun MainApp(
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Left active accent bar inside tile
+                                // Bottom active accent bar inside tile
                                 if (selected && !isFocused) {
                                     Box(
                                         modifier = Modifier
-                                            .align(Alignment.CenterStart)
-                                            .padding(start = 3.dp)
-                                            .width(3.dp)
-                                            .height(20.dp)
+                                            .align(Alignment.BottomCenter)
+                                            .padding(bottom = 3.dp)
+                                            .width(22.dp)
+                                            .height(2.5.dp)
                                             .clip(RoundedCornerShape(50))
                                             .background(accent.accent)
                                     )

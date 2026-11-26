@@ -10,7 +10,8 @@ data class HomeResponse(
 
 data class HomeData(
     @SerializedName("on_going") val ongoing: List<AnimeOngoing>,
-    @SerializedName("completed") val complete: List<AnimeCompleted>
+    @SerializedName("completed") val complete: List<AnimeCompleted>,
+    @SerializedName("featured") val featured: List<AnimeOngoing>? = null
 )
 
 data class AnimeOngoing(
@@ -21,7 +22,9 @@ data class AnimeOngoing(
     @SerializedName("uploaded_on") val uploadedOn: String?,
     @SerializedName("day_updated") val dayUpdated: String?,
     @SerializedName("link") val link: String?,
-    @SerializedName("is_updated") val isUpdated: Boolean? = null
+    @SerializedName("is_updated") val isUpdated: Boolean? = null,
+    @SerializedName("banner_tag") val bannerTag: String? = null,
+    @SerializedName("cover") val cover: String? = null
 )
 
 data class AnimeCompleted(

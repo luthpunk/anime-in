@@ -115,7 +115,7 @@ class AnimeRepository @Inject constructor(
         }
         return try {
             val response = getCachedOrFetch(
-                cacheKey = "home_data_v4",
+                cacheKey = "home_data_v5",
                 expiryMillis = 2 * 60 * 60 * 1000L, // 2 hours
                 forceRefresh = forceRefresh,
                 clazz = HomeResponse::class.java,

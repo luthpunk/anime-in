@@ -37,11 +37,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.media3.common.MediaItem
@@ -770,34 +774,28 @@ fun PlayerScreen(
                                     }
                                 }
                                  if (showControls) {
+                                    val density = LocalDensity.current
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = if (isLocked) 0.3f else 0.58f))
+                                            .background(Color.Black.copy(alpha = if (isLocked) 0.30f else 0.56f))
                                     ) {
+                                        val centerOffsetY = if (isFullscreen) (-6).dp else (-10).dp
 
-                                        val controlChipHeight = if (isFullscreen) 32.dp else 28.dp
-                                        val controlChipShape = CircleShape
-                                        val centerOffsetY = if (isFullscreen) 0.dp else (-8).dp
-
-                                        // ========== TOMBOL KUNCI MINIMALIS (Sisi kiri tengah) ==========
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.CenterStart)
-                                                .offset(y = centerOffsetY)
-                                                .padding(start = if (isFullscreen) 16.dp else 12.dp)
-                                        ) {
-                                            val lockSize = if (isFullscreen) 38.dp else 32.dp
+                                        // Saat terkunci: tampilkan hanya 1 pill "Buka Kunci" di tengah bawah (ala Netflix)
+                                        if (isLocked) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(lockSize)
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(bottom = if (isFullscreen) 24.dp else 14.dp)
+                                                    .height(if (isFullscreen) 40.dp else 34.dp)
                                                     .musikeSurface(
                                                         shape = CircleShape,
                                                         isFocused = isLockBtnFocused,
                                                         accentColor = accent.accent,
-                                                        containerColor = if (isLocked) accent.accentSoft else Surface2.copy(alpha = 0.88f),
+                                                        containerColor = Surface2.copy(alpha = 0.92f),
                                                         focusedContainerColor = Surface3,
-                                                        isActive = isLocked
+                                                        isActive = true
                                                     )
                                                     .focusRequester(lockBtnFocusRequester)
                                                     .onFocusChanged {
@@ -805,18 +803,30 @@ fun PlayerScreen(
                                                         if (it.isFocused) lastUserInteractionTick++
                                                     }
                                                     .clickable {
-                                                        isLocked = !isLocked
+                                                        isLocked = false
                                                         lastUserInteractionTick++
-                                                        if (!isLocked) showControls = true
-                                                    },
+                                                        showControls = true
+                                                    }
+                                                    .padding(horizontal = 16.dp),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(
-                                                    imageVector = if (isLocked) LockClosedIcon else LockOpenIcon,
-                                                    contentDescription = if (isLocked) "Buka Kunci" else "Kunci Layar",
-                                                    tint = if (isLocked || isLockBtnFocused) accent.accent else FgPrimary,
-                                                    modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = LockClosedIcon,
+                                                        contentDescription = "Buka Kunci",
+                                                        tint = accent.accent,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Layar Terkunci • Buka",
+                                                        color = FgPrimary,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
 
@@ -830,10 +840,10 @@ fun PlayerScreen(
                                                     .align(Alignment.TopStart)
                                                     .background(
                                                         brush = Brush.verticalGradient(
-                                                            colors = listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
+                                                            colors = listOf(Color.Black.copy(alpha = 0.78f), Color.Transparent)
                                                         )
                                                     )
-                                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                                    .padding(horizontal = 22.dp, vertical = 14.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
@@ -849,9 +859,9 @@ fun PlayerScreen(
                                                     } else {
                                                         detail.title
                                                     },
-                                                    color = Color.White,
+                                                    color = FgPrimary,
                                                     fontSize = 15.sp,
-                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                     modifier = Modifier.weight(1f)
@@ -859,13 +869,12 @@ fun PlayerScreen(
                                             }
                                         }
 
-                                        // 2. Center row: Cinema Prev Ep + Solid Accent Play/Pause (ala a-music) + Next Ep
-                                        val sideBtnSize = if (isFullscreen) 42.dp else 36.dp
-                                        val sideIconSize = if (isFullscreen) 20.dp else 17.dp
-                                        val mainBtnSize = if (isFullscreen) 54.dp else 46.dp
-                                        val mainIconSize = if (isFullscreen) 26.dp else 22.dp
-                                        val centerSpacing = if (isFullscreen) 26.dp else 18.dp
-                                        val circleBtnShape = CircleShape
+                                        // ── 2. Center Row ala Netflix: Prev | Play/Pause (utama) | Next ──
+                                        val sideBtnSize = if (isFullscreen) 48.dp else 38.dp
+                                        val sideIconSize = if (isFullscreen) 28.dp else 22.dp
+                                        val mainBtnSize = if (isFullscreen) 60.dp else 48.dp
+                                        val mainIconSize = if (isFullscreen) 32.dp else 24.dp
+                                        val centerSpacing = if (isFullscreen) 42.dp else 28.dp
 
                                         Row(
                                             modifier = Modifier
@@ -877,16 +886,19 @@ fun PlayerScreen(
                                             val prevEpId by viewModel.prevEpisodeId.collectAsState()
                                             val nextEpId by viewModel.nextEpisodeId.collectAsState()
 
-                                            // Previous Episode Button
+                                            // Previous Episode (Clean Netflix style)
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .musikeSurface(
-                                                        shape = circleBtnShape,
-                                                        isFocused = isPrevFocused,
-                                                        accentColor = accent.accent,
-                                                        containerColor = Surface2.copy(alpha = 0.85f),
-                                                        focusedContainerColor = Surface3
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (isPrevFocused) Surface3.copy(alpha = 0.90f)
+                                                        else Color.Black.copy(alpha = 0.30f),
+                                                        CircleShape
+                                                    )
+                                                    .then(
+                                                        if (isPrevFocused) Modifier.border(2.5.dp, accent.accent, CircleShape)
+                                                        else Modifier
                                                     )
                                                     .onFocusChanged {
                                                         isPrevFocused = it.isFocused
@@ -902,22 +914,22 @@ fun PlayerScreen(
                                                     imageVector = SkipPreviousIcon,
                                                     contentDescription = "Episode Sebelumnya",
                                                     tint = when {
-                                                        prevEpId == null -> FgTertiary.copy(alpha = 0.35f)
+                                                        prevEpId == null -> Color.White.copy(alpha = 0.28f)
                                                         isPrevFocused -> accent.accent
-                                                        else -> FgPrimary
+                                                        else -> Color.White
                                                     },
                                                     modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
 
-                                            // Play/Pause Button (Signature a-music Solid Accent Circle)
+                                            // Play/Pause (Primary Center Button)
                                             Box(
                                                 modifier = Modifier
                                                     .size(mainBtnSize)
-                                                    .clip(circleBtnShape)
-                                                    .background(accent.accent, circleBtnShape)
+                                                    .clip(CircleShape)
+                                                    .background(accent.accent, CircleShape)
                                                     .then(
-                                                        if (isPlayFocused) Modifier.border(2.5.dp, Color.White, circleBtnShape)
+                                                        if (isPlayFocused) Modifier.border(2.5.dp, Color.White, CircleShape)
                                                         else Modifier
                                                     )
                                                     .focusRequester(playPauseFocusRequester)
@@ -953,16 +965,19 @@ fun PlayerScreen(
                                                 )
                                             }
 
-                                            // Next Episode Button
+                                            // Next Episode (Clean Netflix style)
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .musikeSurface(
-                                                        shape = circleBtnShape,
-                                                        isFocused = isNextFocused,
-                                                        accentColor = accent.accent,
-                                                        containerColor = Surface2.copy(alpha = 0.85f),
-                                                        focusedContainerColor = Surface3
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (isNextFocused) Surface3.copy(alpha = 0.90f)
+                                                        else Color.Black.copy(alpha = 0.30f),
+                                                        CircleShape
+                                                    )
+                                                    .then(
+                                                        if (isNextFocused) Modifier.border(2.5.dp, accent.accent, CircleShape)
+                                                        else Modifier
                                                     )
                                                     .onFocusChanged {
                                                         isNextFocused = it.isFocused
@@ -978,328 +993,404 @@ fun PlayerScreen(
                                                     imageVector = SkipNextIcon,
                                                     contentDescription = "Episode Selanjutnya",
                                                     tint = when {
-                                                        nextEpId == null -> FgTertiary.copy(alpha = 0.35f)
+                                                        nextEpId == null -> Color.White.copy(alpha = 0.28f)
                                                         isNextFocused -> accent.accent
-                                                        else -> FgPrimary
+                                                        else -> Color.White
                                                     },
                                                     modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
                                         }
 
-                                        // 3. Bottom controls — Monospace time left, Pill chips right, Accent Seekbar bottom
+                                        // ── 3. Bottom Section ala Netflix: Baris 1 = Seeker + Waktu, Baris 2 (paling bawah) = Kunci, Kecepatan, Kualitas, Fullscreen ──
+                                        val actionChipHeight = if (isFullscreen) 34.dp else 28.dp
+                                        val popupGapY = with(density) { (actionChipHeight + 8.dp).roundToPx() }
+
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
                                                 .background(
                                                     brush = Brush.verticalGradient(
-                                                        colors = listOf(Color.Transparent, BgGraphite.copy(alpha = 0.88f))
+                                                        colors = listOf(Color.Transparent, BgGraphite.copy(alpha = 0.90f))
                                                     )
                                                 )
                                                 .padding(
-                                                    start = if (isFullscreen) 18.dp else 12.dp,
-                                                    end = if (isFullscreen) 18.dp else 12.dp,
-                                                    top = 6.dp,
-                                                    bottom = if (isFullscreen) 10.dp else 4.dp
-                                                )
+                                                    start = if (isFullscreen) 20.dp else 12.dp,
+                                                    end = if (isFullscreen) 20.dp else 12.dp,
+                                                    top = 8.dp,
+                                                    bottom = if (isFullscreen) 12.dp else 6.dp
+                                                ),
+                                            verticalArrangement = Arrangement.spacedBy(if (isFullscreen) 6.dp else 2.dp)
                                         ) {
+                                            // Row 1 (ATAS di bottom section): Seeker + Waktu kiri/kanan ala Netflix
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Text(
+                                                    text = formatTime(currentPosition),
+                                                    style = MonoTextStyle.copy(
+                                                        color = FgPrimary,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                )
+                                                Slider(
+                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
+                                                    onValueChange = {
+                                                        lastUserInteractionTick++
+                                                        currentPosition = it.toLong()
+                                                        exoPlayer.seekTo(currentPosition)
+                                                    },
+                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(if (isFullscreen) 22.dp else 18.dp)
+                                                        .onKeyEvent { keyEvent ->
+                                                            if (keyEvent.type == KeyEventType.KeyDown) {
+                                                                when (keyEvent.key) {
+                                                                    Key.DirectionLeft -> {
+                                                                        lastUserInteractionTick++
+                                                                        val target = (currentPosition - 10000).coerceAtLeast(0L)
+                                                                        currentPosition = target
+                                                                        exoPlayer.seekTo(target)
+                                                                        true
+                                                                    }
+                                                                    Key.DirectionRight -> {
+                                                                        lastUserInteractionTick++
+                                                                        val target = (currentPosition + 10000).coerceAtMost(duration)
+                                                                        currentPosition = target
+                                                                        exoPlayer.seekTo(target)
+                                                                        true
+                                                                    }
+                                                                    else -> false
+                                                                }
+                                                            } else false
+                                                        }
+                                                        .onFocusChanged {
+                                                            isSliderFocused = it.isFocused
+                                                            if (it.isFocused) lastUserInteractionTick++
+                                                        }
+                                                        .focusable(),
+                                                    colors = SliderDefaults.colors(
+                                                        thumbColor = accent.accent,
+                                                        activeTrackColor = accent.accent,
+                                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                                    )
+                                                )
+                                                Text(
+                                                    text = formatTime(duration),
+                                                    style = MonoTextStyle.copy(
+                                                        color = FgSecondary,
+                                                        fontSize = 11.sp
+                                                    )
+                                                )
+                                            }
+
+                                            // Row 2 (PALING BAWAH): Baris Tombol Aksi ala Netflix (Kunci • Kecepatan • Resolusi • Fullscreen)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceEvenly,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Monospace timestamps (tabular-nums ala a-music)
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(
-                                                        text = formatTime(currentPosition),
-                                                        style = MonoTextStyle.copy(
-                                                            color = FgPrimary,
+                                                // 1. Kunci Layar
+                                                Box(
+                                                    modifier = Modifier
+                                                        .height(actionChipHeight)
+                                                        .musikeSurface(
+                                                            shape = CircleShape,
+                                                            isFocused = isLockBtnFocused,
+                                                            accentColor = accent.accent,
+                                                            containerColor = Surface2.copy(alpha = 0.78f),
+                                                            focusedContainerColor = Surface3
+                                                        )
+                                                        .focusRequester(lockBtnFocusRequester)
+                                                        .onFocusChanged {
+                                                            isLockBtnFocused = it.isFocused
+                                                            if (it.isFocused) lastUserInteractionTick++
+                                                        }
+                                                        .clickable {
+                                                            isLocked = true
+                                                            lastUserInteractionTick++
+                                                        }
+                                                        .padding(horizontal = if (isFullscreen) 14.dp else 10.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = LockOpenIcon,
+                                                            contentDescription = "Kunci Layar",
+                                                            tint = if (isLockBtnFocused) accent.accent else FgPrimary,
+                                                            modifier = Modifier.size(if (isFullscreen) 15.dp else 13.dp)
+                                                        )
+                                                        Text(
+                                                            text = "Kunci",
+                                                            color = if (isLockBtnFocused) accent.accent else FgPrimary,
                                                             fontSize = 11.sp,
-                                                            fontWeight = FontWeight.Bold
+                                                            fontWeight = FontWeight.SemiBold
                                                         )
-                                                    )
-                                                    Text(
-                                                        text = " / ${formatTime(duration)}",
-                                                        style = MonoTextStyle.copy(
-                                                            color = FgSecondary,
-                                                            fontSize = 11.sp
-                                                        )
-                                                    )
+                                                    }
                                                 }
 
-                                                // Control Pills: Resolution, Speed, Fullscreen
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    // 1. Resolution Dropdown Button
-                                                    Box {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .height(controlChipHeight)
-                                                                .musikeSurface(
-                                                                    shape = controlChipShape,
-                                                                    isFocused = isResFocused,
-                                                                    accentColor = accent.accent,
-                                                                    containerColor = Surface2.copy(alpha = 0.88f),
-                                                                    focusedContainerColor = Surface3
-                                                                )
-                                                                .onFocusChanged {
-                                                                    isResFocused = it.isFocused
-                                                                    if (it.isFocused) lastUserInteractionTick++
-                                                                }
-                                                                .clickable {
-                                                                    lastUserInteractionTick++
-                                                                    showQualityDropdown = true
-                                                                }
-                                                                .padding(horizontal = 11.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = selectedResolution,
-                                                                style = MonoTextStyle.copy(
-                                                                    color = if (isResFocused) accent.accent else FgPrimary,
-                                                                    fontSize = 11.sp,
-                                                                    fontWeight = FontWeight.Bold
-                                                                )
-                                                            )
-                                                        }
-
-                                                        DropdownMenu(
-                                                             expanded = showQualityDropdown,
-                                                             onDismissRequest = {
-                                                                 lastUserInteractionTick++
-                                                                 showQualityDropdown = false
-                                                             },
-                                                             modifier = Modifier
-                                                                 .width(IntrinsicSize.Max)
-                                                                 .background(Surface2)
-                                                                 .border(1.dp, HairlineStrong, RoundedCornerShape(12.dp))
-                                                         ) {
-                                                             allMirrors.forEach { mirror ->
-                                                                 val isSelected = selectedResolution == mirror.resolution
-                                                                 var isItemFocused by remember { mutableStateOf(false) }
-                                                                 val itemShape = RoundedCornerShape(8.dp)
-                                                                 Box(
-                                                                     modifier = Modifier
-                                                                         .fillMaxWidth()
-                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                         .clip(itemShape)
-                                                                         .background(
-                                                                             when {
-                                                                                 isItemFocused -> Surface3
-                                                                                 isSelected -> accent.accentSoft
-                                                                                 else -> Color.Transparent
-                                                                             },
-                                                                             itemShape
-                                                                         )
-                                                                         .then(
-                                                                             when {
-                                                                                 isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
-                                                                                 isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
-                                                                                 else -> Modifier
-                                                                             }
-                                                                         )
-                                                                         .onFocusChanged {
-                                                                             isItemFocused = it.isFocused
-                                                                             if (it.isFocused) lastUserInteractionTick++
-                                                                         }
-                                                                         .clickable {
-                                                                             lastUserInteractionTick++
-                                                                             selectedResolution = mirror.resolution
-                                                                             viewModel.switchMirror(mirror.id)
-                                                                             showQualityDropdown = false
-                                                                         }
-                                                                         .padding(horizontal = 12.dp, vertical = 6.dp),
-                                                                     contentAlignment = Alignment.Center
-                                                                 ) {
-                                                                     Text(
-                                                                         text = mirror.resolution,
-                                                                         style = MonoTextStyle.copy(
-                                                                             color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
-                                                                             fontSize = 12.sp,
-                                                                             fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
-                                                                         ),
-                                                                         maxLines = 1
-                                                                     )
-                                                                 }
-                                                             }
-                                                         }
-                                                    }
-
-                                                    // 2. Playback Speed Dropdown Button
-                                                    Box {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .height(controlChipHeight)
-                                                                .musikeSurface(
-                                                                    shape = controlChipShape,
-                                                                    isFocused = isSpeedFocused,
-                                                                    accentColor = accent.accent,
-                                                                    containerColor = Surface2.copy(alpha = 0.88f),
-                                                                    focusedContainerColor = Surface3
-                                                                )
-                                                                .onFocusChanged {
-                                                                    isSpeedFocused = it.isFocused
-                                                                    if (it.isFocused) lastUserInteractionTick++
-                                                                }
-                                                                .clickable {
-                                                                    lastUserInteractionTick++
-                                                                    showSpeedDropdown = true
-                                                                }
-                                                                .padding(horizontal = 11.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "${speed}x",
-                                                                style = MonoTextStyle.copy(
-                                                                    color = if (isSpeedFocused || speed != 1.0f) accent.accent else FgPrimary,
-                                                                    fontSize = 11.sp,
-                                                                    fontWeight = FontWeight.Bold
-                                                                )
-                                                            )
-                                                        }
-
-                                                        DropdownMenu(
-                                                            expanded = showSpeedDropdown,
-                                                            onDismissRequest = {
-                                                                lastUserInteractionTick++
-                                                                showSpeedDropdown = false
-                                                            },
-                                                            modifier = Modifier
-                                                                .width(IntrinsicSize.Max)
-                                                                .background(Surface2)
-                                                                .border(1.dp, HairlineStrong, RoundedCornerShape(12.dp))
-                                                        ) {
-                                                            listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
-                                                                val isSelected = speed == value
-                                                                var isItemFocused by remember { mutableStateOf(false) }
-                                                                val itemShape = RoundedCornerShape(8.dp)
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                        .clip(itemShape)
-                                                                        .background(
-                                                                            when {
-                                                                                isItemFocused -> Surface3
-                                                                                isSelected -> accent.accentSoft
-                                                                                else -> Color.Transparent
-                                                                            },
-                                                                            itemShape
-                                                                        )
-                                                                        .then(
-                                                                            when {
-                                                                                isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
-                                                                                isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
-                                                                                else -> Modifier
-                                                                            }
-                                                                        )
-                                                                        .onFocusChanged {
-                                                                            isItemFocused = it.isFocused
-                                                                            if (it.isFocused) lastUserInteractionTick++
-                                                                        }
-                                                                        .clickable {
-                                                                            lastUserInteractionTick++
-                                                                            viewModel.setPlaybackSpeed(value)
-                                                                            showSpeedDropdown = false
-                                                                        }
-                                                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                                                    contentAlignment = Alignment.Center
-                                                                ) {
-                                                                    Text(
-                                                                        text = "${value}x",
-                                                                        style = MonoTextStyle.copy(
-                                                                            color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
-                                                                            fontSize = 12.sp,
-                                                                            fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
-                                                                        ),
-                                                                        maxLines = 1
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // 3. Fullscreen Button
+                                                // 2. Kecepatan (Speed) + Clean Upward Popup
+                                                Box {
                                                     Box(
                                                         modifier = Modifier
-                                                            .height(controlChipHeight)
-                                                            .width(if (isFullscreen) 36.dp else 32.dp)
+                                                            .height(actionChipHeight)
                                                             .musikeSurface(
-                                                                shape = controlChipShape,
-                                                                isFocused = isFullscreenBtnFocused,
+                                                                shape = CircleShape,
+                                                                isFocused = isSpeedFocused,
                                                                 accentColor = accent.accent,
-                                                                containerColor = Surface2.copy(alpha = 0.88f),
+                                                                containerColor = Surface2.copy(alpha = 0.78f),
                                                                 focusedContainerColor = Surface3
                                                             )
                                                             .onFocusChanged {
-                                                                isFullscreenBtnFocused = it.isFocused
+                                                                isSpeedFocused = it.isFocused
                                                                 if (it.isFocused) lastUserInteractionTick++
                                                             }
                                                             .clickable {
                                                                 lastUserInteractionTick++
-                                                                isFullscreen = !isFullscreen
-                                                            },
+                                                                showQualityDropdown = false
+                                                                showSpeedDropdown = !showSpeedDropdown
+                                                            }
+                                                            .padding(horizontal = if (isFullscreen) 14.dp else 10.dp),
                                                         contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = if (isFullscreen) "Kecepatan (${speed}x)" else "${speed}x",
+                                                            style = MonoTextStyle.copy(
+                                                                color = if (isSpeedFocused || speed != 1.0f) accent.accent else FgPrimary,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        )
+                                                    }
+
+                                                    if (showSpeedDropdown) {
+                                                        Popup(
+                                                            alignment = Alignment.BottomCenter,
+                                                            offset = IntOffset(x = 0, y = -popupGapY),
+                                                            onDismissRequest = {
+                                                                lastUserInteractionTick++
+                                                                showSpeedDropdown = false
+                                                            },
+                                                            properties = PopupProperties(focusable = true)
+                                                        ) {
+                                                            val popupShape = RoundedCornerShape(14.dp)
+                                                            Column(
+                                                                modifier = Modifier
+                                                                    .width(108.dp)
+                                                                    .clip(popupShape)
+                                                                    .background(Surface2, popupShape)
+                                                                    .border(1.dp, HairlineStrong, popupShape)
+                                                                    .padding(6.dp),
+                                                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                                            ) {
+                                                                listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
+                                                                    val isSelected = speed == value
+                                                                    var isItemFocused by remember { mutableStateOf(false) }
+                                                                    val itemShape = RoundedCornerShape(9.dp)
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxWidth()
+                                                                            .clip(itemShape)
+                                                                            .background(
+                                                                                when {
+                                                                                    isItemFocused -> Surface3
+                                                                                    isSelected -> accent.accentSoft
+                                                                                    else -> Color.Transparent
+                                                                                },
+                                                                                itemShape
+                                                                            )
+                                                                            .then(
+                                                                                when {
+                                                                                    isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
+                                                                                    isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
+                                                                                    else -> Modifier
+                                                                                }
+                                                                            )
+                                                                            .onFocusChanged {
+                                                                                isItemFocused = it.isFocused
+                                                                                if (it.isFocused) lastUserInteractionTick++
+                                                                            }
+                                                                            .clickable {
+                                                                                lastUserInteractionTick++
+                                                                                viewModel.setPlaybackSpeed(value)
+                                                                                showSpeedDropdown = false
+                                                                            }
+                                                                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        Text(
+                                                                            text = "${value}x",
+                                                                            style = MonoTextStyle.copy(
+                                                                                color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
+                                                                                fontSize = 12.sp,
+                                                                                fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
+                                                                            ),
+                                                                            maxLines = 1
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // 3. Resolusi / Kualitas + Clean Upward Popup
+                                                Box {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .height(actionChipHeight)
+                                                            .musikeSurface(
+                                                                shape = CircleShape,
+                                                                isFocused = isResFocused,
+                                                                accentColor = accent.accent,
+                                                                containerColor = Surface2.copy(alpha = 0.78f),
+                                                                focusedContainerColor = Surface3
+                                                            )
+                                                            .onFocusChanged {
+                                                                isResFocused = it.isFocused
+                                                                if (it.isFocused) lastUserInteractionTick++
+                                                            }
+                                                            .clickable {
+                                                                lastUserInteractionTick++
+                                                                showSpeedDropdown = false
+                                                                showQualityDropdown = !showQualityDropdown
+                                                            }
+                                                            .padding(horizontal = if (isFullscreen) 14.dp else 10.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = if (isFullscreen) "Kualitas ($selectedResolution)" else selectedResolution,
+                                                            style = MonoTextStyle.copy(
+                                                                color = if (isResFocused) accent.accent else FgPrimary,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        )
+                                                    }
+
+                                                    if (showQualityDropdown) {
+                                                        Popup(
+                                                            alignment = Alignment.BottomCenter,
+                                                            offset = IntOffset(x = 0, y = -popupGapY),
+                                                            onDismissRequest = {
+                                                                lastUserInteractionTick++
+                                                                showQualityDropdown = false
+                                                            },
+                                                            properties = PopupProperties(focusable = true)
+                                                        ) {
+                                                            val popupShape = RoundedCornerShape(14.dp)
+                                                            Column(
+                                                                modifier = Modifier
+                                                                    .width(116.dp)
+                                                                    .clip(popupShape)
+                                                                    .background(Surface2, popupShape)
+                                                                    .border(1.dp, HairlineStrong, popupShape)
+                                                                    .padding(6.dp),
+                                                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                                                            ) {
+                                                                allMirrors.forEach { mirror ->
+                                                                    val isSelected = selectedResolution == mirror.resolution
+                                                                    var isItemFocused by remember { mutableStateOf(false) }
+                                                                    val itemShape = RoundedCornerShape(9.dp)
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxWidth()
+                                                                            .clip(itemShape)
+                                                                            .background(
+                                                                                when {
+                                                                                    isItemFocused -> Surface3
+                                                                                    isSelected -> accent.accentSoft
+                                                                                    else -> Color.Transparent
+                                                                                },
+                                                                                itemShape
+                                                                            )
+                                                                            .then(
+                                                                                when {
+                                                                                    isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
+                                                                                    isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
+                                                                                    else -> Modifier
+                                                                                }
+                                                                            )
+                                                                            .onFocusChanged {
+                                                                                isItemFocused = it.isFocused
+                                                                                if (it.isFocused) lastUserInteractionTick++
+                                                                            }
+                                                                            .clickable {
+                                                                                lastUserInteractionTick++
+                                                                                selectedResolution = mirror.resolution
+                                                                                viewModel.switchMirror(mirror.id)
+                                                                                showQualityDropdown = false
+                                                                            }
+                                                                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                                                                        contentAlignment = Alignment.Center
+                                                                    ) {
+                                                                        Text(
+                                                                            text = mirror.resolution,
+                                                                            style = MonoTextStyle.copy(
+                                                                                color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
+                                                                                fontSize = 12.sp,
+                                                                                fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
+                                                                            ),
+                                                                            maxLines = 1
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // 4. Fullscreen Toggle
+                                                Box(
+                                                    modifier = Modifier
+                                                        .height(actionChipHeight)
+                                                        .musikeSurface(
+                                                            shape = CircleShape,
+                                                            isFocused = isFullscreenBtnFocused,
+                                                            accentColor = accent.accent,
+                                                            containerColor = Surface2.copy(alpha = 0.78f),
+                                                            focusedContainerColor = Surface3
+                                                        )
+                                                        .onFocusChanged {
+                                                            isFullscreenBtnFocused = it.isFocused
+                                                            if (it.isFocused) lastUserInteractionTick++
+                                                        }
+                                                        .clickable {
+                                                            lastUserInteractionTick++
+                                                            isFullscreen = !isFullscreen
+                                                        }
+                                                        .padding(horizontal = if (isFullscreen) 14.dp else 10.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                                                     ) {
                                                         Icon(
                                                             imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
                                                             contentDescription = "Fullscreen",
                                                             tint = if (isFullscreenBtnFocused) accent.accent else FgPrimary,
-                                                            modifier = Modifier.size(if (isFullscreen) 16.dp else 14.dp)
+                                                            modifier = Modifier.size(if (isFullscreen) 15.dp else 14.dp)
                                                         )
+                                                        if (isFullscreen) {
+                                                            Text(
+                                                                text = "Keluar",
+                                                                color = if (isFullscreenBtnFocused) accent.accent else FgPrimary,
+                                                                fontSize = 11.sp,
+                                                                fontWeight = FontWeight.SemiBold
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
-
-                                            Spacer(modifier = Modifier.height(if (isFullscreen) 4.dp else 2.dp))
-
-                                            // Row 2: Accent Seekbar
-                                            Slider(
-                                                value = if (duration > 0) currentPosition.toFloat() else 0f,
-                                                onValueChange = {
-                                                    lastUserInteractionTick++
-                                                    currentPosition = it.toLong()
-                                                    exoPlayer.seekTo(currentPosition)
-                                                },
-                                                valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(if (isFullscreen) 22.dp else 18.dp)
-                                                    .onKeyEvent { keyEvent ->
-                                                        if (keyEvent.type == KeyEventType.KeyDown) {
-                                                            when (keyEvent.key) {
-                                                                Key.DirectionLeft -> {
-                                                                    lastUserInteractionTick++
-                                                                    val target = (currentPosition - 10000).coerceAtLeast(0L)
-                                                                    currentPosition = target
-                                                                    exoPlayer.seekTo(target)
-                                                                    true
-                                                                }
-                                                                Key.DirectionRight -> {
-                                                                    lastUserInteractionTick++
-                                                                    val target = (currentPosition + 10000).coerceAtMost(duration)
-                                                                    currentPosition = target
-                                                                    exoPlayer.seekTo(target)
-                                                                    true
-                                                                }
-                                                                else -> false
-                                                            }
-                                                        } else false
-                                                    }
-                                                    .onFocusChanged {
-                                                        isSliderFocused = it.isFocused
-                                                        if (it.isFocused) lastUserInteractionTick++
-                                                    }
-                                                    .focusable(),
-                                                colors = SliderDefaults.colors(
-                                                    thumbColor = accent.accent,
-                                                    activeTrackColor = accent.accent,
-                                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                                                )
-                                            )
                                         }
                                         } // end if (!isLocked)
                                     } // end controls Box
