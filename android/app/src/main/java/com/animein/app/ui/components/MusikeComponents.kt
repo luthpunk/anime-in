@@ -52,7 +52,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.font.FontWeight
@@ -244,16 +243,11 @@ fun BrandLogoMark(
             close()
         }
 
-        withTransform({
-            scale(scaleX = 0.84f, scaleY = 0.84f, pivot = this.center)
-            rotate(degrees = 28f, pivot = this.center)
-        }) {
-            drawPath(leftEar, brush = brush)
-            drawPath(rightEar, brush = brush)
-            drawPath(center, brush = brush)
-            drawPath(leftCheek, brush = brush)
-            drawPath(rightCheek, brush = brush)
-        }
+        drawPath(leftEar, brush = brush)
+        drawPath(rightEar, brush = brush)
+        drawPath(center, brush = brush)
+        drawPath(leftCheek, brush = brush)
+        drawPath(rightCheek, brush = brush)
     }
 }
 
