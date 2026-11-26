@@ -2,22 +2,63 @@ package com.animein.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Neutral Frost Glass Dark Grey Palette (No Neon)
-val DarkBackground = Color(0xFF161618)       // Dark grey background
-val DarkSurface = Color(0xFF232326)          // Dark grey card/surface
-val DarkSurfaceVariant = Color(0xFF2E2E33)   // Lighter dark grey surface
+// ── Musike / a-music Inspired Cool Graphite Surface Hierarchy ──────────────
+val BgGraphite = Color(0xFF0B0C0F)         // --bg: deep cool graphite canvas
+val Surface1 = Color(0xFF121318)           // --surface-1: island outer shell / primary panel
+val Surface2 = Color(0xFF181A20)           // --surface-2: island core / cards / chips
+val Surface3 = Color(0xFF20232B)           // --surface-3: elevated controls / active neutral
+val Surface4 = Color(0xFF2A2E38)           // --surface-4: hover / pressed / strong neutral
 
-// Frost Glass & Grey Gradient Outline colors
-val FrostGlassBgTop = Color(0xCC323238)      // Frosted dark grey top with specular sheen
-val FrostGlassBgMid = Color(0xD9242429)      // Frosted dark grey middle body
-val FrostGlassBgBottom = Color(0xE61A1A1E)   // Frosted dark grey bottom depth
-val OutlineGreyHighlight = Color(0xFFB8B8C2) // Top-left specular edge of gradient outline
-val OutlineGrey = Color(0xFF7A7A85)          // Grey untuk bingkai / outline
-val OutlineGreySubtle = Color(0xFF4A4A52)    // Subtle grey outline for cards/containers
-val FrostWhiteAccent = Color(0xFFFFFFFF)     // White for active text & icons
-val FrostActiveBg = Color(0x38FFFFFF)        // Frosted white translucent highlight
+val Hairline = Color(0x12FFFFFF)           // --line: 7% white hairline border
+val HairlineStrong = Color(0x1FFFFFFF)     // --line-strong: 12% white border
+val HighlightTop = Color(0x0FFFFFFF)       // --highlight: 6% subtle top edge sheen
+val ScrimDark = Color(0xB8050608)          // --scrim: modal / overlay scrim
+val DangerCoral = Color(0xFFFF7A6B)        // --danger: soft coral error / destructive
 
-// Legacy aliases mapped to neutral Frost Glass (menghapus semua nuansa neon)
+val FgPrimary = Color(0xFFECEEF2)          // --fg: crisp primary text
+val FgSecondary = Color(0xFF9BA1AD)        // --fg-2: muted secondary text
+val FgTertiary = Color(0xFF6B717D)         // --fg-3: subtle metadata / inactive icons
+
+// ── Customizable Accent Presets (8 presets matching a-music) ───────────────
+data class AccentPreset(
+    val id: String,
+    val label: String,
+    val accent: Color,
+    val onAccent: Color = Color(0xFF0B0C0F),
+    val accentSoft: Color = accent.copy(alpha = 0.14f),
+    val accentRingSoft: Color = accent.copy(alpha = 0.30f)
+)
+
+val AccentPresets: List<AccentPreset> = listOf(
+    AccentPreset(id = "volt", label = "Volt", accent = Color(0xFFC3EC52)),
+    AccentPreset(id = "mint", label = "Mint", accent = Color(0xFF34D399)),
+    AccentPreset(id = "aqua", label = "Aqua", accent = Color(0xFF22D3EE)),
+    AccentPreset(id = "sky", label = "Sky", accent = Color(0xFF60A5FA)),
+    AccentPreset(id = "violet", label = "Violet", accent = Color(0xFFA78BFA)),
+    AccentPreset(id = "pink", label = "Pink", accent = Color(0xFFF472B6)),
+    AccentPreset(id = "coral", label = "Coral", accent = Color(0xFFFB7C5C)),
+    AccentPreset(id = "amber", label = "Amber", accent = Color(0xFFFBBF24))
+)
+
+val DefaultAccentPreset: AccentPreset = AccentPresets.first()
+
+fun accentPresetById(id: String): AccentPreset =
+    AccentPresets.firstOrNull { it.id.equals(id, ignoreCase = true) } ?: DefaultAccentPreset
+
+// ── Backward-compatible aliases (mapped to Cool Graphite tokens) ───────────
+val DarkBackground = BgGraphite
+val DarkSurface = Surface1
+val DarkSurfaceVariant = Surface2
+
+val FrostGlassBgTop = Surface3
+val FrostGlassBgMid = Surface2
+val FrostGlassBgBottom = Surface1
+val OutlineGreyHighlight = Color(0x38FFFFFF)
+val OutlineGrey = Color(0x28FFFFFF)
+val OutlineGreySubtle = HairlineStrong
+val FrostWhiteAccent = FgPrimary
+val FrostActiveBg = Color(0x1EFFFFFF)
+
 val Purple80 = Color(0xFFE0E0E5)
 val PurpleGrey80 = Color(0xFFC8C8D0)
 val Pink80 = Color(0xFFD8D8E0)
@@ -26,12 +67,10 @@ val Purple40 = Color(0xFF5A5A64)
 val PurpleGrey40 = Color(0xFF4E4E57)
 val Pink40 = Color(0xFF64646E)
 
-val NeonPurple = Color(0xFFE5E5EA)           // Neutral frost light grey/white (no neon purple)
-val NeonPink = Color(0xFFD4D4DC)             // Neutral light grey (no neon pink)
-val NeonCyan = Color(0xFFC7C7CC)             // Neutral grey (no neon cyan)
+val NeonPurple = Color(0xFFC3EC52)
+val NeonPink = Color(0xFFD4D4DC)
+val NeonCyan = Color(0xFFC7C7CC)
 
-val TextPrimary = Color(0xFFFFFFFF)          // Putih untuk tulisan utama
-val TextSecondary = Color(0xFFB5B5BE)        // Abu-abu terang bersih untuk sub-tulisan
-val StarYellow = Color(0xFFFFFFFF)           // Putih bersih tanpa aksen neon
-
-
+val TextPrimary = FgPrimary
+val TextSecondary = FgSecondary
+val StarYellow = Color(0xFFFBBF24)

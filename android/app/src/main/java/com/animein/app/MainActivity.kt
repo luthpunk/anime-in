@@ -5,48 +5,70 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.animein.app.ui.MainViewModel
+import com.animein.app.ui.components.AppearanceSettingsDialog
+import com.animein.app.ui.components.BrandLogoMark
+import com.animein.app.ui.components.MusikeGenreIcon
+import com.animein.app.ui.components.MusikeLibraryIcon
+import com.animein.app.ui.components.RadiusPanel
+import com.animein.app.ui.components.RadiusTile
+import com.animein.app.ui.components.topHairline
 import com.animein.app.ui.screens.animelist.AnimeListScreen
 import com.animein.app.ui.screens.animelist.AnimeListViewModel
 import com.animein.app.ui.screens.detail.DetailScreen
@@ -64,51 +86,16 @@ import com.animein.app.ui.screens.player.PlayerViewModel
 import com.animein.app.ui.screens.schedule.ScheduleScreen
 import com.animein.app.ui.screens.schedule.ScheduleViewModel
 import com.animein.app.ui.theme.AnimeInTheme
-import com.animein.app.ui.theme.DarkSurface
-import com.animein.app.ui.theme.NeonPurple
-import com.animein.app.ui.theme.TextSecondary
-import com.animein.app.ui.components.GlassmorphicCard
-import com.animein.app.ui.components.frostGlassBgBrush
-import com.animein.app.ui.components.frostGlassBorderBrush
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.height
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.Alignment
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.draw.scale
-
+import com.animein.app.ui.theme.BgGraphite
+import com.animein.app.ui.theme.FgPrimary
+import com.animein.app.ui.theme.FgSecondary
+import com.animein.app.ui.theme.FgTertiary
+import com.animein.app.ui.theme.Hairline
+import com.animein.app.ui.theme.LocalAccentPreset
+import com.animein.app.ui.theme.Surface1
+import com.animein.app.ui.theme.Surface2
+import com.animein.app.ui.theme.Surface3
 import com.animein.app.util.AnimeIdUtils
-
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.Brush
-
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -116,8 +103,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            AnimeInTheme {
-                MainApp()
+            val mainViewModel: MainViewModel = hiltViewModel()
+            val accentId by mainViewModel.accentId.collectAsState()
+            var showAppearanceDialog by remember { mutableStateOf(false) }
+
+            AnimeInTheme(
+                accentId = accentId,
+                onOpenAppearanceSettings = { showAppearanceDialog = true }
+            ) {
+                MainApp(
+                    onOpenAppearanceSettings = { showAppearanceDialog = true }
+                )
+
+                if (showAppearanceDialog) {
+                    AppearanceSettingsDialog(
+                        currentAccentId = accentId,
+                        onSelectAccent = { mainViewModel.setAccentId(it) },
+                        onDismiss = { showAppearanceDialog = false }
+                    )
+                }
             }
         }
     }
@@ -129,25 +133,32 @@ data class NavigationItem(
     val icon: ImageVector
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp() {
+fun MainApp(
+    onOpenAppearanceSettings: () -> Unit
+) {
     val navController = rememberNavController()
-    val navItems = listOf(
-        NavigationItem("home", "Home", Icons.Default.Home),
-        NavigationItem("schedule", "Jadwal", Icons.Default.DateRange),
-        NavigationItem("genres_list", "Genre", Icons.Default.Menu),
-        NavigationItem("history", "Koleksi", Icons.Default.List)
-    )
-    var currentRoute by remember { mutableStateOf("home") }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: "home"
+    val accent = LocalAccentPreset.current
+
+    val navItems = remember {
+        listOf(
+            NavigationItem("home", "Home", Icons.Default.Home),
+            NavigationItem("schedule", "Jadwal", Icons.Default.DateRange),
+            NavigationItem("genres_list", "Genre", MusikeGenreIcon),
+            NavigationItem("history", "Koleksi", MusikeLibraryIcon)
+        )
+    }
 
     val configuration = LocalConfiguration.current
-    val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+    val isTV = (configuration.uiMode and Configuration.UI_MODE_TYPE_MASK) ==
             Configuration.UI_MODE_TYPE_TELEVISION
     val showNav = currentRoute in listOf("home", "schedule", "genres_list", "history")
+    val isPlayerRoute = currentRoute.startsWith("player/")
 
     if (isTV) {
-        // ── Android TV layout: NavigationRail on left ──────────────────────
+        // ── Android TV layout: Musike Floating Islands (Left Rail + Content Island) ──
         val homeNavFocusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) {
             try {
@@ -159,222 +170,288 @@ fun MainApp() {
             } catch (_: Exception) {}
         }
 
-        Row(modifier = Modifier.fillMaxSize()) {
+        val rootPaddingModifier = if (isPlayerRoute) {
+            Modifier.fillMaxSize().background(BgGraphite)
+        } else {
+            Modifier
+                .fillMaxSize()
+                .background(BgGraphite)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        }
+
+        Row(
+            modifier = rootPaddingModifier,
+            horizontalArrangement = Arrangement.spacedBy(if (isPlayerRoute) 0.dp else 10.dp)
+        ) {
             if (showNav) {
-                NavigationRail(
-                    containerColor = DarkSurface,
+                val railShape = RoundedCornerShape(RadiusPanel)
+                Column(
                     modifier = Modifier
+                        .width(76.dp)
                         .fillMaxHeight()
-                        .border(
-                            width = 1.dp,
-                            brush = frostGlassBorderBrush(isSubtle = true),
-                            shape = androidx.compose.ui.graphics.RectangleShape
-                        )
+                        .clip(railShape)
+                        .background(Surface1, railShape)
+                        .border(1.dp, Hairline, railShape)
+                        .padding(vertical = 14.dp, horizontal = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Push items to vertical center
+                    // Brand Mark at Top (ala a-music sidebar)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(RadiusTile))
+                            .background(Surface2),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BrandLogoMark(size = 20.dp)
+                    }
+
                     Spacer(modifier = Modifier.weight(1f))
-                    navItems.forEach { item ->
-                        val selected = currentRoute == item.route
-                        var isFocused by remember { mutableStateOf(false) }
-                        val itemShape = RoundedCornerShape(18.dp)
-                        val scale by animateFloatAsState(
-                            targetValue = if (isFocused) 1.06f else 1f,
-                            animationSpec = tween(150),
-                            label = "tvNavScale"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
-                                .width(68.dp)
-                                .height(60.dp)
-                                .scale(scale)
-                                .clip(itemShape)
-                                .then(
-                                    when {
-                                        isFocused -> Modifier
-                                            .background(brush = frostGlassBgBrush(isFocused = true), shape = itemShape)
-                                            .border(
-                                                width = 1.5.dp,
-                                                brush = frostGlassBorderBrush(isFocused = true),
-                                                shape = itemShape
-                                            )
-                                        selected -> Modifier
-                                            .background(brush = frostGlassBgBrush(isFocused = false), shape = itemShape)
-                                            .border(
-                                                width = 1.dp,
-                                                brush = frostGlassBorderBrush(isFocused = false),
-                                                shape = itemShape
-                                            )
-                                        else -> Modifier
-                                    }
-                                )
-                                .then(
-                                    if (item.route == "home") Modifier.focusRequester(homeNavFocusRequester)
-                                    else Modifier
-                                )
-                                .onFocusChanged { isFocused = it.isFocused }
-                                .clickable {
-                                    currentRoute = item.route
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
+
+                    // Navigation Items
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        navItems.forEach { item ->
+                            val selected = currentRoute == item.route
+                            var isFocused by remember { mutableStateOf(false) }
+                            val itemShape = RoundedCornerShape(RadiusTile)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clip(itemShape)
+                                    .background(
+                                        color = when {
+                                            isFocused -> Surface3
+                                            selected -> Surface2
+                                            else -> Color.Transparent
+                                        },
+                                        shape = itemShape
+                                    )
+                                    .then(
+                                        when {
+                                            isFocused -> Modifier.border(2.5.dp, accent.accent, itemShape)
+                                            selected -> Modifier.border(1.dp, Hairline, itemShape)
+                                            else -> Modifier
                                         }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
+                                    )
+                                    .then(
+                                        if (item.route == "home") Modifier.focusRequester(homeNavFocusRequester)
+                                        else Modifier
+                                    )
+                                    .onFocusChanged { isFocused = it.isFocused }
+                                    .clickable {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.startDestinationId) {
+                                                saveState = true
+                                            }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                    tint = if (isFocused || selected) Color.White else TextSecondary,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = item.label,
-                                    color = if (isFocused || selected) Color.White else TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isFocused || selected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1
-                                )
+                                // Left active accent bar inside tile
+                                if (selected && !isFocused) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .padding(start = 3.dp)
+                                            .width(3.dp)
+                                            .height(20.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(accent.accent)
+                                    )
+                                }
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.label,
+                                        tint = when {
+                                            isFocused -> accent.accent
+                                            selected -> FgPrimary
+                                            else -> FgTertiary
+                                        },
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = item.label,
+                                        color = when {
+                                            isFocused -> FgPrimary
+                                            selected -> FgPrimary
+                                            else -> FgTertiary
+                                        },
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isFocused || selected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
+
                     Spacer(modifier = Modifier.weight(1f))
+
+                    // Appearance / Accent Settings button at bottom (ala a-music TV rail)
+                    var isSettingsFocused by remember { mutableStateOf(false) }
+                    val settingsShape = RoundedCornerShape(RadiusTile)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .clip(settingsShape)
+                            .background(if (isSettingsFocused) Surface3 else Color.Transparent, settingsShape)
+                            .then(
+                                if (isSettingsFocused) Modifier.border(2.5.dp, accent.accent, settingsShape)
+                                else Modifier
+                            )
+                            .onFocusChanged { isSettingsFocused = it.isFocused }
+                            .clickable { onOpenAppearanceSettings() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Tampilan",
+                            tint = if (isSettingsFocused) accent.accent else FgTertiary,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
                 }
             }
-            // NavHost fills the remaining space
-            NavHost(
-                navController = navController,
-                startDestination = "home",
-                modifier = Modifier.fillMaxSize()
+
+            // Main Content Island (full bleed when on Player route)
+            val contentShape = RoundedCornerShape(RadiusPanel)
+            Box(
+                modifier = if (isPlayerRoute) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(contentShape)
+                        .background(Surface1, contentShape)
+                        .border(1.dp, Hairline, contentShape)
+                }
             ) {
-                appNavGraph(navController) { currentRoute = it }
+                NavHost(
+                    navController = navController,
+                    startDestination = "home",
+                    modifier = Modifier.fillMaxSize(),
+                    enterTransition = { fadeIn(animationSpec = tween(200)) },
+                    exitTransition = { fadeOut(animationSpec = tween(200)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                ) {
+                    appNavGraph(navController)
+                }
             }
         }
     } else {
-        // ── Phone / Tablet layout: Floating Glassmorphic Overlay Bottom Bar ──
-        Box(modifier = Modifier.fillMaxSize()) {
+        // ── Phone / Tablet layout: Clean Musike Docked Bottom Bar ──
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgGraphite)
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = "home",
                 modifier = Modifier.fillMaxSize(),
-                enterTransition = {
-                    fadeIn(animationSpec = tween(250))
-                },
-                exitTransition = {
-                    fadeOut(animationSpec = tween(250))
-                },
-                popEnterTransition = {
-                    fadeIn(animationSpec = tween(250))
-                },
-                popExitTransition = {
-                    fadeOut(animationSpec = tween(250))
-                }
+                enterTransition = { fadeIn(animationSpec = tween(220)) },
+                exitTransition = { fadeOut(animationSpec = tween(220)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(220)) },
+                popExitTransition = { fadeOut(animationSpec = tween(220)) }
             ) {
-                appNavGraph(navController) { currentRoute = it }
+                appNavGraph(navController)
             }
 
-
             if (showNav) {
-                Box(
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .background(Surface1.copy(alpha = 0.96f))
+                        .topHairline(Hairline)
                         .navigationBarsPadding()
                 ) {
-                    GlassmorphicCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(28.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val selectedIndex = navItems.indexOfFirst { item -> item.route == currentRoute }.coerceAtLeast(0)
-                        val density = LocalDensity.current
-                        var itemWidthPx by remember { mutableStateOf(0f) }
-                        val indicatorWidthDp = 76.dp
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 8.dp)
-                        ) {
-                            if (itemWidthPx > 0) {
-                                val indicatorWidthPx = with(density) { indicatorWidthDp.toPx() }
-                                val pillOffset by animateFloatAsState(
-                                    targetValue = selectedIndex * itemWidthPx + (itemWidthPx - indicatorWidthPx) / 2,
-                                    animationSpec = tween(300),
-                                    label = "pillOffset"
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .offset { IntOffset(x = pillOffset.toInt(), y = 0) }
-                                        .width(indicatorWidthDp)
-                                        .height(44.dp) // rounded rect height
-                                        .align(Alignment.CenterStart)
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(
-                                            brush = frostGlassBgBrush(isFocused = true),
-                                            shape = RoundedCornerShape(20.dp)
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            brush = frostGlassBorderBrush(isFocused = true),
-                                            shape = RoundedCornerShape(20.dp)
-                                        )
-                                )
-                            }
-                            
-                            Row(
+                        navItems.forEach { item ->
+                            val selected = currentRoute == item.route
+                            val iconTint by animateColorAsState(
+                                targetValue = if (selected) FgPrimary else FgTertiary,
+                                animationSpec = tween(180),
+                                label = "mobileNavTint"
+                            )
+                            val labelColor by animateColorAsState(
+                                targetValue = if (selected) FgPrimary else FgSecondary.copy(alpha = 0.72f),
+                                animationSpec = tween(180),
+                                label = "mobileNavLabel"
+                            )
+
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .onGloballyPositioned { coordinates ->
-                                        itemWidthPx = coordinates.size.width.toFloat() / navItems.size
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        if (!selected) {
+                                            navController.navigate(item.route) {
+                                                popUpTo(navController.graph.startDestinationId) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
                                     },
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
+                                contentAlignment = Alignment.Center
                             ) {
-                                navItems.forEachIndexed { index, item ->
-                                    val selected = selectedIndex == index
-                                    
+                                // Signature a-music top accent bar on active tab
+                                if (selected) {
                                     Box(
                                         modifier = Modifier
-                                            .weight(1f)
-                                            .height(44.dp)
-                                            .clip(RoundedCornerShape(percent = 50))
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                currentRoute = item.route
-                                                navController.navigate(item.route) {
-                                                    popUpTo(navController.graph.startDestinationId) {
-                                                        saveState = true
-                                                    }
-                                                    launchSingleTop = true
-                                                    restoreState = true
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        androidx.compose.animation.Crossfade(
-                                            targetState = selected,
-                                            animationSpec = tween(200),
-                                            label = "nav_item_crossfade"
-                                        ) { isSelected ->
-                                            Icon(
-                                                imageVector = item.icon,
-                                                contentDescription = item.label,
-                                                tint = if (isSelected) Color.White else com.animein.app.ui.theme.TextSecondary,
-                                                modifier = Modifier.size(26.dp)
-                                            )
-                                        }
-                                    }
+                                            .align(Alignment.TopCenter)
+                                            .width(28.dp)
+                                            .height(2.5.dp)
+                                            .clip(RoundedCornerShape(bottomStart = 4.dp, bottomEnd = 4.dp))
+                                            .background(accent.accent)
+                                    )
+                                }
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.label,
+                                        tint = iconTint,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = item.label,
+                                        color = labelColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }
@@ -385,13 +462,11 @@ fun MainApp() {
     }
 }
 
-// ── Shared NavGraph (no NavHost here — only composable destinations) ────────
+// ── Shared NavGraph ────────────────────────────────────────────────────────
 private fun NavGraphBuilder.appNavGraph(
-    navController: NavHostController,
-    onRouteChange: (String) -> Unit
+    navController: NavHostController
 ) {
     composable("home") {
-        onRouteChange("home")
         val viewModel: HomeViewModel = hiltViewModel()
         HomeScreen(
             viewModel = viewModel,
@@ -414,7 +489,6 @@ private fun NavGraphBuilder.appNavGraph(
     }
 
     composable("schedule") {
-        onRouteChange("schedule")
         val viewModel: ScheduleViewModel = hiltViewModel()
         ScheduleScreen(
             viewModel = viewModel,
@@ -423,7 +497,6 @@ private fun NavGraphBuilder.appNavGraph(
     }
 
     composable("genres_list") {
-        onRouteChange("genres_list")
         val viewModel: GenreListViewModel = hiltViewModel()
         GenreListScreen(
             viewModel = viewModel,
@@ -434,7 +507,6 @@ private fun NavGraphBuilder.appNavGraph(
     }
 
     composable("history") {
-        onRouteChange("history")
         val viewModel: HistoryViewModel = hiltViewModel()
         HistoryScreen(
             viewModel = viewModel,
@@ -446,7 +518,6 @@ private fun NavGraphBuilder.appNavGraph(
         route = "detail/{animeId}",
         arguments = listOf(navArgument("animeId") { type = NavType.StringType })
     ) {
-        onRouteChange("detail")
         val viewModel: DetailViewModel = hiltViewModel()
         DetailScreen(
             viewModel = viewModel,
@@ -467,7 +538,6 @@ private fun NavGraphBuilder.appNavGraph(
             navArgument("animeId") { type = NavType.StringType }
         )
     ) { backStackEntry ->
-        onRouteChange("player")
         val viewModel: PlayerViewModel = hiltViewModel()
         val animeId = backStackEntry.arguments?.getString("animeId") ?: ""
         PlayerScreen(
@@ -496,7 +566,6 @@ private fun NavGraphBuilder.appNavGraph(
             navArgument("genreName") { type = NavType.StringType }
         )
     ) {
-        onRouteChange("genre")
         val viewModel: GenreViewModel = hiltViewModel()
         GenreScreen(
             viewModel = viewModel,
@@ -512,7 +581,6 @@ private fun NavGraphBuilder.appNavGraph(
             navArgument("listTitle") { type = NavType.StringType }
         )
     ) {
-        onRouteChange("list")
         val viewModel: AnimeListViewModel = hiltViewModel()
         AnimeListScreen(
             viewModel = viewModel,

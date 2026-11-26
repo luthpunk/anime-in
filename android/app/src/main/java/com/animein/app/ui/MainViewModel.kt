@@ -20,9 +20,21 @@ class MainViewModel @Inject constructor(
         initialValue = PreferencesManager.ThemeMode.SYSTEM
     )
 
+    val accentId = preferencesManager.accentColorFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = "volt"
+    )
+
     fun setThemeMode(mode: PreferencesManager.ThemeMode) {
         viewModelScope.launch {
             preferencesManager.setThemeMode(mode)
+        }
+    }
+
+    fun setAccentId(id: String) {
+        viewModelScope.launch {
+            preferencesManager.setAccentColor(id)
         }
     }
 }

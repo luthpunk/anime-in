@@ -1,139 +1,122 @@
 package com.animein.app.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.Canvas
-import androidx.compose.animation.core.*
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.StrokeCap
-
-import com.animein.app.ui.theme.DarkSurface
-import com.animein.app.ui.theme.FrostGlassBgBottom
-import com.animein.app.ui.theme.FrostGlassBgMid
-import com.animein.app.ui.theme.FrostGlassBgTop
+import com.animein.app.ui.theme.DefaultAccentPreset
+import com.animein.app.ui.theme.Hairline
+import com.animein.app.ui.theme.HairlineStrong
 import com.animein.app.ui.theme.OutlineGrey
-import com.animein.app.ui.theme.OutlineGreyHighlight
-import com.animein.app.ui.theme.OutlineGreySubtle
+import com.animein.app.ui.theme.Surface1
+import com.animein.app.ui.theme.Surface2
+import com.animein.app.ui.theme.Surface3
 
 /**
- * Gradient background brush for Frost Glass surfaces.
+ * Tonal surface brush (backward-compatible with existing screens while aligned to Cool Graphite).
  */
 fun frostGlassBgBrush(isFocused: Boolean = false): Brush {
     return if (isFocused) {
         Brush.linearGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.28f),
-                FrostGlassBgTop.copy(alpha = 0.90f),
-                FrostGlassBgBottom.copy(alpha = 0.95f)
-            )
+            colors = listOf(Surface3, Surface2)
         )
     } else {
         Brush.linearGradient(
-            colors = listOf(
-                FrostGlassBgTop,
-                FrostGlassBgMid,
-                FrostGlassBgBottom
-            )
+            colors = listOf(Surface2, Surface1)
         )
     }
 }
 
 /**
- * Gradient border brush for Frost Glass outlines (top-left specular highlight -> subtle middle -> bottom-right edge).
+ * Clean hairline / focused border brush (backward-compatible).
  */
 fun frostGlassBorderBrush(isFocused: Boolean = false, isSubtle: Boolean = false): Brush {
     return when {
         isFocused -> Brush.linearGradient(
             colors = listOf(
-                Color.White,
-                Color(0xFFDCDCE6),
-                Color.White.copy(alpha = 0.85f)
+                DefaultAccentPreset.accent,
+                DefaultAccentPreset.accent.copy(alpha = 0.85f)
             )
         )
         isSubtle -> Brush.linearGradient(
-            colors = listOf(
-                OutlineGreyHighlight.copy(alpha = 0.65f),
-                OutlineGreySubtle.copy(alpha = 0.35f),
-                OutlineGrey.copy(alpha = 0.55f)
-            )
+            colors = listOf(Hairline, Hairline)
         )
         else -> Brush.linearGradient(
-            colors = listOf(
-                OutlineGreyHighlight.copy(alpha = 0.85f),
-                OutlineGrey.copy(alpha = 0.45f),
-                OutlineGrey.copy(alpha = 0.80f)
-            )
+            colors = listOf(HairlineStrong, Hairline)
         )
     }
 }
 
 /**
- * Applies rounded clip, layered Frost Glass gradient background, and gradient outline border.
- * Always clips to [shape] first so focus/ripple highlights follow the rounded shape instead of a rectangle.
+ * Applies rounded clip, Cool Graphite tonal background, and crisp hairline/accent border.
  */
 fun Modifier.frostGlass(
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(14.dp),
     isFocused: Boolean = false,
     borderWidth: Dp = 1.dp,
     isSubtle: Boolean = false
 ): Modifier = this
     .clip(shape)
-    .background(brush = frostGlassBgBrush(isFocused), shape = shape)
+    .background(
+        color = if (isFocused) Surface3 else Surface2,
+        shape = shape
+    )
     .border(
-        width = if (isFocused) 1.5.dp else borderWidth,
+        width = if (isFocused) 2.dp else borderWidth,
         brush = frostGlassBorderBrush(isFocused = isFocused, isSubtle = isSubtle),
         shape = shape
     )
 
 /**
- * Applies rounded clip and gradient outline border for poster/media cards.
+ * Applies rounded clip and hairline/accent outline border for poster/media cards.
  */
 fun Modifier.frostPosterFrame(
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(14.dp),
     isFocused: Boolean = false,
-    surfaceColor: Color = DarkSurface
+    surfaceColor: Color = Surface2
 ): Modifier = this
     .clip(shape)
     .background(color = surfaceColor, shape = shape)
     .border(
-        width = if (isFocused) 1.8.dp else 1.dp,
+        width = if (isFocused) 2.5.dp else 1.dp,
         brush = frostGlassBorderBrush(isFocused = isFocused, isSubtle = !isFocused),
         shape = shape
     )
 
-/**
- * Creates a custom squircle shape that resembles Apple's iOS icon shape.
- */
 fun squircleShape(percent: Int = 30): Shape {
     return RoundedCornerShape(percent)
 }
 
-/**
- * A container that provides a frosted-glass (glassmorphic) appearance.
- * Uses dark grey frosted surface and a gradient grey outline border without neon tint.
- */
 @Composable
 fun GlassmorphicCard(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(24.dp),
+    shape: Shape = RoundedCornerShape(20.dp),
     borderWidth: Dp = 1.dp,
     isFocused: Boolean = false,
     content: @Composable BoxScope.() -> Unit
@@ -150,9 +133,6 @@ fun GlassmorphicCard(
     }
 }
 
-/**
- * Frosted Glass Icon composable with neutral dark grey frost and grey outline (no neon).
- */
 @Composable
 fun AppleGlassIcon(
     imageVector: ImageVector,
@@ -163,28 +143,20 @@ fun AppleGlassIcon(
     onClick: (() -> Unit)? = null
 ) {
     val clickableModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
-    
+
     Box(
         modifier = modifier
             .size(56.dp)
             .then(clickableModifier)
             .clip(squircleShape())
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        FrostGlassBgTop,
-                        FrostGlassBgBottom
-                    )
-                )
-            )
+            .background(Surface2)
             .border(
                 width = 1.dp,
-                color = OutlineGrey,
+                color = HairlineStrong,
                 shape = squircleShape()
             ),
         contentAlignment = Alignment.Center
     ) {
-        // Frosted shine layer inside the squircle
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -193,15 +165,13 @@ fun AppleGlassIcon(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.10f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.20f)
+                            Color.White.copy(alpha = 0.06f),
+                            Color.Transparent
                         )
                     )
                 )
         )
 
-        // The actual icon inside
         Icon(
             imageVector = imageVector,
             contentDescription = contentDescription,
@@ -214,16 +184,16 @@ fun AppleGlassIcon(
 @Composable
 fun PremiumLoadingSpinner(
     modifier: Modifier = Modifier,
-    color: Color = Color.White,
-    size: Dp = 48.dp,
-    strokeWidth: Dp = 3.5.dp
+    color: Color = DefaultAccentPreset.accent,
+    size: Dp = 44.dp,
+    strokeWidth: Dp = 3.dp
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
+            animation = tween(900, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "angle"
@@ -237,7 +207,7 @@ fun PremiumLoadingSpinner(
         )
         val topLeft = androidx.compose.ui.geometry.Offset(halfStroke, halfStroke)
         drawArc(
-            color = color.copy(alpha = 0.2f),
+            color = color.copy(alpha = 0.18f),
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -248,7 +218,7 @@ fun PremiumLoadingSpinner(
         drawArc(
             color = color,
             startAngle = angle,
-            sweepAngle = 90f,
+            sweepAngle = 95f,
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,

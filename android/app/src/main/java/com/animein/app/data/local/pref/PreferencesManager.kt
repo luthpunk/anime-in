@@ -18,6 +18,7 @@ class PreferencesManager(private val context: Context) {
         val DARK_MODE_KEY = stringPreferencesKey("dark_mode")
         val HOME_CACHE_KEY = stringPreferencesKey("home_cache")
         val ACTIVE_SOURCE_KEY = stringPreferencesKey("active_source")
+        val ACCENT_COLOR_KEY = stringPreferencesKey("accent_color")
     }
 
     enum class ThemeMode {
@@ -35,6 +36,16 @@ class PreferencesManager(private val context: Context) {
 
     val activeSourceFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[ACTIVE_SOURCE_KEY] ?: "animeinweb"
+    }
+
+    val accentColorFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[ACCENT_COLOR_KEY] ?: "volt"
+    }
+
+    suspend fun setAccentColor(accentId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ACCENT_COLOR_KEY] = accentId
+        }
     }
 
     suspend fun getActiveSource(): String {
