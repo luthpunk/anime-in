@@ -11,7 +11,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -65,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.animein.app.data.local.entity.ContinueWatchingEntity
-import com.animein.app.data.model.DetailResponse
 import com.animein.app.ui.components.AccentPillButton
 import com.animein.app.ui.components.MonoBadge
 import com.animein.app.ui.components.MusikeEmptyState
@@ -149,7 +146,6 @@ fun DetailScreen(
                         episodeRanges.getOrElse(safeRangeIndex) { emptyList() }
                     }
 
-                    // Map normalized episodeId -> ContinueWatchingEntity for per-episode progress indicators
                     val progressByEpisodeId = remember(continueWatchingList) {
                         continueWatchingList.associateBy { AnimeIdUtils.normalizeEpisodeId(it.episodeId) }
                     }
@@ -215,17 +211,15 @@ fun DetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 36.dp)
                     ) {
-                        // ── 1. Album-View Style Hero Header (Ambient wash + uncropped poster) ──
+                        // ── 1. Clean Album-View Hero (All metadata unified once — zero duplication) ──
                         item {
                             Box(modifier = Modifier.fillMaxWidth()) {
-                                // Subtle blurred/dimmed poster backdrop + ambient accent wash
                                 AsyncImage(
                                     model = detail.thumb,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     alpha = 0.22f,
-                                    modifier = Modifier
-                                        .matchParentSize()
+                                    modifier = Modifier.matchParentSize()
                                 )
                                 Box(
                                     modifier = Modifier
@@ -249,20 +243,20 @@ fun DetailScreen(
                                             start = horizontalPadding,
                                             end = horizontalPadding,
                                             top = 14.dp,
-                                            bottom = 20.dp
+                                            bottom = 18.dp
                                         ),
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
-                                    // Top Row: Back Pill + Favorite Circle
+                                    // Minimal Top Row: Back pill only (Favorite lives cleanly in the Action Row)
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        horizontalArrangement = Arrangement.Start,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         var isBackFocused by remember { mutableStateOf(false) }
                                         Row(
                                             modifier = Modifier
-                                                .height(38.dp)
+                                                .height(36.dp)
                                                 .musikeSurface(
                                                     shape = CircleShape,
                                                     isFocused = isBackFocused,
@@ -280,7 +274,7 @@ fun DetailScreen(
                                                 imageVector = Icons.Default.ArrowBack,
                                                 contentDescription = "Kembali",
                                                 tint = if (isBackFocused) accent.accent else FgPrimary,
-                                                modifier = Modifier.size(18.dp)
+                                                modifier = Modifier.size(17.dp)
                                             )
                                             Text(
                                                 text = "Kembali",
@@ -289,41 +283,14 @@ fun DetailScreen(
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
-
-                                        var isFavTopFocused by remember { mutableStateOf(false) }
-                                        Box(
-                                            modifier = Modifier
-                                                .size(38.dp)
-                                                .musikeSurface(
-                                                    shape = CircleShape,
-                                                    isFocused = isFavTopFocused,
-                                                    accentColor = accent.accent,
-                                                    containerColor = if (isFavorite) accent.accentSoft else Surface2.copy(alpha = 0.88f),
-                                                    isActive = isFavorite
-                                                )
-                                                .focusProperties { canFocus = allowTopBarFocus }
-                                                .onFocusChanged { isFavTopFocused = it.isFocused }
-                                                .clickable { viewModel.toggleFavorite(detail) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                                contentDescription = "Favorit",
-                                                tint = if (isFavorite) accent.accent else FgPrimary,
-                                                modifier = Modifier
-                                                    .size(19.dp)
-                                                    .scale(favHeartScale)
-                                            )
-                                        }
                                     }
 
-                                    // Album-View Main Row: Crisp Poster (Left) + Title, Meta, Primary CTA (Right)
+                                    // Main Hero Lockup: Uncropped Poster (Left) + Unified Metadata & Single Action Row (Right)
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(if (isTV) 22.dp else 14.dp),
                                         verticalAlignment = Alignment.Bottom
                                     ) {
-                                        // Crisp Uncropped Portrait Poster
                                         Box(
                                             modifier = Modifier
                                                 .size(
@@ -342,18 +309,20 @@ fun DetailScreen(
                                             )
                                         }
 
-                                        // Right Metadata & Actions Column
                                         Column(
                                             modifier = Modifier.weight(1f),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            verticalArrangement = Arrangement.spacedBy(7.dp)
                                         ) {
-                                            // Compact Mono Badges Row
+                                            // Top Badges: Type, Status, Score (shown once)
                                             Row(
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 detail.type?.takeIf { it.isNotBlank() }?.let { type ->
                                                     MonoBadge(text = type.uppercase())
+                                                }
+                                                detail.status?.takeIf { it.isNotBlank() }?.let { status ->
+                                                    MonoBadge(text = status)
                                                 }
                                                 detail.score?.takeIf { it.isNotBlank() }?.let { score ->
                                                     Row(
@@ -383,6 +352,7 @@ fun DetailScreen(
                                                 }
                                             }
 
+                                            // Title + Japanese Title
                                             Text(
                                                 text = detail.title,
                                                 color = FgPrimary,
@@ -404,39 +374,42 @@ fun DetailScreen(
                                                 )
                                             }
 
-                                            val summaryMeta = remember(detail) {
+                                            // Single unified metadata line: Studio • Total Ep • Durasi • Rilis
+                                            val unifiedMeta = remember(detail) {
                                                 listOfNotNull(
+                                                    detail.studio?.takeIf { it.isNotBlank() },
                                                     detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let {
                                                         val fmt = AnimeIdUtils.formatEpisodeLabel(it)
                                                         if (fmt.contains("Episode", true) || fmt.contains("Tamat", true) || fmt.contains("Ongoing", true)) fmt else "$fmt Ep"
                                                     },
                                                     detail.duration?.takeIf { it.isNotBlank() },
-                                                    detail.status?.takeIf { it.isNotBlank() }
+                                                    detail.releaseDate?.takeIf { it.isNotBlank() }
                                                 ).joinToString(" • ")
                                             }
-                                            if (summaryMeta.isNotBlank()) {
+                                            if (unifiedMeta.isNotBlank()) {
                                                 Text(
-                                                    text = summaryMeta,
+                                                    text = unifiedMeta,
                                                     style = MonoTextStyle.copy(
                                                         color = FgSecondary,
-                                                        fontSize = 11.sp
+                                                        fontSize = 11.sp,
+                                                        lineHeight = 16.sp
                                                     ),
-                                                    maxLines = 1,
+                                                    maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }
 
-                                            // Primary Action Row (Solid Accent Play CTA + Favorite Pill on TV)
-                                            if (targetWatchEpisodeId != null) {
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
+                                            // Unified Action Row: Play CTA + Single Favorite button
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (targetWatchEpisodeId != null) {
                                                     AccentPillButton(
                                                         text = watchButtonLabel,
                                                         icon = Icons.Default.PlayArrow,
-                                                        height = if (isTV) 42.dp else 38.dp,
+                                                        height = if (isTV) 40.dp else 38.dp,
                                                         onClick = {
                                                             onEpisodeClick(
                                                                 targetWatchEpisodeId,
@@ -445,13 +418,40 @@ fun DetailScreen(
                                                         },
                                                         modifier = Modifier.focusRequester(watchBtnFocusRequester)
                                                     )
-                                                    if (isTV) {
-                                                        TonalPillButton(
-                                                            text = if (isFavorite) "Tersimpan" else "Favorit",
-                                                            icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                                            isActive = isFavorite,
-                                                            height = 42.dp,
-                                                            onClick = { viewModel.toggleFavorite(detail) }
+                                                }
+
+                                                if (isTV) {
+                                                    TonalPillButton(
+                                                        text = if (isFavorite) "Tersimpan" else "Favorit",
+                                                        icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                        isActive = isFavorite,
+                                                        height = 40.dp,
+                                                        onClick = { viewModel.toggleFavorite(detail) }
+                                                    )
+                                                } else {
+                                                    // Compact circle Favorite button on Mobile so CTA text always has full width
+                                                    var isFavFocused by remember { mutableStateOf(false) }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(38.dp)
+                                                            .musikeSurface(
+                                                                shape = CircleShape,
+                                                                isFocused = isFavFocused,
+                                                                accentColor = accent.accent,
+                                                                containerColor = if (isFavorite) accent.accentSoft else Surface2,
+                                                                isActive = isFavorite
+                                                            )
+                                                            .onFocusChanged { isFavFocused = it.isFocused }
+                                                            .clickable { viewModel.toggleFavorite(detail) },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                            contentDescription = if (isFavorite) "Hapus dari Favorit" else "Tambah ke Favorit",
+                                                            tint = if (isFavorite) accent.accent else FgPrimary,
+                                                            modifier = Modifier
+                                                                .size(19.dp)
+                                                                .scale(favHeartScale)
                                                         )
                                                     }
                                                 }
@@ -462,80 +462,48 @@ fun DetailScreen(
                             }
                         }
 
-                        // ── 2. Metadata & Synopsis Section ──
+                        // ── 2. Genres + Synopsis + Episode List Header (Zero redundant metadata box!) ──
                         item {
                             val synopsisText = detail.synopsis?.takeIf { it.isNotBlank() } ?: "Tidak ada sinopsis."
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = horizontalPadding),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                if (isTV) {
-                                    // 2-Column TV Layout: Info + Genres (left) | Synopsis (right)
+                                // Clickable Genre Chips Row
+                                if (!detail.genreList.isNullOrEmpty()) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(IntrinsicSize.Min),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        DetailMetadataCard(
-                                            detail = detail,
-                                            onGenreClick = onGenreClick,
-                                            showGenresInside = true,
-                                            modifier = Modifier
-                                                .weight(0.40f)
-                                                .fillMaxHeight()
-                                        )
-                                        DetailSynopsisCard(
-                                            synopsisText = synopsisText,
-                                            isExpanded = isSynopsisExpanded,
-                                            collapsedMaxLines = 5,
-                                            onToggle = { isSynopsisExpanded = !isSynopsisExpanded },
-                                            modifier = Modifier
-                                                .weight(0.60f)
-                                                .fillMaxHeight()
-                                        )
-                                    }
-                                } else {
-                                    DetailMetadataCard(
-                                        detail = detail,
-                                        onGenreClick = onGenreClick,
-                                        showGenresInside = false,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-
-                                    if (!detail.genreList.isNullOrEmpty()) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .horizontalScroll(rememberScrollState()),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            detail.genreList.forEach { genre ->
-                                                GenreChipPill(
-                                                    label = genre.genreName,
-                                                    onClick = {
-                                                        val gId = genre.genreId.ifBlank { genre.genreName }
-                                                        onGenreClick(gId, genre.genreName)
-                                                    }
-                                                )
-                                            }
+                                        detail.genreList.forEach { genre ->
+                                            GenreChipPill(
+                                                label = genre.genreName,
+                                                onClick = {
+                                                    val gId = genre.genreId.ifBlank { genre.genreName }
+                                                    onGenreClick(gId, genre.genreName)
+                                                }
+                                            )
                                         }
                                     }
-
-                                    DetailSynopsisCard(
-                                        synopsisText = synopsisText,
-                                        isExpanded = isSynopsisExpanded,
-                                        collapsedMaxLines = 3,
-                                        onToggle = { isSynopsisExpanded = !isSynopsisExpanded },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
                                 }
+
+                                // Clean Full-Width Expandable Synopsis Card
+                                DetailSynopsisCard(
+                                    synopsisText = synopsisText,
+                                    isExpanded = isSynopsisExpanded,
+                                    collapsedMaxLines = if (isTV) 4 else 3,
+                                    expandThreshold = if (isTV) 260 else 140,
+                                    onToggle = { isSynopsisExpanded = !isSynopsisExpanded },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                // ── 3. Episode List Header + Sort Toggle ──
+                                // Episode List Header + Sort Toggle
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -622,7 +590,7 @@ fun DetailScreen(
                             }
                         }
 
-                        // ── 4. Episode Rows (3-col Grid on TV, Tracklist Rows on Mobile) ──
+                        // ── 3. Episode Rows (3-col Grid on TV, Tracklist Rows on Mobile) ──
                         if (isTV) {
                             val episodeRows = displayedEpisodes.chunked(3)
                             itemsIndexed(episodeRows, key = { idx, row -> "${idx}_${row.first().id}" }) { _, rowEpisodes ->
@@ -694,101 +662,6 @@ fun DetailScreen(
 }
 
 @Composable
-private fun DetailMetadataCard(
-    detail: DetailResponse,
-    onGenreClick: (String, String) -> Unit,
-    showGenresInside: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val cardShape = RoundedCornerShape(RadiusPanel)
-    Column(
-        modifier = modifier
-            .clip(cardShape)
-            .background(Surface2, cardShape)
-            .border(1.dp, Hairline, cardShape)
-            .padding(14.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                MetaItem(label = "STUDIO", value = detail.studio?.takeIf { it.isNotBlank() } ?: "-", modifier = Modifier.weight(1f))
-                MetaItem(label = "RILIS", value = detail.releaseDate?.takeIf { it.isNotBlank() } ?: "-", alignment = Alignment.End, modifier = Modifier.weight(1f))
-            }
-            HorizontalDivider(color = Hairline)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                MetaItem(label = "STATUS", value = detail.status?.takeIf { it.isNotBlank() } ?: "-", modifier = Modifier.weight(1f))
-                MetaItem(label = "DURASI", value = detail.duration?.takeIf { it.isNotBlank() } ?: "-", alignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f))
-                MetaItem(
-                    label = "SKOR",
-                    value = detail.score?.takeIf { it.isNotBlank() }?.let { "$it / 10" } ?: "-",
-                    alignment = Alignment.End,
-                    isMono = true,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        if (showGenresInside && !detail.genreList.isNullOrEmpty()) {
-            Column {
-                Spacer(modifier = Modifier.height(10.dp))
-                HorizontalDivider(color = Hairline)
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    detail.genreList.forEach { genre ->
-                        GenreChipPill(
-                            label = genre.genreName,
-                            onClick = {
-                                val gId = genre.genreId.ifBlank { genre.genreName }
-                                onGenreClick(gId, genre.genreName)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetaItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    alignment: Alignment.Horizontal = Alignment.Start,
-    isMono: Boolean = false
-) {
-    Column(modifier = modifier, horizontalAlignment = alignment) {
-        Text(
-            text = label,
-            style = MonoTextStyle.copy(
-                color = FgTertiary,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold
-            )
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = value,
-            style = if (isMono) MonoTextStyle.copy(color = FgPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            else androidx.compose.ui.text.TextStyle(color = FgPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
 private fun GenreChipPill(
     label: String,
     onClick: () -> Unit
@@ -807,7 +680,7 @@ private fun GenreChipPill(
             )
             .onFocusChanged { isFocused = it.isFocused }
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = label,
@@ -824,12 +697,14 @@ private fun DetailSynopsisCard(
     synopsisText: String,
     isExpanded: Boolean,
     collapsedMaxLines: Int,
+    expandThreshold: Int,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val accent = LocalAccentPreset.current
     var isFocused by remember { mutableStateOf(false) }
     val cardShape = RoundedCornerShape(RadiusPanel)
+    val canExpand = synopsisText.length > expandThreshold
 
     Column(
         modifier = modifier
@@ -841,7 +716,7 @@ private fun DetailSynopsisCard(
                 focusedContainerColor = Surface3
             )
             .onFocusChanged { isFocused = it.isFocused }
-            .clickable { onToggle() }
+            .then(if (canExpand) Modifier.clickable { onToggle() } else Modifier)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -856,7 +731,7 @@ private fun DetailSynopsisCard(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
-            if (synopsisText.length > 130) {
+            if (canExpand) {
                 Text(
                     text = if (isExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
                     color = accent.accent,
@@ -876,10 +751,6 @@ private fun DetailSynopsisCard(
     }
 }
 
-/**
- * Musike Tracklist-inspired Episode Row with monospace index, accent highlight for active/watched episode,
- * and thin accent progress bar when saved progress exists.
- */
 @Composable
 fun EpisodeRow(
     indexBadge: String,
@@ -921,7 +792,6 @@ fun EpisodeRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Monospace Episode Number Box (ala a-music track number)
             Box(
                 modifier = Modifier
                     .size(34.dp)
@@ -975,7 +845,6 @@ fun EpisodeRow(
                 }
             }
 
-            // Circular Play Icon (fills with accent on focus)
             Box(
                 modifier = Modifier
                     .size(30.dp)
@@ -997,7 +866,6 @@ fun EpisodeRow(
             }
         }
 
-        // Thin Accent Progress Bar along bottom edge
         if (progressFraction > 0f) {
             Box(
                 modifier = Modifier
@@ -1027,7 +895,7 @@ private fun DetailShimmerSkeleton(
             .fillMaxSize()
             .then(if (!isTV) Modifier.statusBarsPadding() else Modifier)
             .padding(horizontal = horizontalPadding, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -1044,15 +912,19 @@ private fun DetailShimmerSkeleton(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                ShimmerBox(modifier = Modifier.width(100.dp).height(18.dp), shape = RoundedCornerShape(6.dp))
+                ShimmerBox(modifier = Modifier.width(120.dp).height(18.dp), shape = RoundedCornerShape(6.dp))
                 ShimmerBox(modifier = Modifier.fillMaxWidth(0.85f).height(24.dp), shape = RoundedCornerShape(6.dp))
-                ShimmerBox(modifier = Modifier.width(140.dp).height(14.dp), shape = RoundedCornerShape(6.dp))
+                ShimmerBox(modifier = Modifier.width(160.dp).height(14.dp), shape = RoundedCornerShape(6.dp))
                 ShimmerBox(modifier = Modifier.width(150.dp).height(38.dp), shape = CircleShape)
             }
         }
-        ShimmerBox(modifier = Modifier.fillMaxWidth().height(92.dp), shape = RoundedCornerShape(RadiusPanel))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(4) {
+                ShimmerBox(modifier = Modifier.width(68.dp).height(28.dp), shape = CircleShape)
+            }
+        }
         ShimmerBox(modifier = Modifier.fillMaxWidth().height(84.dp), shape = RoundedCornerShape(RadiusPanel))
-        repeat(4) {
+        repeat(5) {
             ShimmerBox(modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(RadiusTile))
         }
     }

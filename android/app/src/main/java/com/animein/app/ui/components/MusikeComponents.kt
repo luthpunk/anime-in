@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,6 +44,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -169,7 +171,7 @@ fun Modifier.musikePosterFrame(
     )
 
 /**
- * Living-brand inspired 3-bar mark in active accent color (homage to a-music's signature equalizer mark).
+ * AuraNime 5-Facet Origami Fox Head abstract mark rendered dynamically in the active accent color.
  */
 @Composable
 fun BrandLogoMark(
@@ -177,34 +179,77 @@ fun BrandLogoMark(
     color: Color = LocalAccentPreset.current.accent,
     size: Dp = 24.dp
 ) {
-    val barWidth = size * 0.22f
-    val gap = size * 0.12f
-    Row(
-        modifier = modifier.height(size),
-        horizontalArrangement = Arrangement.spacedBy(gap),
-        verticalAlignment = Alignment.Bottom
-    ) {
-        Box(
-            modifier = Modifier
-                .width(barWidth)
-                .height(size * 0.92f)
-                .clip(RoundedCornerShape(50))
-                .background(color)
+    val bottomColor = remember(color) {
+        // Subtle cool-mint/deep shift toward the snout while preserving the active accent family
+        Color(
+            red = (color.red * 0.55f + 0.08f).coerceIn(0f, 1f),
+            green = (color.green * 0.92f + 0.08f).coerceIn(0f, 1f),
+            blue = (color.blue * 0.85f + 0.15f).coerceIn(0f, 1f),
+            alpha = 1f
         )
-        Box(
-            modifier = Modifier
-                .width(barWidth)
-                .height(size * 0.56f)
-                .clip(RoundedCornerShape(50))
-                .background(color.copy(alpha = 0.85f))
+    }
+
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        // Map normalized coords (26..82 -> 0..w, 24..82 -> 0..h) so the mark fills cleanly
+        fun x(v: Float): Float = ((v - 26f) / 56f) * w
+        fun y(v: Float): Float = ((v - 24f) / 58f) * h
+
+        val brush = Brush.verticalGradient(
+            colors = listOf(color, bottomColor),
+            startY = 0f,
+            endY = h
         )
-        Box(
-            modifier = Modifier
-                .width(barWidth)
-                .height(size * 0.92f)
-                .clip(RoundedCornerShape(50))
-                .background(color)
-        )
+
+        // 1. Left Ear
+        val leftEar = Path().apply {
+            moveTo(x(31f), y(25f))
+            lineTo(x(43f), y(37f))
+            lineTo(x(32f), y(46f))
+            close()
+        }
+        // 2. Right Ear
+        val rightEar = Path().apply {
+            moveTo(x(77f), y(25f))
+            lineTo(x(65f), y(37f))
+            lineTo(x(76f), y(46f))
+            close()
+        }
+        // 3. Center Forehead & Snout Bridge
+        val center = Path().apply {
+            moveTo(x(54f), y(43f))
+            lineTo(x(45f), y(39f))
+            lineTo(x(35f), y(48f))
+            lineTo(x(46f), y(56f))
+            lineTo(x(54f), y(79f))
+            lineTo(x(62f), y(56f))
+            lineTo(x(73f), y(48f))
+            lineTo(x(63f), y(39f))
+            close()
+        }
+        // 4. Left Cheek / Jaw
+        val leftCheek = Path().apply {
+            moveTo(x(33f), y(50f))
+            lineTo(x(28f), y(60f))
+            lineTo(x(51f), y(81f))
+            lineTo(x(44f), y(58f))
+            close()
+        }
+        // 5. Right Cheek / Jaw
+        val rightCheek = Path().apply {
+            moveTo(x(75f), y(50f))
+            lineTo(x(80f), y(60f))
+            lineTo(x(57f), y(81f))
+            lineTo(x(64f), y(58f))
+            close()
+        }
+
+        drawPath(leftEar, brush = brush)
+        drawPath(rightEar, brush = brush)
+        drawPath(center, brush = brush)
+        drawPath(leftCheek, brush = brush)
+        drawPath(rightCheek, brush = brush)
     }
 }
 

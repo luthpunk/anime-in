@@ -195,15 +195,15 @@ fun MainApp(
                         .padding(vertical = 14.dp, horizontal = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Brand Mark at Top (ala a-music sidebar)
+                    // Brand Mark at Top (AuraNime Volt Origami Fox)
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(46.dp)
                             .clip(RoundedCornerShape(RadiusTile))
                             .background(Surface2),
                         contentAlignment = Alignment.Center
                     ) {
-                        BrandLogoMark(size = 20.dp)
+                        BrandLogoMark(size = 26.dp)
                     }
 
                     Spacer(modifier = Modifier.weight(1f))

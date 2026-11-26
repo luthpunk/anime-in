@@ -193,16 +193,25 @@ fun HomeScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            BrandLogoMark(size = 20.dp)
-                            Text(
-                                text = "anime-in",
-                                color = FgPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = (-0.4).sp
-                            )
+                            BrandLogoMark(size = 24.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Aura",
+                                    color = FgPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.4).sp
+                                )
+                                Text(
+                                    text = "Nime",
+                                    color = accent.accent,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.4).sp
+                                )
+                            }
                         }
 
                         Row(
