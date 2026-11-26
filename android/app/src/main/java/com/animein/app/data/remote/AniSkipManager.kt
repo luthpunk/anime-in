@@ -38,7 +38,8 @@ class AniSkipManager @Inject constructor(
     private val skipIntervalsCache = ConcurrentHashMap<String, List<SkipInterval>>()
 
     /**
-     * Resolves MyAnimeList (MAL) ID using AniList GraphQL API with retry + Jikan (MAL) fallback.
+     * Resolves MyAnimeList (MAL) ID using AniList GraphQL API with smart long-title shortening
+     * and Jikan (MAL) fallback.
      */
     suspend fun getMalId(animeTitle: String): Int? = withContext(Dispatchers.IO) {
         val cleanTitle = cleanAnimeTitle(animeTitle)
@@ -46,26 +47,21 @@ class AniSkipManager @Inject constructor(
 
         malIdCache[cleanTitle]?.let { return@withContext it }
 
-        // 1. Try AniList GraphQL with cleaned title (with 1 quick retry for transient mobile network hiccups)
-        val anilistId = queryAniListMalId(cleanTitle) ?: queryAniListMalId(cleanTitle)
-        if (anilistId != null && anilistId > 0) {
-            malIdCache[cleanTitle] = anilistId
-            return@withContext anilistId
-        }
+        val candidates = buildSearchCandidates(animeTitle)
+        if (candidates.isEmpty()) return@withContext null
 
-        // 2. Try simplified title (strip remaining parentheticals / subtitle) on AniList
-        val simplifiedTitle = simplifyTitleFallback(cleanTitle)
-        if (simplifiedTitle.isNotBlank() && simplifiedTitle != cleanTitle) {
-            val anilistFallbackId = queryAniListMalId(simplifiedTitle)
-            if (anilistFallbackId != null && anilistFallbackId > 0) {
-                malIdCache[cleanTitle] = anilistFallbackId
-                return@withContext anilistFallbackId
+        // 1. Try ranked candidates on AniList (stop early on hit or 429 rate-limit)
+        for (candidate in candidates) {
+            val (anilistId, rateLimited) = queryAniListMalId(candidate)
+            if (anilistId != null && anilistId > 0) {
+                malIdCache[cleanTitle] = anilistId
+                return@withContext anilistId
             }
+            if (rateLimited) break
         }
 
-        // 3. Fallback to Jikan v4 (MyAnimeList API) with short timeout
-        val jikanId = queryJikanMalId(cleanTitle)
-            ?: simplifiedTitle.takeIf { it.isNotBlank() && it != cleanTitle }?.let { queryJikanMalId(it) }
+        // 2. Fallback to Jikan v4 (MyAnimeList API) with short timeout on primary candidate
+        val jikanId = queryJikanMalId(candidates.first())
         if (jikanId != null && jikanId > 0) {
             malIdCache[cleanTitle] = jikanId
             return@withContext jikanId
@@ -74,7 +70,7 @@ class AniSkipManager @Inject constructor(
         null
     }
 
-    private fun queryAniListMalId(searchTitle: String): Int? {
+    private fun queryAniListMalId(searchTitle: String): Pair<Int?, Boolean> {
         return try {
             val query = """
                 query SearchAnime(${'$'}search: String) {
@@ -98,17 +94,19 @@ class AniSkipManager @Inject constructor(
                 .build()
 
             fastClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
+                if (response.code == 429) return Pair(null, true)
+                if (!response.isSuccessful) return Pair(null, false)
                 val bodyStr = response.body?.string().orEmpty()
                 val jsonObject = gson.fromJson(bodyStr, JsonObject::class.java)
                 val idMalElem = jsonObject
                     ?.getAsJsonObject("data")
                     ?.getAsJsonObject("Media")
                     ?.get("idMal")
-                if (idMalElem != null && !idMalElem.isJsonNull) idMalElem.asInt else null
+                val id = if (idMalElem != null && !idMalElem.isJsonNull) idMalElem.asInt else null
+                Pair(id, false)
             }
         } catch (_: Exception) {
-            null
+            Pair(null, false)
         }
     }
 
@@ -250,11 +248,59 @@ class AniSkipManager @Inject constructor(
             .trim()
     }
 
-    private fun simplifyTitleFallback(cleaned: String): String {
-        return cleaned
+    internal fun buildSearchCandidates(raw: String): List<String> {
+        val cleaned = cleanAnimeTitle(raw)
+        if (cleaned.isBlank()) return emptyList()
+
+        val seasonSuffix = Regex("""(?i)\b(Season\s+\d+|\d+(?:nd|rd|th)\s+Season|Part\s+\d+)\b""")
+            .find(cleaned)?.value
+
+        fun appendSeasonIfMissing(candidate: String): String {
+            val trimmed = candidate.trim().trimEnd('.', ':', '-', '|', '/')
+            if (seasonSuffix != null && !trimmed.contains(seasonSuffix, ignoreCase = true)) {
+                return "$trimmed $seasonSuffix"
+            }
+            return trimmed
+        }
+
+        val noParensOrQuotes = cleaned
             .replace(Regex("""\(.*?\)"""), " ")
-            .substringBefore(" | ")
+            .replace(Regex("""["'“”‘’]"""), "")
             .replace(Regex("""\s+"""), " ")
             .trim()
+
+        // First clause before sentence/subtitle separators (crucial for very long light-novel titles!)
+        val firstClause = Regex("""\s*(?:\.\s+|\.:\s*|:\s+|\s+-\s+|\s+\|\s+|\s+/\s+)""")
+            .split(noParensOrQuotes, limit = 2)
+            .firstOrNull()
+            ?.trim()
+            ?.takeIf { it.length >= 8 && it.split(" ").size >= 2 }
+            ?.let { appendSeasonIfMissing(it) }
+
+        val words = noParensOrQuotes.split(" ").filter { it.isNotBlank() }
+        val shortPrefix = if (words.size > 7) {
+            appendSeasonIfMissing(words.take(6).joinToString(" "))
+        } else null
+
+        val ordered = mutableListOf<String>()
+        if (cleaned.length > 85 && !firstClause.isNullOrBlank()) {
+            // Very long title (e.g. 200-char isekai LN): try the clean first sentence FIRST to avoid AniList 404!
+            ordered.add(firstClause)
+            shortPrefix?.let { ordered.add(it) }
+            ordered.add(cleaned)
+        } else {
+            ordered.add(cleaned)
+            firstClause?.let { ordered.add(it) }
+            if (noParensOrQuotes != cleaned && noParensOrQuotes.isNotBlank()) {
+                ordered.add(noParensOrQuotes)
+            }
+            shortPrefix?.let { ordered.add(it) }
+        }
+
+        return ordered
+            .map { it.replace(Regex("""\s+"""), " ").trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(3)
     }
 }

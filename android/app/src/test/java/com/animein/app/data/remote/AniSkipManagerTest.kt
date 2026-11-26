@@ -32,4 +32,23 @@ class AniSkipManagerTest {
         assertEquals(5.0, manager.extractEpisodeNumber("Frieren", "frieren-episode-5-sub-indo"), 0.001)
         assertEquals(14.5, manager.extractEpisodeNumber("Ep. 14.5", "animeinweb:55555"), 0.001)
     }
+
+    @Test
+    fun buildSearchCandidates_shortensVeryLongLightNovelTitleFirst() {
+        val veryLongTitle =
+            """Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru. Ore wa Buki dake ja Naku, Arayuru Mono ni "Kyouka Point" wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu?"""
+        val candidates = manager.buildSearchCandidates(veryLongTitle)
+        assertEquals(
+            "Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru",
+            candidates.first()
+        )
+    }
+
+    @Test
+    fun buildSearchCandidates_preservesSeasonWhenSplittingSubtitle() {
+        val title = "Solo Leveling Season 2: Arise from the Shadow (Sub Indo)"
+        val candidates = manager.buildSearchCandidates(title)
+        assertEquals("Solo Leveling Season 2: Arise from the Shadow", candidates[0])
+        assertEquals("Solo Leveling Season 2", candidates[1])
+    }
 }

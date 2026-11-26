@@ -106,8 +106,8 @@ class PlayerViewModel @Inject constructor(
                 // Selalu coba resolve vidhide terlebih dahulu
                 val finalResponse = autoResolveVidhideOrFallback(response)
                 _playerState.value = PlayerUiState.Success(finalResponse)
-                // Fallback: jika detail anime belum/gagal memuat intro, coba resolve dari judul episode langsung
-                if (_introInterval.value == null && finalResponse.title.isNotBlank()) {
+                // Fallback hanya jika animeId kosong (loadAdjacentEpisodes tidak bisa jalan)
+                if (animeId.isEmpty() && _introInterval.value == null && finalResponse.title.isNotBlank()) {
                     loadIntroSkipTimes(finalResponse.title, finalResponse.title, epId)
                 }
             } catch (e: Exception) {
