@@ -374,15 +374,10 @@ fun DetailScreen(
                                                 )
                                             }
 
-                                            // Single unified metadata line: Studio • Total Ep • Durasi • Rilis
+                                            // Single unified metadata line: Studio • Rilis (eps & durasi dihapus agar ringkas)
                                             val unifiedMeta = remember(detail) {
                                                 listOfNotNull(
                                                     detail.studio?.takeIf { it.isNotBlank() },
-                                                    detail.totalEpisode?.takeIf { it.isNotBlank() && it != "0" }?.let {
-                                                        val fmt = AnimeIdUtils.formatEpisodeLabel(it)
-                                                        if (fmt.contains("Episode", true) || fmt.contains("Tamat", true) || fmt.contains("Ongoing", true)) fmt else "$fmt Ep"
-                                                    },
-                                                    detail.duration?.takeIf { it.isNotBlank() },
                                                     detail.releaseDate?.takeIf { it.isNotBlank() }
                                                 ).joinToString(" • ")
                                             }

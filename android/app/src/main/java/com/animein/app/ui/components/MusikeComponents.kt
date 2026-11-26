@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.text.font.FontWeight
@@ -192,7 +193,7 @@ fun BrandLogoMark(
     Canvas(modifier = modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height
-        // Map normalized coords (26..82 -> 0..w, 24..82 -> 0..h) so the mark fills cleanly
+        // Map normalized coords (26..82 -> 0..w, 24..82 -> 0..h) with comfortable margin for 28° right tilt
         fun x(v: Float): Float = ((v - 26f) / 56f) * w
         fun y(v: Float): Float = ((v - 24f) / 58f) * h
 
@@ -202,21 +203,18 @@ fun BrandLogoMark(
             endY = h
         )
 
-        // 1. Left Ear
         val leftEar = Path().apply {
             moveTo(x(31f), y(25f))
             lineTo(x(43f), y(37f))
             lineTo(x(32f), y(46f))
             close()
         }
-        // 2. Right Ear
         val rightEar = Path().apply {
             moveTo(x(77f), y(25f))
             lineTo(x(65f), y(37f))
             lineTo(x(76f), y(46f))
             close()
         }
-        // 3. Center Forehead & Snout Bridge
         val center = Path().apply {
             moveTo(x(54f), y(43f))
             lineTo(x(45f), y(39f))
@@ -228,7 +226,6 @@ fun BrandLogoMark(
             lineTo(x(63f), y(39f))
             close()
         }
-        // 4. Left Cheek / Jaw
         val leftCheek = Path().apply {
             moveTo(x(33f), y(50f))
             lineTo(x(28f), y(60f))
@@ -236,7 +233,6 @@ fun BrandLogoMark(
             lineTo(x(44f), y(58f))
             close()
         }
-        // 5. Right Cheek / Jaw
         val rightCheek = Path().apply {
             moveTo(x(75f), y(50f))
             lineTo(x(80f), y(60f))
@@ -245,11 +241,16 @@ fun BrandLogoMark(
             close()
         }
 
-        drawPath(leftEar, brush = brush)
-        drawPath(rightEar, brush = brush)
-        drawPath(center, brush = brush)
-        drawPath(leftCheek, brush = brush)
-        drawPath(rightCheek, brush = brush)
+        withTransform({
+            scale(scaleX = 0.84f, scaleY = 0.84f, pivot = this.center)
+            rotate(degrees = 28f, pivot = this.center)
+        }) {
+            drawPath(leftEar, brush = brush)
+            drawPath(rightEar, brush = brush)
+            drawPath(center, brush = brush)
+            drawPath(leftCheek, brush = brush)
+            drawPath(rightCheek, brush = brush)
+        }
     }
 }
 
