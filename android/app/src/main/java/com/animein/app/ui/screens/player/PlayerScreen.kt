@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -279,11 +280,37 @@ fun PlayerScreen(
                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
 
                             val introInterval by viewModel.introInterval.collectAsState()
-                            val isInsideIntro = remember(currentPosition, introInterval) {
+                            var isSkipIntroDismissed by remember(currentEpisodeId) { mutableStateOf(false) }
+                            val isInsideIntro = remember(currentPosition, introInterval, isSkipIntroDismissed) {
                                 val interval = introInterval
-                                interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
+                                !isSkipIntroDismissed && interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
                             }
                             var hasAutoFocusedIntro by remember(introInterval, currentEpisodeId) { mutableStateOf(false) }
+
+                            // 2-step BackHandler: tutup dropdown/tombol kontrol/skip intro dulu, baru keluar player jika layar benar-benar bersih tanpa tombol
+                            BackHandler(enabled = true) {
+                                when {
+                                    showQualityDropdown || showSpeedDropdown -> {
+                                        showQualityDropdown = false
+                                        showSpeedDropdown = false
+                                    }
+                                    showControls -> {
+                                        showControls = false
+                                        if (isInsideIntro && !isLocked) {
+                                            isSkipIntroDismissed = true
+                                        }
+                                    }
+                                    isInsideIntro && !isLocked -> {
+                                        isSkipIntroDismissed = true
+                                    }
+                                    isFullscreen && !isTV -> {
+                                        isFullscreen = false
+                                    }
+                                    else -> {
+                                        onBackClick()
+                                    }
+                                }
+                            }
 
                             LaunchedEffect(isInsideIntro) {
                                 if (isInsideIntro && isTV && !hasAutoFocusedIntro) {
@@ -922,47 +949,59 @@ fun PlayerScreen(
                                                 )
                                             }
 
-                                            // Play/Pause (Primary Center Button)
+                                            // Play/Pause (Primary Center Button — fixed outer slot to prevent layout shift, high-contrast white halo ring + scale pop on TV)
                                             Box(
                                                 modifier = Modifier
-                                                    .size(mainBtnSize)
-                                                    .clip(CircleShape)
-                                                    .background(accent.accent, CircleShape)
-                                                    .then(
-                                                        if (isPlayFocused) Modifier.border(2.5.dp, Color.White, CircleShape)
-                                                        else Modifier
-                                                    )
-                                                    .focusRequester(playPauseFocusRequester)
-                                                    .onFocusChanged {
-                                                        isPlayFocused = it.isFocused
-                                                        if (it.isFocused) lastUserInteractionTick++
-                                                    }
-                                                    .clickable {
-                                                        lastUserInteractionTick++
-                                                        if (exoPlayer.isPlaying || exoPlayer.playWhenReady) {
-                                                            exoPlayer.pause()
-                                                        } else {
-                                                            if (exoPlayer.playbackState == Player.STATE_ENDED) {
-                                                                exoPlayer.seekTo(0)
-                                                            }
-                                                            exoPlayer.play()
-                                                        }
-                                                    },
+                                                    .size(mainBtnSize + 14.dp)
+                                                    .scale(if (isPlayFocused) 1.06f else 1f),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                if (isLoadingOrBuffering) {
-                                                    PremiumLoadingSpinner(
-                                                        color = accent.onAccent,
-                                                        size = mainBtnSize - 6.dp,
-                                                        strokeWidth = 2.5.dp
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(if (isPlayFocused) mainBtnSize + 12.dp else mainBtnSize)
+                                                        .then(
+                                                            if (isPlayFocused) {
+                                                                Modifier
+                                                                    .clip(CircleShape)
+                                                                    .background(Color.Black.copy(alpha = 0.80f), CircleShape)
+                                                                    .border(3.dp, Color.White, CircleShape)
+                                                                    .padding(6.dp)
+                                                            } else Modifier
+                                                        )
+                                                        .clip(CircleShape)
+                                                        .background(accent.accent, CircleShape)
+                                                        .focusRequester(playPauseFocusRequester)
+                                                        .onFocusChanged {
+                                                            isPlayFocused = it.isFocused || it.hasFocus
+                                                            if (isPlayFocused) lastUserInteractionTick++
+                                                        }
+                                                        .clickable {
+                                                            lastUserInteractionTick++
+                                                            if (exoPlayer.isPlaying || exoPlayer.playWhenReady) {
+                                                                exoPlayer.pause()
+                                                            } else {
+                                                                if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                                                                    exoPlayer.seekTo(0)
+                                                                }
+                                                                exoPlayer.play()
+                                                            }
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isLoadingOrBuffering) {
+                                                        PremiumLoadingSpinner(
+                                                            color = accent.onAccent,
+                                                            size = mainBtnSize - 6.dp,
+                                                            strokeWidth = 2.5.dp
+                                                        )
+                                                    }
+                                                    Icon(
+                                                        imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
+                                                        contentDescription = "Play/Pause",
+                                                        tint = accent.onAccent,
+                                                        modifier = Modifier.size(mainIconSize)
                                                     )
                                                 }
-                                                Icon(
-                                                    imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
-                                                    contentDescription = "Play/Pause",
-                                                    tint = accent.onAccent,
-                                                    modifier = Modifier.size(mainIconSize)
-                                                )
                                             }
 
                                             // Next Episode (Clean Netflix style)
@@ -1023,16 +1062,26 @@ fun PlayerScreen(
                                                 ),
                                             verticalArrangement = Arrangement.spacedBy(if (isFullscreen) 6.dp else 2.dp)
                                         ) {
-                                            // Row 1 (ATAS di bottom section): Seeker + Waktu kiri/kanan ala Netflix
+                                            // Row 1 (ATAS di bottom section): Seeker + Waktu kiri/kanan ala Netflix (dengan sorotan fokus TV jelas!)
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(CircleShape)
+                                                    .then(
+                                                        if (isSliderFocused) {
+                                                            Modifier
+                                                                .background(Surface3.copy(alpha = 0.88f), CircleShape)
+                                                                .border(2.5.dp, accent.accent, CircleShape)
+                                                        } else Modifier
+                                                    )
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
                                                 Text(
                                                     text = formatTime(currentPosition),
                                                     style = MonoTextStyle.copy(
-                                                        color = FgPrimary,
+                                                        color = if (isSliderFocused) accent.accent else FgPrimary,
                                                         fontSize = 11.sp,
                                                         fontWeight = FontWeight.Bold
                                                     )
@@ -1047,7 +1096,7 @@ fun PlayerScreen(
                                                     valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
                                                     modifier = Modifier
                                                         .weight(1f)
-                                                        .height(if (isFullscreen) 22.dp else 18.dp)
+                                                        .height(if (isFullscreen) 24.dp else 18.dp)
                                                         .onKeyEvent { keyEvent ->
                                                             if (keyEvent.type == KeyEventType.KeyDown) {
                                                                 when (keyEvent.key) {
@@ -1070,20 +1119,20 @@ fun PlayerScreen(
                                                             } else false
                                                         }
                                                         .onFocusChanged {
-                                                            isSliderFocused = it.isFocused
-                                                            if (it.isFocused) lastUserInteractionTick++
+                                                            isSliderFocused = it.isFocused || it.hasFocus
+                                                            if (isSliderFocused) lastUserInteractionTick++
                                                         }
                                                         .focusable(),
                                                     colors = SliderDefaults.colors(
-                                                        thumbColor = accent.accent,
+                                                        thumbColor = if (isSliderFocused) Color.White else accent.accent,
                                                         activeTrackColor = accent.accent,
-                                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                                        inactiveTrackColor = Color.White.copy(alpha = if (isSliderFocused) 0.38f else 0.24f)
                                                     )
                                                 )
                                                 Text(
                                                     text = formatTime(duration),
                                                     style = MonoTextStyle.copy(
-                                                        color = FgSecondary,
+                                                        color = if (isSliderFocused) FgPrimary else FgSecondary,
                                                         fontSize = 11.sp
                                                     )
                                                 )

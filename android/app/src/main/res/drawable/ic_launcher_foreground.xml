@@ -6,12 +6,12 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Centered, unzoomed upright AuraNime 5-Facet Volt Origami Fox Head (no text) -->
+    <!-- Centered, nicely balanced upright AuraNime 5-Facet Volt Origami Fox Head (scale 0.82) -->
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.72"
-        android:scaleY="0.72">
+        android:scaleX="0.82"
+        android:scaleY="0.82">
 
         <!-- 1. Left Ear -->
         <path android:pathData="M31,25 L43,37 L32,46 Z">
