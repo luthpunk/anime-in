@@ -79,6 +79,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun retrySearch() {
+        val q = _searchQuery.value.trim()
+        if (q.isNotBlank()) {
+            viewModelScope.launch {
+                performSearch(q)
+            }
+        }
+    }
+
     private fun setupSearchDebounce() {
         viewModelScope.launch {
             _searchQuery
