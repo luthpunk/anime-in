@@ -6,17 +6,91 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Upright 0-deg AuraNime 5-Facet Origami Fox Head (used for Android 13+ monochrome themed icon) -->
+    <!-- Centered, unzoomed upright AuraNime 5-Facet Volt Origami Fox Head (no text) -->
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.82"
-        android:scaleY="0.82">
+        android:scaleX="0.72"
+        android:scaleY="0.72">
 
-        <path android:pathData="M31,25 L43,37 L32,46 Z" android:fillColor="#C3EC52" />
-        <path android:pathData="M77,25 L65,37 L76,46 Z" android:fillColor="#C3EC52" />
-        <path android:pathData="M54,43 L45,39 L35,48 L46,56 L54,79 L62,56 L73,48 L63,39 Z" android:fillColor="#A7F36B" />
-        <path android:pathData="M33,50 L28,60 L51,81 L44,58 Z" android:fillColor="#34D399" />
-        <path android:pathData="M75,50 L80,60 L57,81 L64,58 Z" android:fillColor="#34D399" />
+        <!-- 1. Left Ear -->
+        <path android:pathData="M31,25 L43,37 L32,46 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#D9F93B" />
+                    <item android:offset="0.5" android:color="#A7F36B" />
+                    <item android:offset="1.0" android:color="#34D399" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 2. Right Ear -->
+        <path android:pathData="M77,25 L65,37 L76,46 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#D9F93B" />
+                    <item android:offset="0.5" android:color="#A7F36B" />
+                    <item android:offset="1.0" android:color="#34D399" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 3. Center Forehead & Snout Bridge -->
+        <path android:pathData="M54,43 L45,39 L35,48 L46,56 L54,79 L62,56 L73,48 L63,39 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#D9F93B" />
+                    <item android:offset="0.5" android:color="#A7F36B" />
+                    <item android:offset="1.0" android:color="#34D399" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 4. Left Cheek / Jaw -->
+        <path android:pathData="M33,50 L28,60 L51,81 L44,58 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#D9F93B" />
+                    <item android:offset="0.5" android:color="#A7F36B" />
+                    <item android:offset="1.0" android:color="#34D399" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- 5. Right Cheek / Jaw -->
+        <path android:pathData="M75,50 L80,60 L57,81 L64,58 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="54"
+                    android:startY="25"
+                    android:endX="54"
+                    android:endY="81"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#D9F93B" />
+                    <item android:offset="0.5" android:color="#A7F36B" />
+                    <item android:offset="1.0" android:color="#34D399" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>
