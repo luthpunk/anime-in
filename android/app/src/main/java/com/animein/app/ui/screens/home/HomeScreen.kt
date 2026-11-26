@@ -161,19 +161,33 @@ fun HomeScreen(
         }
     }
 
-    var allowSearchFocus by remember { mutableStateOf(!isTV) }
     var isSearchFocused by remember { mutableStateOf(false) }
+    var isSearchEditing by remember { mutableStateOf(false) }
+    var wasSearchEditing by remember { mutableStateOf(false) }
+    val searchBoxFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     // Pressing Back while viewing search results clears search instead of immediately showing exit dialog
-    BackHandler(enabled = searchQuery.isNotEmpty()) {
+    BackHandler(enabled = searchQuery.isNotEmpty() && !isSearchEditing) {
         viewModel.onSearchQueryChanged("")
     }
 
-    LaunchedEffect(Unit) {
+    // Safety BackHandler: if TV search is in editing mode, Back ALWAYS exits editing mode cleanly
+    BackHandler(enabled = isTV && isSearchEditing) {
+        isSearchEditing = false
+    }
+
+    LaunchedEffect(isSearchEditing) {
         if (isTV) {
-            delay(300)
-            allowSearchFocus = true
+            if (isSearchEditing) {
+                wasSearchEditing = true
+            } else if (wasSearchEditing) {
+                wasSearchEditing = false
+                delay(40)
+                try {
+                    searchBoxFocusRequester.requestFocus()
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -287,74 +301,101 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.weight(1f))
                     }
 
-                    // Search Pill (TV uses a single inline native EditText ala a-music: D-pad highlight without popup, OK unlocks & opens TV keyboard inline!)
+                    // Search Pill (TV uses 1 inline pill ala a-music: pure Compose clickable pill when browsing -> swaps in-place to native EditText when OK is clicked!)
                     if (isTV) {
                         val textColorArgb = FgPrimary.toArgb()
                         val hintColorArgb = FgTertiary.toArgb()
 
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .width(300.dp)
                                 .height(42.dp)
                                 .musikeSurface(
                                     shape = CircleShape,
-                                    isFocused = isSearchFocused,
+                                    isFocused = isSearchFocused || isSearchEditing,
                                     accentColor = accent.accent,
                                     containerColor = Surface2,
                                     focusedContainerColor = Surface3
                                 )
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Cari",
-                                tint = if (isSearchFocused) accent.accent else FgTertiary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            AndroidView(
-                                factory = { ctx ->
-                                    TvInlineSearchEditText(ctx).apply {
-                                        hint = "Cari judul anime..."
-                                        setText(searchQuery)
-                                        setTextColor(textColorArgb)
-                                        setHintTextColor(hintColorArgb)
-                                        textSize = 13.5f
-                                        background = null
-                                        isSingleLine = true
-                                        showSoftInputOnFocus = false
-                                        isFocusable = allowSearchFocus
-                                        isFocusableInTouchMode = true
-                                        setPadding(0, 0, 0, 0)
-                                        lockForDpadNavigation()
+                            if (!isSearchEditing) {
+                                // Mode 1: Pure Compose focusable pill — 100% reliably highlightable by D-pad, never pops up keyboard on highlight
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .focusRequester(searchBoxFocusRequester)
+                                        .onFocusChanged { isSearchFocused = it.isFocused }
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            isSearchEditing = true
+                                        }
+                                        .padding(horizontal = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Cari",
+                                        tint = if (isSearchFocused) accent.accent else FgTertiary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = searchQuery.ifEmpty { "Cari judul anime..." },
+                                        color = if (searchQuery.isEmpty()) FgTertiary else FgPrimary,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            } else {
+                                // Mode 2: Standard native EditText right in place inside the exact same pill (no popup/dialog, opens native TV keyboard immediately)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Cari",
+                                        tint = accent.accent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    AndroidView(
+                                        factory = { ctx ->
+                                            TvInlineSearchEditText(ctx).apply {
+                                                hint = "Cari judul anime..."
+                                                setText(searchQuery)
+                                                setSelection(searchQuery.length)
+                                                setTextColor(textColorArgb)
+                                                setHintTextColor(hintColorArgb)
+                                                textSize = 13.5f
+                                                background = null
+                                                isSingleLine = true
+                                                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                                                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+                                                isFocusable = true
+                                                isFocusableInTouchMode = true
+                                                setPadding(0, 0, 0, 0)
 
-                                        onQueryChange = { q ->
-                                            viewModel.onSearchQueryChanged(q)
-                                        }
-                                        setOnFocusChangeListener { _, hasFocus ->
-                                            isSearchFocused = hasFocus
-                                            if (!hasFocus) {
-                                                stopTypingAndHideKeyboard()
+                                                onQueryChange = { q ->
+                                                    viewModel.onSearchQueryChanged(q)
+                                                }
+                                                onExitEditing = {
+                                                    isSearchEditing = false
+                                                }
                                             }
-                                        }
-                                    }
-                                },
-                                update = { et ->
-                                    if (et.isFocusable != allowSearchFocus) {
-                                        et.isFocusable = allowSearchFocus
-                                    }
-                                    if (et.text?.toString().orEmpty() != searchQuery) {
-                                        et.suppressTextWatch = true
-                                        et.setText(searchQuery)
-                                        et.setSelection(searchQuery.length)
-                                        et.suppressTextWatch = false
-                                    }
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            )
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                    )
+                                }
+                            }
                         }
 
                         if (searchQuery.isNotEmpty()) {
@@ -374,6 +415,7 @@ fun HomeScreen(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
                                     ) {
+                                        isSearchEditing = false
                                         viewModel.onSearchQueryChanged("")
                                     },
                                 contentAlignment = Alignment.Center
@@ -678,29 +720,33 @@ fun HomeScreen(
 }
 
 /**
- * Single inline Android TV EditText modeled after a-music's TV search bar:
- * - While merely highlighted with D-pad, stays in navigation mode (inputType = TYPE_NULL,
- *   showSoftInputOnFocus = false, cursor hidden) so Left/Right/Up/Down never get trapped.
- * - Pressing OK/Enter unlocks text input and opens the native TV keyboard right in place.
- * - Pressing Search/Done or Back closes the keyboard and immediately restores D-pad navigation.
+ * Standard native Android EditText mounted inline inside the TV Search Pill ONLY while
+ * actively editing (after OK click). Never uses TYPE_NULL so Android TV IME opens cleanly,
+ * and exits cleanly on Search/Done, Back, D-pad Down, or focus loss so focus never gets stuck.
  */
 private class TvInlineSearchEditText(context: Context) : EditText(context) {
-    var isTvTyping: Boolean = false
-        private set
-    var suppressTextWatch: Boolean = false
     var onQueryChange: ((String) -> Unit)? = null
+    var onExitEditing: (() -> Unit)? = null
+    private var everGainedFocus: Boolean = false
+    private var hasExited: Boolean = false
 
     init {
         gravity = android.view.Gravity.CENTER_VERTICAL
         addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (!suppressTextWatch) {
-                    onQueryChange?.invoke(s?.toString().orEmpty())
-                }
+                onQueryChange?.invoke(s?.toString().orEmpty())
             }
             override fun afterTextChanged(s: Editable?) {}
         })
+
+        setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                everGainedFocus = true
+            } else if (everGainedFocus) {
+                exitEditing()
+            }
+        }
 
         setOnEditorActionListener { _, actionId, event ->
             val isSubmit = actionId == EditorInfo.IME_ACTION_SEARCH ||
@@ -708,7 +754,7 @@ private class TvInlineSearchEditText(context: Context) : EditText(context) {
                 actionId == EditorInfo.IME_ACTION_GO ||
                 (event != null && event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)
             if (isSubmit) {
-                stopTypingAndHideKeyboard()
+                exitEditing()
                 true
             } else {
                 false
@@ -716,60 +762,49 @@ private class TvInlineSearchEditText(context: Context) : EditText(context) {
         }
 
         setOnClickListener {
-            if (!isTvTyping) {
-                startTypingAndShowKeyboard()
-            } else {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        post {
+            if (isAttachedToWindow && !hasExited) {
+                requestFocus()
                 val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
                 imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
             }
         }
-    }
-
-    fun lockForDpadNavigation() {
-        isTvTyping = false
-        isCursorVisible = false
-        movementMethod = null
-        inputType = InputType.TYPE_NULL
-        maxLines = 1
-        imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-    }
-
-    fun startTypingAndShowKeyboard() {
-        isTvTyping = true
-        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        isSingleLine = true
-        movementMethod = android.text.method.ArrowKeyMovementMethod.getInstance()
-        imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-        isCursorVisible = true
-        setSelection(text?.length ?: 0)
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.restartInput(this)
-        post {
-            if (isAttachedToWindow && hasFocus()) {
+        postDelayed({
+            if (isAttachedToWindow && !hasExited) {
+                if (!hasFocus()) requestFocus()
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
                 imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
             }
-        }
+        }, 160L)
     }
 
-    fun stopTypingAndHideKeyboard() {
+    private fun exitEditing() {
+        if (hasExited) return
+        hasExited = true
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.hideSoftInputFromWindow(windowToken, 0)
-        lockForDpadNavigation()
+        onExitEditing?.invoke()
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (!isTvTyping && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
-            startTypingAndShowKeyboard()
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_BACK) {
+            exitEditing()
             return true
         }
         return super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyPreIme(keyCode: Int, event: KeyEvent?): Boolean {
-        if (isTvTyping && keyCode == KeyEvent.KEYCODE_BACK) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
             if (event?.action == KeyEvent.ACTION_UP) {
-                // Keyboard dismissed via Back -> immediately unlock D-pad navigation without clearing search query
-                stopTypingAndHideKeyboard()
+                exitEditing()
             }
             return true
         }
