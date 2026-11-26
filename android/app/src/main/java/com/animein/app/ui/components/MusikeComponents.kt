@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -777,6 +780,95 @@ val MusikeLibraryIcon: ImageVector
         lineTo(6f, 20f)
         close()
     }.build()
+
+/**
+ * Exit Confirmation Dialog inspired by Aura TV: prevents accidental exit on Phone & Android TV,
+ * autofocuses "Batal" safely on open, and supports smooth D-pad navigation.
+ */
+@Composable
+fun ExitConfirmationDialog(
+    onConfirmExit: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val activeAccent = LocalAccentPreset.current
+    val cancelFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(60)
+        try {
+            cancelFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        IslandPanel(
+            modifier = Modifier.width(300.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                BrandLogoMark(size = 30.dp)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Keluar Aplikasi AuraNime",
+                    color = FgPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Apakah Anda ingin keluar?",
+                    color = FgSecondary,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TonalPillButton(
+                        text = "Batal",
+                        height = 38.dp,
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(cancelFocusRequester)
+                    )
+
+                    var isExitFocused by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(CircleShape)
+                            .background(activeAccent.accent, CircleShape)
+                            .then(
+                                if (isExitFocused) Modifier.border(2.5.dp, Color.White, CircleShape)
+                                else Modifier
+                            )
+                            .onFocusChanged { isExitFocused = it.isFocused }
+                            .clickable { onConfirmExit() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Ya, Keluar",
+                            color = activeAccent.onAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Helper to draw subtle top specular line inside any card or bar.

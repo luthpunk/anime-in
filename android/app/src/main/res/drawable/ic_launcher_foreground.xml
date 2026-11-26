@@ -6,13 +6,15 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- AuraNime 5-Facet Volt Origami Fox Head Mark: tilted 28 deg right, scaled cleanly for Android adaptive icons (not zoomed) -->
+    <!-- AuraNime Phone Adaptive Icon: 28 deg right-tilted Volt Origami Fox peeking ("sedikit tenggelam") from bottom-left -->
     <group
+        android:translateX="-6.5"
+        android:translateY="16.5"
         android:pivotX="54"
         android:pivotY="54"
         android:rotation="28"
-        android:scaleX="0.74"
-        android:scaleY="0.74">
+        android:scaleX="1.18"
+        android:scaleY="1.18">
 
         <!-- 1. Left Ear -->
         <path android:pathData="M31,25 L43,37 L32,46 Z">

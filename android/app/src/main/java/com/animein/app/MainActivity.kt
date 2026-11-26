@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -64,6 +65,7 @@ import androidx.navigation.navArgument
 import com.animein.app.ui.MainViewModel
 import com.animein.app.ui.components.AppearanceSettingsDialog
 import com.animein.app.ui.components.BrandLogoMark
+import com.animein.app.ui.components.ExitConfirmationDialog
 import com.animein.app.ui.components.MusikeGenreIcon
 import com.animein.app.ui.components.MusikeLibraryIcon
 import com.animein.app.ui.components.RadiusPanel
@@ -106,13 +108,15 @@ class MainActivity : ComponentActivity() {
             val mainViewModel: MainViewModel = hiltViewModel()
             val accentId by mainViewModel.accentId.collectAsState()
             var showAppearanceDialog by remember { mutableStateOf(false) }
+            var showExitDialog by remember { mutableStateOf(false) }
 
             AnimeInTheme(
                 accentId = accentId,
                 onOpenAppearanceSettings = { showAppearanceDialog = true }
             ) {
                 MainApp(
-                    onOpenAppearanceSettings = { showAppearanceDialog = true }
+                    onOpenAppearanceSettings = { showAppearanceDialog = true },
+                    onRequestExit = { showExitDialog = true }
                 )
 
                 if (showAppearanceDialog) {
@@ -120,6 +124,16 @@ class MainActivity : ComponentActivity() {
                         currentAccentId = accentId,
                         onSelectAccent = { mainViewModel.setAccentId(it) },
                         onDismiss = { showAppearanceDialog = false }
+                    )
+                }
+
+                if (showExitDialog) {
+                    ExitConfirmationDialog(
+                        onConfirmExit = {
+                            showExitDialog = false
+                            finish()
+                        },
+                        onDismiss = { showExitDialog = false }
                     )
                 }
             }
@@ -135,12 +149,18 @@ data class NavigationItem(
 
 @Composable
 fun MainApp(
-    onOpenAppearanceSettings: () -> Unit
+    onOpenAppearanceSettings: () -> Unit,
+    onRequestExit: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
     val accent = LocalAccentPreset.current
+
+    // Konfirmasi keluar ala Aura TV saat tombol Back ditekan di beranda (HP & TV)
+    BackHandler(enabled = currentRoute == "home") {
+        onRequestExit()
+    }
 
     val navItems = remember {
         listOf(
