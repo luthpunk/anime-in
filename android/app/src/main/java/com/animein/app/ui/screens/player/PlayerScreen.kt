@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -67,17 +68,31 @@ import android.content.pm.ActivityInfo
 import android.view.View
 import com.animein.app.data.model.MirrorItem
 import com.animein.app.util.AnimeIdUtils
+import com.animein.app.ui.theme.BgGraphite
 import com.animein.app.ui.theme.DarkSurface
 import com.animein.app.ui.theme.DarkSurfaceVariant
+import com.animein.app.ui.theme.FgPrimary
+import com.animein.app.ui.theme.FgSecondary
+import com.animein.app.ui.theme.FgTertiary
 import com.animein.app.ui.theme.FrostGlassBgTop
+import com.animein.app.ui.theme.Hairline
+import com.animein.app.ui.theme.HairlineStrong
+import com.animein.app.ui.theme.LocalAccentPreset
+import com.animein.app.ui.theme.MonoTextStyle
 import com.animein.app.ui.theme.NeonPurple
 import com.animein.app.ui.theme.OutlineGrey
 import com.animein.app.ui.theme.OutlineGreySubtle
+import com.animein.app.ui.theme.Surface1
+import com.animein.app.ui.theme.Surface2
+import com.animein.app.ui.theme.Surface3
 import com.animein.app.ui.theme.TextSecondary
+import com.animein.app.ui.components.MusikeErrorState
 import com.animein.app.ui.components.PremiumLoadingSpinner
+import com.animein.app.ui.components.RadiusTile
 import com.animein.app.ui.components.frostGlass
 import com.animein.app.ui.components.frostGlassBgBrush
 import com.animein.app.ui.components.frostGlassBorderBrush
+import com.animein.app.ui.components.musikeSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -99,6 +114,7 @@ fun PlayerScreen(
     val isVideoLoading by viewModel.isVideoLoading.collectAsState()
     val context = LocalContext.current
 
+    val accent = LocalAccentPreset.current
     val configuration = LocalConfiguration.current
     val isTV = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
             Configuration.UI_MODE_TYPE_TELEVISION
@@ -131,17 +147,18 @@ fun PlayerScreen(
     }
 
     Scaffold(
+        containerColor = BgGraphite,
         modifier = modifier
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(BgGraphite)
                 .padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)
         ) {
             when (val state = uiState) {
                 is PlayerUiState.Loading -> {
-                    val initBtnSize = if (isFullscreen) 48.dp else 40.dp
+                    val initBtnSize = if (isFullscreen) 52.dp else 44.dp
                     val initOffsetY = if (isFullscreen) 0.dp else (-8).dp
                     Box(
                         modifier = if (isFullscreen) Modifier.fillMaxSize().background(Color.Black) else Modifier
@@ -154,12 +171,14 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .offset(y = initOffsetY)
                                 .size(initBtnSize)
-                                .frostGlass(shape = RoundedCornerShape(50)),
+                                .clip(CircleShape)
+                                .background(Surface2.copy(alpha = 0.88f), CircleShape)
+                                .border(1.dp, HairlineStrong, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             PremiumLoadingSpinner(
-                                color = Color.White,
-                                size = initBtnSize,
+                                color = accent.accent,
+                                size = initBtnSize - 6.dp,
                                 strokeWidth = 2.5.dp
                             )
                         }
@@ -713,7 +732,7 @@ fun PlayerScreen(
                                         isLeft = true,
                                         progress = brightnessValue,
                                         icon = BrightnessIcon,
-                                        color = Color.White,
+                                        color = accent.accent,
                                         modifier = Modifier.align(Alignment.CenterStart)
                                     )
                                 }
@@ -722,28 +741,30 @@ fun PlayerScreen(
                                         isLeft = false,
                                         progress = volumePercent,
                                         icon = VolumeUpIcon,
-                                        color = Color.White,
+                                        color = accent.accent,
                                         modifier = Modifier.align(Alignment.CenterEnd)
                                     )
                                 }
 
                                 val isLoadingOrBuffering = isVideoLoading || isBuffering
 
-                                // --- Buffering Spinner (Saat kontrol tersembunyi / layar terkunci, tetap di posisi & ukuran yang sama dengan tombol Play/Pause) ---
+                                // --- Buffering Spinner (Saat kontrol tersembunyi / layar terkunci) ---
                                 if (isLoadingOrBuffering && (!showControls || isLocked)) {
-                                    val bufferBtnSize = if (isFullscreen) 48.dp else 40.dp
+                                    val bufferBtnSize = if (isFullscreen) 52.dp else 44.dp
                                     val bufferOffsetY = if (isFullscreen) 0.dp else (-8).dp
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.Center)
                                             .offset(y = bufferOffsetY)
                                             .size(bufferBtnSize)
-                                            .frostGlass(shape = RoundedCornerShape(50)),
+                                            .clip(CircleShape)
+                                            .background(Surface2.copy(alpha = 0.88f), CircleShape)
+                                            .border(1.dp, HairlineStrong, CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         PremiumLoadingSpinner(
-                                            color = Color.White,
-                                            size = bufferBtnSize,
+                                            color = accent.accent,
+                                            size = bufferBtnSize - 6.dp,
                                             strokeWidth = 2.5.dp
                                         )
                                     }
@@ -752,11 +773,11 @@ fun PlayerScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = if (isLocked) 0.3f else 0.6f))
+                                            .background(Color.Black.copy(alpha = if (isLocked) 0.3f else 0.58f))
                                     ) {
 
-                                        val controlChipHeight = if (isFullscreen) 30.dp else 26.dp
-                                        val controlChipShape = RoundedCornerShape(8.dp)
+                                        val controlChipHeight = if (isFullscreen) 32.dp else 28.dp
+                                        val controlChipShape = CircleShape
                                         val centerOffsetY = if (isFullscreen) 0.dp else (-8).dp
 
                                         // ========== TOMBOL KUNCI MINIMALIS (Sisi kiri tengah) ==========
@@ -766,13 +787,17 @@ fun PlayerScreen(
                                                 .offset(y = centerOffsetY)
                                                 .padding(start = if (isFullscreen) 16.dp else 12.dp)
                                         ) {
-                                            val lockSize = if (isFullscreen) 34.dp else 30.dp
+                                            val lockSize = if (isFullscreen) 38.dp else 32.dp
                                             Box(
                                                 modifier = Modifier
                                                     .size(lockSize)
-                                                    .frostGlass(
-                                                        shape = controlChipShape,
-                                                        isFocused = isLockBtnFocused || isLocked
+                                                    .musikeSurface(
+                                                        shape = CircleShape,
+                                                        isFocused = isLockBtnFocused,
+                                                        accentColor = accent.accent,
+                                                        containerColor = if (isLocked) accent.accentSoft else Surface2.copy(alpha = 0.88f),
+                                                        focusedContainerColor = Surface3,
+                                                        isActive = isLocked
                                                     )
                                                     .focusRequester(lockBtnFocusRequester)
                                                     .onFocusChanged {
@@ -789,7 +814,7 @@ fun PlayerScreen(
                                                 Icon(
                                                     imageVector = if (isLocked) LockClosedIcon else LockOpenIcon,
                                                     contentDescription = if (isLocked) "Buka Kunci" else "Kunci Layar",
-                                                    tint = Color.White,
+                                                    tint = if (isLocked || isLockBtnFocused) accent.accent else FgPrimary,
                                                     modifier = Modifier.size(if (isFullscreen) 17.dp else 15.dp)
                                                 )
                                             }
@@ -834,13 +859,13 @@ fun PlayerScreen(
                                             }
                                         }
 
-                                        // 2. Center row: Minimalist Previous Ep + Play/Pause + Next Ep
-                                        val sideBtnSize = if (isFullscreen) 40.dp else 34.dp
+                                        // 2. Center row: Cinema Prev Ep + Solid Accent Play/Pause (ala a-music) + Next Ep
+                                        val sideBtnSize = if (isFullscreen) 42.dp else 36.dp
                                         val sideIconSize = if (isFullscreen) 20.dp else 17.dp
-                                        val mainBtnSize = if (isFullscreen) 48.dp else 40.dp
-                                        val mainIconSize = if (isFullscreen) 24.dp else 20.dp
-                                        val centerSpacing = if (isFullscreen) 24.dp else 16.dp
-                                        val circleBtnShape = RoundedCornerShape(50)
+                                        val mainBtnSize = if (isFullscreen) 54.dp else 46.dp
+                                        val mainIconSize = if (isFullscreen) 26.dp else 22.dp
+                                        val centerSpacing = if (isFullscreen) 26.dp else 18.dp
+                                        val circleBtnShape = CircleShape
 
                                         Row(
                                             modifier = Modifier
@@ -852,14 +877,16 @@ fun PlayerScreen(
                                             val prevEpId by viewModel.prevEpisodeId.collectAsState()
                                             val nextEpId by viewModel.nextEpisodeId.collectAsState()
 
-                                            // Previous Episode Button (Minimalist Circle)
+                                            // Previous Episode Button
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .frostGlass(
+                                                    .musikeSurface(
                                                         shape = circleBtnShape,
                                                         isFocused = isPrevFocused,
-                                                        isSubtle = prevEpId == null
+                                                        accentColor = accent.accent,
+                                                        containerColor = Surface2.copy(alpha = 0.85f),
+                                                        focusedContainerColor = Surface3
                                                     )
                                                     .onFocusChanged {
                                                         isPrevFocused = it.isFocused
@@ -874,18 +901,24 @@ fun PlayerScreen(
                                                 Icon(
                                                     imageVector = SkipPreviousIcon,
                                                     contentDescription = "Episode Sebelumnya",
-                                                    tint = if (prevEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
+                                                    tint = when {
+                                                        prevEpId == null -> FgTertiary.copy(alpha = 0.35f)
+                                                        isPrevFocused -> accent.accent
+                                                        else -> FgPrimary
+                                                    },
                                                     modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
 
-                                            // Play/Pause Button (Minimalist Circle — menyatu dengan Buffering Spinner)
+                                            // Play/Pause Button (Signature a-music Solid Accent Circle)
                                             Box(
                                                 modifier = Modifier
                                                     .size(mainBtnSize)
-                                                    .frostGlass(
-                                                        shape = circleBtnShape,
-                                                        isFocused = isPlayFocused
+                                                    .clip(circleBtnShape)
+                                                    .background(accent.accent, circleBtnShape)
+                                                    .then(
+                                                        if (isPlayFocused) Modifier.border(2.5.dp, Color.White, circleBtnShape)
+                                                        else Modifier
                                                     )
                                                     .focusRequester(playPauseFocusRequester)
                                                     .onFocusChanged {
@@ -907,27 +940,29 @@ fun PlayerScreen(
                                             ) {
                                                 if (isLoadingOrBuffering) {
                                                     PremiumLoadingSpinner(
-                                                        color = Color.White,
-                                                        size = mainBtnSize,
+                                                        color = accent.onAccent,
+                                                        size = mainBtnSize - 6.dp,
                                                         strokeWidth = 2.5.dp
                                                     )
                                                 }
                                                 Icon(
                                                     imageVector = if (isPlaying) PauseIcon else Icons.Default.PlayArrow,
                                                     contentDescription = "Play/Pause",
-                                                    tint = Color.White,
+                                                    tint = accent.onAccent,
                                                     modifier = Modifier.size(mainIconSize)
                                                 )
                                             }
 
-                                            // Next Episode Button (Minimalist Circle)
+                                            // Next Episode Button
                                             Box(
                                                 modifier = Modifier
                                                     .size(sideBtnSize)
-                                                    .frostGlass(
+                                                    .musikeSurface(
                                                         shape = circleBtnShape,
                                                         isFocused = isNextFocused,
-                                                        isSubtle = nextEpId == null
+                                                        accentColor = accent.accent,
+                                                        containerColor = Surface2.copy(alpha = 0.85f),
+                                                        focusedContainerColor = Surface3
                                                     )
                                                     .onFocusChanged {
                                                         isNextFocused = it.isFocused
@@ -942,27 +977,31 @@ fun PlayerScreen(
                                                 Icon(
                                                     imageVector = SkipNextIcon,
                                                     contentDescription = "Episode Selanjutnya",
-                                                    tint = if (nextEpId != null) Color.White else Color.White.copy(alpha = 0.3f),
+                                                    tint = when {
+                                                        nextEpId == null -> FgTertiary.copy(alpha = 0.35f)
+                                                        isNextFocused -> accent.accent
+                                                        else -> FgPrimary
+                                                    },
                                                     modifier = Modifier.size(sideIconSize)
                                                 )
                                             }
                                         }
 
-                                        // 3. Bottom controls — Waktu di kiri, Resolusi + Kecepatan + Fullscreen serasi di kanan, Seekbar tipis di bawah
+                                        // 3. Bottom controls — Monospace time left, Pill chips right, Accent Seekbar bottom
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomCenter)
                                                 .fillMaxWidth()
                                                 .background(
                                                     brush = Brush.verticalGradient(
-                                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                                                        colors = listOf(Color.Transparent, BgGraphite.copy(alpha = 0.88f))
                                                     )
                                                 )
                                                 .padding(
-                                                    start = if (isFullscreen) 16.dp else 12.dp,
-                                                    end = if (isFullscreen) 16.dp else 12.dp,
-                                                    top = 4.dp,
-                                                    bottom = if (isFullscreen) 8.dp else 4.dp
+                                                    start = if (isFullscreen) 18.dp else 12.dp,
+                                                    end = if (isFullscreen) 18.dp else 12.dp,
+                                                    top = 6.dp,
+                                                    bottom = if (isFullscreen) 10.dp else 4.dp
                                                 )
                                         ) {
                                             Row(
@@ -970,22 +1009,26 @@ fun PlayerScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Waktu putar minimalis di sisi kiri
+                                                // Monospace timestamps (tabular-nums ala a-music)
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Text(
                                                         text = formatTime(currentPosition),
-                                                        color = Color.White,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.SemiBold
+                                                        style = MonoTextStyle.copy(
+                                                            color = FgPrimary,
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
                                                     )
                                                     Text(
                                                         text = " / ${formatTime(duration)}",
-                                                        color = TextSecondary,
-                                                        fontSize = 11.sp
+                                                        style = MonoTextStyle.copy(
+                                                            color = FgSecondary,
+                                                            fontSize = 11.sp
+                                                        )
                                                     )
                                                 }
 
-                                                // Deretan tombol serasi: Resolusi, Kecepatan, Fullscreen
+                                                // Control Pills: Resolution, Speed, Fullscreen
                                                 Row(
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                     verticalAlignment = Alignment.CenterVertically
@@ -995,9 +1038,12 @@ fun PlayerScreen(
                                                         Box(
                                                             modifier = Modifier
                                                                 .height(controlChipHeight)
-                                                                .frostGlass(
+                                                                .musikeSurface(
                                                                     shape = controlChipShape,
-                                                                    isFocused = isResFocused
+                                                                    isFocused = isResFocused,
+                                                                    accentColor = accent.accent,
+                                                                    containerColor = Surface2.copy(alpha = 0.88f),
+                                                                    focusedContainerColor = Surface3
                                                                 )
                                                                 .onFocusChanged {
                                                                     isResFocused = it.isFocused
@@ -1007,14 +1053,16 @@ fun PlayerScreen(
                                                                     lastUserInteractionTick++
                                                                     showQualityDropdown = true
                                                                 }
-                                                                .padding(horizontal = 9.dp),
+                                                                .padding(horizontal = 11.dp),
                                                             contentAlignment = Alignment.Center
                                                         ) {
                                                             Text(
                                                                 text = selectedResolution,
-                                                                color = Color.White,
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.SemiBold
+                                                                style = MonoTextStyle.copy(
+                                                                    color = if (isResFocused) accent.accent else FgPrimary,
+                                                                    fontSize = 11.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
                                                             )
                                                         }
 
@@ -1026,12 +1074,8 @@ fun PlayerScreen(
                                                              },
                                                              modifier = Modifier
                                                                  .width(IntrinsicSize.Max)
-                                                                 .background(DarkSurfaceVariant.copy(alpha = 0.96f))
-                                                                 .border(
-                                                                     width = 1.dp,
-                                                                     brush = frostGlassBorderBrush(isFocused = false),
-                                                                     shape = RoundedCornerShape(8.dp)
-                                                                 )
+                                                                 .background(Surface2)
+                                                                 .border(1.dp, HairlineStrong, RoundedCornerShape(12.dp))
                                                          ) {
                                                              allMirrors.forEach { mirror ->
                                                                  val isSelected = selectedResolution == mirror.resolution
@@ -1042,14 +1086,18 @@ fun PlayerScreen(
                                                                          .fillMaxWidth()
                                                                          .padding(horizontal = 6.dp, vertical = 2.dp)
                                                                          .clip(itemShape)
+                                                                         .background(
+                                                                             when {
+                                                                                 isItemFocused -> Surface3
+                                                                                 isSelected -> accent.accentSoft
+                                                                                 else -> Color.Transparent
+                                                                             },
+                                                                             itemShape
+                                                                         )
                                                                          .then(
                                                                              when {
-                                                                                 isItemFocused -> Modifier
-                                                                                     .background(frostGlassBgBrush(isFocused = true), itemShape)
-                                                                                     .border(1.5.dp, frostGlassBorderBrush(isFocused = true), itemShape)
-                                                                                 isSelected -> Modifier
-                                                                                     .background(frostGlassBgBrush(isFocused = false), itemShape)
-                                                                                     .border(1.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                 isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
+                                                                                 isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
                                                                                  else -> Modifier
                                                                              }
                                                                          )
@@ -1063,14 +1111,16 @@ fun PlayerScreen(
                                                                              viewModel.switchMirror(mirror.id)
                                                                              showQualityDropdown = false
                                                                          }
-                                                                         .padding(horizontal = 12.dp, vertical = 5.dp),
+                                                                         .padding(horizontal = 12.dp, vertical = 6.dp),
                                                                      contentAlignment = Alignment.Center
                                                                  ) {
                                                                      Text(
                                                                          text = mirror.resolution,
-                                                                         color = Color.White,
-                                                                         fontSize = 12.sp,
-                                                                         fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Normal,
+                                                                         style = MonoTextStyle.copy(
+                                                                             color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
+                                                                             fontSize = 12.sp,
+                                                                             fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
+                                                                         ),
                                                                          maxLines = 1
                                                                      )
                                                                  }
@@ -1083,9 +1133,12 @@ fun PlayerScreen(
                                                         Box(
                                                             modifier = Modifier
                                                                 .height(controlChipHeight)
-                                                                .frostGlass(
+                                                                .musikeSurface(
                                                                     shape = controlChipShape,
-                                                                    isFocused = isSpeedFocused
+                                                                    isFocused = isSpeedFocused,
+                                                                    accentColor = accent.accent,
+                                                                    containerColor = Surface2.copy(alpha = 0.88f),
+                                                                    focusedContainerColor = Surface3
                                                                 )
                                                                 .onFocusChanged {
                                                                     isSpeedFocused = it.isFocused
@@ -1095,14 +1148,16 @@ fun PlayerScreen(
                                                                     lastUserInteractionTick++
                                                                     showSpeedDropdown = true
                                                                 }
-                                                                .padding(horizontal = 9.dp),
+                                                                .padding(horizontal = 11.dp),
                                                             contentAlignment = Alignment.Center
                                                         ) {
                                                             Text(
                                                                 text = "${speed}x",
-                                                                color = Color.White,
-                                                                fontSize = 11.sp,
-                                                                fontWeight = FontWeight.SemiBold
+                                                                style = MonoTextStyle.copy(
+                                                                    color = if (isSpeedFocused || speed != 1.0f) accent.accent else FgPrimary,
+                                                                    fontSize = 11.sp,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
                                                             )
                                                         }
 
@@ -1114,12 +1169,8 @@ fun PlayerScreen(
                                                             },
                                                             modifier = Modifier
                                                                 .width(IntrinsicSize.Max)
-                                                                .background(DarkSurfaceVariant.copy(alpha = 0.96f))
-                                                                .border(
-                                                                    width = 1.dp,
-                                                                    brush = frostGlassBorderBrush(isFocused = false),
-                                                                    shape = RoundedCornerShape(8.dp)
-                                                                )
+                                                                .background(Surface2)
+                                                                .border(1.dp, HairlineStrong, RoundedCornerShape(12.dp))
                                                         ) {
                                                             listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f).forEach { value ->
                                                                 val isSelected = speed == value
@@ -1130,14 +1181,18 @@ fun PlayerScreen(
                                                                         .fillMaxWidth()
                                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                                         .clip(itemShape)
+                                                                        .background(
+                                                                            when {
+                                                                                isItemFocused -> Surface3
+                                                                                isSelected -> accent.accentSoft
+                                                                                else -> Color.Transparent
+                                                                            },
+                                                                            itemShape
+                                                                        )
                                                                         .then(
                                                                             when {
-                                                                                isItemFocused -> Modifier
-                                                                                    .background(frostGlassBgBrush(isFocused = true), itemShape)
-                                                                                    .border(1.5.dp, frostGlassBorderBrush(isFocused = true), itemShape)
-                                                                                isSelected -> Modifier
-                                                                                    .background(frostGlassBgBrush(isFocused = false), itemShape)
-                                                                                    .border(1.dp, frostGlassBorderBrush(isFocused = true), itemShape)
+                                                                                isItemFocused -> Modifier.border(2.dp, accent.accent, itemShape)
+                                                                                isSelected -> Modifier.border(1.dp, accent.accent.copy(alpha = 0.45f), itemShape)
                                                                                 else -> Modifier
                                                                             }
                                                                         )
@@ -1150,14 +1205,16 @@ fun PlayerScreen(
                                                                             viewModel.setPlaybackSpeed(value)
                                                                             showSpeedDropdown = false
                                                                         }
-                                                                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                                                                        .padding(horizontal = 12.dp, vertical = 6.dp),
                                                                     contentAlignment = Alignment.Center
                                                                 ) {
                                                                     Text(
                                                                         text = "${value}x",
-                                                                        color = Color.White,
-                                                                        fontSize = 12.sp,
-                                                                        fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Normal,
+                                                                        style = MonoTextStyle.copy(
+                                                                            color = if (isSelected || isItemFocused) accent.accent else FgPrimary,
+                                                                            fontSize = 12.sp,
+                                                                            fontWeight = if (isSelected || isItemFocused) FontWeight.Bold else FontWeight.Medium
+                                                                        ),
                                                                         maxLines = 1
                                                                     )
                                                                 }
@@ -1165,14 +1222,17 @@ fun PlayerScreen(
                                                         }
                                                     }
 
-                                                    // 3. Fullscreen Button — serasi ukuran, bentuk, background, & outline gradasi dengan Resolusi dan Kecepatan
+                                                    // 3. Fullscreen Button
                                                     Box(
                                                         modifier = Modifier
                                                             .height(controlChipHeight)
-                                                            .width(if (isFullscreen) 34.dp else 30.dp)
-                                                            .frostGlass(
+                                                            .width(if (isFullscreen) 36.dp else 32.dp)
+                                                            .musikeSurface(
                                                                 shape = controlChipShape,
-                                                                isFocused = isFullscreenBtnFocused
+                                                                isFocused = isFullscreenBtnFocused,
+                                                                accentColor = accent.accent,
+                                                                containerColor = Surface2.copy(alpha = 0.88f),
+                                                                focusedContainerColor = Surface3
                                                             )
                                                             .onFocusChanged {
                                                                 isFullscreenBtnFocused = it.isFocused
@@ -1187,7 +1247,7 @@ fun PlayerScreen(
                                                         Icon(
                                                             imageVector = if (isFullscreen) FullscreenExitIcon else FullscreenIcon,
                                                             contentDescription = "Fullscreen",
-                                                            tint = Color.White,
+                                                            tint = if (isFullscreenBtnFocused) accent.accent else FgPrimary,
                                                             modifier = Modifier.size(if (isFullscreen) 16.dp else 14.dp)
                                                         )
                                                     }
@@ -1196,7 +1256,7 @@ fun PlayerScreen(
 
                                             Spacer(modifier = Modifier.height(if (isFullscreen) 4.dp else 2.dp))
 
-                                            // Row 2: Seekbar minimalis — tanpa tinggi berlebih agar tidak bertumpuk
+                                            // Row 2: Accent Seekbar
                                             Slider(
                                                 value = if (duration > 0) currentPosition.toFloat() else 0f,
                                                 onValueChange = {
@@ -1235,9 +1295,9 @@ fun PlayerScreen(
                                                     }
                                                     .focusable(),
                                                 colors = SliderDefaults.colors(
-                                                    thumbColor = Color.White,
-                                                    activeTrackColor = Color.White,
-                                                    inactiveTrackColor = OutlineGrey.copy(alpha = 0.5f)
+                                                    thumbColor = accent.accent,
+                                                    activeTrackColor = accent.accent,
+                                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
                                                 )
                                             )
                                         }
@@ -1245,11 +1305,10 @@ fun PlayerScreen(
                                     } // end controls Box
                                 }
 
-                                // Floating "Lewati Intro" Button (AniSkip - Pojok Kanan Atas & Ukuran Serasi)
+                                // Floating "Lewati Intro" Pill Button (AniSkip — Solid Accent Pill)
                                 if (isInsideIntro && !isLocked) {
                                     var isSkipFocused by remember { mutableStateOf(false) }
-                                    val skipChipHeight = if (isFullscreen) 30.dp else 26.dp
-                                    val skipChipShape = RoundedCornerShape(8.dp)
+                                    val skipChipHeight = if (isFullscreen) 34.dp else 28.dp
 
                                     Box(
                                         modifier = Modifier
@@ -1259,10 +1318,11 @@ fun PlayerScreen(
                                                 end = if (isFullscreen) 20.dp else 12.dp
                                             )
                                             .height(skipChipHeight)
-                                            .clip(skipChipShape)
-                                            .frostGlass(
-                                                shape = skipChipShape,
-                                                isFocused = isSkipFocused
+                                            .clip(CircleShape)
+                                            .background(accent.accent, CircleShape)
+                                            .then(
+                                                if (isSkipFocused) Modifier.border(2.5.dp, Color.White, CircleShape)
+                                                else Modifier
                                             )
                                             .focusRequester(skipIntroFocusRequester)
                                             .onFocusChanged { isSkipFocused = it.isFocused }
@@ -1272,7 +1332,7 @@ fun PlayerScreen(
                                                     currentPosition = interval.endTimeMs
                                                 }
                                             }
-                                            .padding(horizontal = 10.dp),
+                                            .padding(horizontal = 13.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Row(
@@ -1282,12 +1342,12 @@ fun PlayerScreen(
                                             Icon(
                                                 imageVector = SkipNextIcon,
                                                 contentDescription = "Lewati Intro",
-                                                tint = Color.White,
+                                                tint = accent.onAccent,
                                                 modifier = Modifier.size(if (isFullscreen) 14.dp else 12.dp)
                                             )
                                             Text(
                                                 text = "Lewati Intro",
-                                                color = Color.White,
+                                                color = accent.onAccent,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -1298,78 +1358,109 @@ fun PlayerScreen(
                         } // end Video Player Area Box
 
                     if (!isFullscreen) {
-                        // Metadata & Mirrors Dropdown
+                        // Portrait Metadata, Synopsis & Monospace Episode Grid
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(16.dp)
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
                         ) {
                         item {
-                            // Judul anime & episode yang sedang diputar
                             Text(
-                                animeTitle.ifBlank { "Memuat..." },
-                                color = Color.White,
-                                fontSize = 16.sp,
+                                text = animeTitle.ifBlank { "Memuat..." },
+                                color = FgPrimary,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.3).sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                             if (currentEpisodeTitle.isNotBlank()) {
                                 val epNum = extractEpisodeNumber(currentEpisodeTitle)
                                 Text(
-                                    if (epNum.isNotBlank()) "Episode $epNum" else currentEpisodeTitle,
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                                    text = if (epNum.isNotBlank()) "Episode $epNum" else currentEpisodeTitle,
+                                    style = MonoTextStyle.copy(
+                                        color = accent.accent,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
                                 )
                             } else {
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
                             }
                         }
 
-                        // Synopsis block
+                        // Synopsis block inside clean Surface2 card
                         if (animeSynopsis.isNotBlank()) {
                             item {
                                 var synopsisExpanded by remember { mutableStateOf(false) }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "Sinopsis",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    animeSynopsis,
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    lineHeight = 20.sp,
-                                    maxLines = if (synopsisExpanded) Int.MAX_VALUE else 3,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    if (synopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable { synopsisExpanded = !synopsisExpanded }
-                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(RadiusTile))
+                                        .background(Surface2)
+                                        .border(1.dp, Hairline, RoundedCornerShape(RadiusTile))
+                                        .clickable { synopsisExpanded = !synopsisExpanded }
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Sinopsis",
+                                            color = FgPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = if (synopsisExpanded) "Sembunyikan ▲" else "Selengkapnya ▼",
+                                            color = accent.accent,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    Text(
+                                        text = animeSynopsis,
+                                        color = FgSecondary,
+                                        fontSize = 13.sp,
+                                        lineHeight = 19.sp,
+                                        maxLines = if (synopsisExpanded) Int.MAX_VALUE else 3,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(14.dp))
                             }
                         }
 
-
-
-                        // Collect and render episode grid selection
+                        // Episode grid selection (Solid Accent for current episode)
                         if (episodes.isNotEmpty()) {
                             item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Pilihan Episode", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(bottom = 10.dp)
+                                ) {
+                                    Text(
+                                        text = "Pilihan Episode",
+                                        color = FgPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "${episodes.size}",
+                                        style = MonoTextStyle.copy(
+                                            color = FgTertiary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
                             }
-                            
+
                             val chunkedEpisodes = episodes.chunked(6)
                             chunkedEpisodes.forEach { rowEpisodes ->
                                 item {
@@ -1380,14 +1471,29 @@ fun PlayerScreen(
                                         rowEpisodes.forEach { episode ->
                                             val isCurrent = AnimeIdUtils.normalizeEpisodeId(episode.id) == AnimeIdUtils.normalizeEpisodeId(currentEpisodeId)
                                             var isEpFocused by remember { mutableStateOf(false) }
+                                            val epShape = RoundedCornerShape(10.dp)
                                             Box(
                                                 modifier = Modifier
                                                     .weight(1f)
-                                                    .height(36.dp)
-                                                    .frostGlass(
-                                                        shape = RoundedCornerShape(10.dp),
-                                                        isFocused = isEpFocused || isCurrent,
-                                                        isSubtle = !isCurrent && !isEpFocused
+                                                    .height(38.dp)
+                                                    .clip(epShape)
+                                                    .background(
+                                                        when {
+                                                            isCurrent -> accent.accent
+                                                            isEpFocused -> Surface3
+                                                            else -> Surface2
+                                                        },
+                                                        epShape
+                                                    )
+                                                    .border(
+                                                        width = if (isEpFocused) 2.dp else 1.dp,
+                                                        color = when {
+                                                            isEpFocused && isCurrent -> Color.White
+                                                            isEpFocused -> accent.accent
+                                                            isCurrent -> Color.Transparent
+                                                            else -> Hairline
+                                                        },
+                                                        shape = epShape
                                                     )
                                                     .onFocusChanged { isEpFocused = it.isFocused }
                                                     .clickable {
@@ -1397,9 +1503,11 @@ fun PlayerScreen(
                                             ) {
                                                 Text(
                                                     text = extractEpisodeNumber(episode.title),
-                                                    color = Color.White,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    style = MonoTextStyle.copy(
+                                                        color = if (isCurrent) accent.onAccent else FgPrimary,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
                                                 )
                                             }
                                         }
@@ -1419,21 +1527,11 @@ fun PlayerScreen(
                     } // end Column(fillMaxSize)
                 } // end is PlayerUiState.Success
                 is PlayerUiState.Error -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp)
-                            .background(Color.Black),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Gagal memuat video", color = Color.Red)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(onClick = { viewModel.fetchEpisodeDetail() }) {
-                                Text("Coba Lagi")
-                            }
-                        }
-                    }
+                    MusikeErrorState(
+                        message = "Gagal memuat video. Coba muat ulang atau ganti server.",
+                        onRetry = { viewModel.fetchEpisodeDetail() },
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -1536,29 +1634,31 @@ fun SideGestureIndicator(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(36.dp)
-                .background(FrostGlassBgTop, RoundedCornerShape(18.dp))
-                .border(1.dp, OutlineGrey, RoundedCornerShape(18.dp))
+                .background(Surface2.copy(alpha = 0.92f), CircleShape)
+                .border(1.dp, HairlineStrong, CircleShape)
                 .padding(vertical = 12.dp, horizontal = 6.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
+                tint = color,
+                modifier = Modifier.size(18.dp)
             )
             
             // Vertical Progress Bar
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .width(6.dp)
-                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
+                    .width(5.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.16f))
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .fillMaxHeight(progress.coerceIn(0f, 1f))
-                        .background(color, RoundedCornerShape(3.dp))
+                        .clip(CircleShape)
+                        .background(color)
                         .align(Alignment.BottomCenter)
                 )
             }
