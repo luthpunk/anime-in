@@ -106,6 +106,10 @@ class PlayerViewModel @Inject constructor(
                 // Selalu coba resolve vidhide terlebih dahulu
                 val finalResponse = autoResolveVidhideOrFallback(response)
                 _playerState.value = PlayerUiState.Success(finalResponse)
+                // Fallback: jika detail anime belum/gagal memuat intro, coba resolve dari judul episode langsung
+                if (_introInterval.value == null && finalResponse.title.isNotBlank()) {
+                    loadIntroSkipTimes(finalResponse.title, finalResponse.title, epId)
+                }
             } catch (e: Exception) {
                 if (_playerState.value is PlayerUiState.Success) {
                     // stay in success but show error or stop spinner
@@ -279,9 +283,11 @@ class PlayerViewModel @Inject constructor(
             try {
                 val epNum = aniSkipManager.extractEpisodeNumber(episodeTitle, episodeId)
                 val interval = aniSkipManager.getIntroSkipInterval(animeTitle, epNum)
-                _introInterval.value = interval
+                if (episodeId == _currentEpisodeId.value && interval != null) {
+                    _introInterval.value = interval
+                }
             } catch (_: Exception) {
-                _introInterval.value = null
+                // Keep any valid interval already resolved for this episode
             }
         }
     }

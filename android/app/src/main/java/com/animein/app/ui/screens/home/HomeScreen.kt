@@ -475,7 +475,7 @@ fun HomeScreen(
                                 }
                             }
 
-                            // 2. Quick Shortcuts / Lanjut Nonton Grid (a-music signature 2/3-col compact tiles)
+                            // 2. Quick Shortcuts / Lanjut Nonton (Single-row horizontal scroll kiri-kanan)
                             if (continueWatchingList.isNotEmpty()) {
                                 item(key = "continue_watching") {
                                     SectionHeader(
@@ -483,8 +483,8 @@ fun HomeScreen(
                                         count = continueWatchingList.size,
                                         horizontalPadding = horizontalPadding
                                     )
-                                    ContinueWatchingQuickGrid(
-                                        items = continueWatchingList.take(if (isTV) 6 else 4),
+                                    ContinueWatchingHorizontalRow(
+                                        items = continueWatchingList.take(20),
                                         isTV = isTV,
                                         horizontalPadding = horizontalPadding,
                                         onItemClick = { item -> onEpisodePlay(item.episodeId, item.animeId) },
@@ -1039,46 +1039,31 @@ fun FeaturedSpotlightBanner(
 }
 
 /**
- * Compact 2-column (Mobile) / 3-column (TV) Quick Shortcuts Grid for Continue Watching,
- * directly inspired by a-music's home quick-access tiles.
+ * Single-row horizontal scrolling list for Continue Watching (scroll kiri-kanan),
+ * so multiple items never wrap onto a second row on Mobile or TV.
  */
 @Composable
-private fun ContinueWatchingQuickGrid(
+private fun ContinueWatchingHorizontalRow(
     items: List<ContinueWatchingEntity>,
     isTV: Boolean,
     horizontalPadding: androidx.compose.ui.unit.Dp,
     onItemClick: (ContinueWatchingEntity) -> Unit,
     onDeleteClick: (ContinueWatchingEntity) -> Unit
 ) {
-    val columns = if (isTV) 3 else 2
-    val rows = remember(items, columns) { items.chunked(columns) }
+    val tileWidth = if (isTV) 236.dp else 172.dp
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = horizontalPadding),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = horizontalPadding),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        rows.forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowItems.forEach { item ->
-                    ContinueWatchingQuickTile(
-                        item = item,
-                        onClick = { onItemClick(item) },
-                        onDeleteClick = { onDeleteClick(item) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                val emptySlots = columns - rowItems.size
-                if (emptySlots > 0) {
-                    repeat(emptySlots) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
+        items(items, key = { it.episodeId }) { item ->
+            ContinueWatchingQuickTile(
+                item = item,
+                onClick = { onItemClick(item) },
+                onDeleteClick = { onDeleteClick(item) },
+                modifier = Modifier.width(tileWidth)
+            )
         }
     }
 }

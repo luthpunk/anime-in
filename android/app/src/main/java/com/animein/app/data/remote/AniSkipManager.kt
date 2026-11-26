@@ -10,6 +10,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,13 +25,20 @@ class AniSkipManager @Inject constructor(
     private val okHttpClient: OkHttpClient
 ) {
     private val gson = Gson()
+    // Fast client with shorter timeouts so blocked/slow fallback endpoints on mobile networks never stall skip-intro lookup
+    private val fastClient: OkHttpClient by lazy {
+        okHttpClient.newBuilder()
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .build()
+    }
     // Cache memory: cleanTitle -> malId
     private val malIdCache = ConcurrentHashMap<String, Int>()
     // Cache memory: "$malId:$episodeNumber" -> List<SkipInterval>
     private val skipIntervalsCache = ConcurrentHashMap<String, List<SkipInterval>>()
 
     /**
-     * Resolves MyAnimeList (MAL) ID using AniList GraphQL API with Jikan (MAL) fallback.
+     * Resolves MyAnimeList (MAL) ID using AniList GraphQL API with retry + Jikan (MAL) fallback.
      */
     suspend fun getMalId(animeTitle: String): Int? = withContext(Dispatchers.IO) {
         val cleanTitle = cleanAnimeTitle(animeTitle)
@@ -38,14 +46,14 @@ class AniSkipManager @Inject constructor(
 
         malIdCache[cleanTitle]?.let { return@withContext it }
 
-        // 1. Try AniList GraphQL with cleaned title
-        val anilistId = queryAniListMalId(cleanTitle)
+        // 1. Try AniList GraphQL with cleaned title (with 1 quick retry for transient mobile network hiccups)
+        val anilistId = queryAniListMalId(cleanTitle) ?: queryAniListMalId(cleanTitle)
         if (anilistId != null && anilistId > 0) {
             malIdCache[cleanTitle] = anilistId
             return@withContext anilistId
         }
 
-        // 2. Try simplified title (strip remaining parentheticals / subtitle after colon) on AniList
+        // 2. Try simplified title (strip remaining parentheticals / subtitle) on AniList
         val simplifiedTitle = simplifyTitleFallback(cleanTitle)
         if (simplifiedTitle.isNotBlank() && simplifiedTitle != cleanTitle) {
             val anilistFallbackId = queryAniListMalId(simplifiedTitle)
@@ -55,7 +63,7 @@ class AniSkipManager @Inject constructor(
             }
         }
 
-        // 3. Fallback to Jikan v4 (MyAnimeList API) in case AniList missed or rate-limited
+        // 3. Fallback to Jikan v4 (MyAnimeList API) with short timeout
         val jikanId = queryJikanMalId(cleanTitle)
             ?: simplifiedTitle.takeIf { it.isNotBlank() && it != cleanTitle }?.let { queryJikanMalId(it) }
         if (jikanId != null && jikanId > 0) {
@@ -89,7 +97,7 @@ class AniSkipManager @Inject constructor(
                 .post(jsonBody.toRequestBody("application/json".toMediaType()))
                 .build()
 
-            okHttpClient.newCall(request).execute().use { response ->
+            fastClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyStr = response.body?.string().orEmpty()
                 val jsonObject = gson.fromJson(bodyStr, JsonObject::class.java)
@@ -113,7 +121,7 @@ class AniSkipManager @Inject constructor(
                 .header("User-Agent", "AuraNime/1.0")
                 .build()
 
-            okHttpClient.newCall(request).execute().use { response ->
+            fastClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
                 val bodyStr = response.body?.string().orEmpty()
                 val jsonObject = gson.fromJson(bodyStr, JsonObject::class.java)
@@ -146,7 +154,7 @@ class AniSkipManager @Inject constructor(
                 .header("Accept", "application/json")
                 .build()
 
-            okHttpClient.newCall(request).execute().use { response ->
+            fastClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val bodyStr = response.body?.string().orEmpty()
                 val jsonObject = gson.fromJson(bodyStr, JsonObject::class.java)
