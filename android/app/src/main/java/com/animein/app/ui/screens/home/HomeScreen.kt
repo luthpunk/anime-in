@@ -28,13 +28,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
@@ -52,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,6 +69,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -439,102 +439,109 @@ fun HomeScreen(
                         }
                         val horizontalPadding = if (isTV) 20.dp else 16.dp
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = if (isTV) 28.dp else 92.dp)
                         ) {
                             // Dynamic Greeting on Mobile (TV already displays greeting in topBar)
                             if (!isTV) {
-                                Text(
-                                    text = greeting,
-                                    color = FgPrimary,
-                                    fontSize = 26.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = (-0.6).sp,
-                                    modifier = Modifier.padding(
-                                        start = horizontalPadding,
-                                        end = horizontalPadding,
-                                        top = 2.dp,
-                                        bottom = 12.dp
+                                item(key = "greeting") {
+                                    Text(
+                                        text = greeting,
+                                        color = FgPrimary,
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        letterSpacing = (-0.6).sp,
+                                        modifier = Modifier.padding(
+                                            start = horizontalPadding,
+                                            end = horizontalPadding,
+                                            top = 2.dp,
+                                            bottom = 12.dp
+                                        )
                                     )
-                                )
+                                }
                             }
 
-                            // 1. Featured Spotlight Carousel (up to 5 ongoing items)
+                            // 1. Featured Spotlight Carousel (up to 8 hot/trending/popular items)
                             if (featuredItems.isNotEmpty()) {
-                                FeaturedSpotlightBanner(
-                                    items = featuredItems,
-                                    isTV = isTV,
-                                    onAnimeClick = onAnimeClick,
-                                    modifier = Modifier.padding(horizontal = horizontalPadding)
-                                )
-                                Spacer(modifier = Modifier.height(20.dp))
+                                item(key = "featured_banner") {
+                                    FeaturedSpotlightBanner(
+                                        items = featuredItems,
+                                        isTV = isTV,
+                                        onAnimeClick = onAnimeClick,
+                                        modifier = Modifier.padding(horizontal = horizontalPadding)
+                                    )
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                }
                             }
 
                             // 2. Quick Shortcuts / Lanjut Nonton Grid (a-music signature 2/3-col compact tiles)
                             if (continueWatchingList.isNotEmpty()) {
-                                SectionHeader(
-                                    title = "Lanjut Nonton",
-                                    count = continueWatchingList.size,
-                                    horizontalPadding = horizontalPadding
-                                )
-                                ContinueWatchingQuickGrid(
-                                    items = continueWatchingList.take(if (isTV) 6 else 4),
-                                    isTV = isTV,
-                                    horizontalPadding = horizontalPadding,
-                                    onItemClick = { item -> onEpisodePlay(item.episodeId, item.animeId) },
-                                    onDeleteClick = { item -> viewModel.deleteContinueWatching(item.episodeId) }
-                                )
-                                Spacer(modifier = Modifier.height(22.dp))
+                                item(key = "continue_watching") {
+                                    SectionHeader(
+                                        title = "Lanjut Nonton",
+                                        count = continueWatchingList.size,
+                                        horizontalPadding = horizontalPadding
+                                    )
+                                    ContinueWatchingQuickGrid(
+                                        items = continueWatchingList.take(if (isTV) 6 else 4),
+                                        isTV = isTV,
+                                        horizontalPadding = horizontalPadding,
+                                        onItemClick = { item -> onEpisodePlay(item.episodeId, item.animeId) },
+                                        onDeleteClick = { item -> viewModel.deleteContinueWatching(item.episodeId) }
+                                    )
+                                    Spacer(modifier = Modifier.height(22.dp))
+                                }
                             }
 
                             // 3. Ongoing Anime Section
                             if (ongoing.isNotEmpty()) {
-                                SectionHeader(
-                                    title = "Sedang Tayang",
-                                    count = ongoing.size,
-                                    horizontalPadding = horizontalPadding,
-                                    onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") }
-                                )
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = horizontalPadding),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(ongoing, key = { it.id }) { anime ->
-                                        OngoingAnimeCard(
-                                            anime = anime,
-                                            isTV = isTV,
-                                            onClick = { onAnimeClick(anime.id) }
-                                        )
+                                item(key = "ongoing_section") {
+                                    SectionHeader(
+                                        title = "Sedang Tayang",
+                                        count = ongoing.size,
+                                        horizontalPadding = horizontalPadding,
+                                        onSeeAllClick = { onSeeAllClick("ongoing", "Anime Ongoing") }
+                                    )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = horizontalPadding),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(ongoing, key = { it.id }) { anime ->
+                                            OngoingAnimeCard(
+                                                anime = anime,
+                                                isTV = isTV,
+                                                onClick = { onAnimeClick(anime.id) }
+                                            )
+                                        }
                                     }
+                                    Spacer(modifier = Modifier.height(24.dp))
                                 }
-                                Spacer(modifier = Modifier.height(24.dp))
                             }
 
                             // 4. Completed Anime Section
                             if (complete.isNotEmpty()) {
-                                SectionHeader(
-                                    title = "Anime Tamat",
-                                    count = complete.size,
-                                    horizontalPadding = horizontalPadding,
-                                    onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") }
-                                )
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = horizontalPadding),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    items(complete, key = { it.id }) { anime ->
-                                        CompletedAnimeCard(
-                                            anime = anime,
-                                            isTV = isTV,
-                                            onClick = { onAnimeClick(anime.id) }
-                                        )
+                                item(key = "complete_section") {
+                                    SectionHeader(
+                                        title = "Anime Tamat",
+                                        count = complete.size,
+                                        horizontalPadding = horizontalPadding,
+                                        onSeeAllClick = { onSeeAllClick("complete", "Anime Tamat") }
+                                    )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = horizontalPadding),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(complete, key = { it.id }) { anime ->
+                                            CompletedAnimeCard(
+                                                anime = anime,
+                                                isTV = isTV,
+                                                onClick = { onAnimeClick(anime.id) }
+                                            )
+                                        }
                                     }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(if (isTV) 28.dp else 92.dp))
                         }
                     }
                     is HomeUiState.Error -> {
@@ -766,12 +773,20 @@ fun FeaturedSpotlightBanner(
     val pagerState = rememberPagerState(pageCount = { items.size })
     val scope = rememberCoroutineScope()
     var isBannerFocused by remember { mutableStateOf(false) }
+    var tvTargetPage by remember(items) { mutableIntStateOf(0) }
+
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress) {
+            tvTargetPage = pagerState.currentPage
+        }
+    }
 
     // Auto-advance smoothly when not focused and not being swiped
     LaunchedEffect(items.size, isBannerFocused, pagerState.isScrollInProgress) {
         if (items.size > 1 && !isBannerFocused && !pagerState.isScrollInProgress) {
             delay(6000L)
             val next = (pagerState.currentPage + 1) % items.size
+            tvTargetPage = next
             pagerState.animateScrollToPage(next)
         }
     }
@@ -783,9 +798,7 @@ fun FeaturedSpotlightBanner(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        HorizontalPager(
-            state = pagerState,
-            pageSpacing = 12.dp,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(bannerHeight)
@@ -798,33 +811,47 @@ fun FeaturedSpotlightBanner(
                 .then(
                     if (isTV) {
                         Modifier
-                            .onFocusChanged { isBannerFocused = it.isFocused }
-                            .onKeyEvent { event ->
+                            .onFocusChanged { isBannerFocused = it.isFocused || it.hasFocus }
+                            .onPreviewKeyEvent { event ->
                                 if (event.type == KeyEventType.KeyDown) {
                                     when (event.key) {
                                         Key.DirectionRight -> {
-                                            if (pagerState.currentPage < items.lastIndex) {
-                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                            if (tvTargetPage < items.lastIndex) {
+                                                val next = tvTargetPage + 1
+                                                tvTargetPage = next
+                                                scope.launch { pagerState.animateScrollToPage(next) }
                                                 true
                                             } else false
                                         }
                                         Key.DirectionLeft -> {
-                                            if (pagerState.currentPage > 0) {
-                                                scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                            if (tvTargetPage > 0) {
+                                                val prev = tvTargetPage - 1
+                                                tvTargetPage = prev
+                                                scope.launch { pagerState.animateScrollToPage(prev) }
                                                 true
-                                            } else false // let edge Left return focus to TV sidebar
+                                            } else false // let edge Left return focus immediately to TV sidebar
                                         }
                                         else -> false
                                     }
                                 } else false
                             }
-                            .clickable {
-                                items.getOrNull(pagerState.currentPage)?.let { onAnimeClick(it.id) }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                items.getOrNull(tvTargetPage.coerceIn(0, items.lastIndex))?.let { onAnimeClick(it.id) }
                             }
                     } else {
                         Modifier
                     }
                 )
+        ) {
+        HorizontalPager(
+            state = pagerState,
+            pageSpacing = 12.dp,
+            userScrollEnabled = !isTV,
+            beyondBoundsPageCount = 1,
+            modifier = Modifier.fillMaxSize()
         ) { page ->
             val anime = items[page]
             val formattedEpisode = remember(anime.episode) {
@@ -970,6 +997,7 @@ fun FeaturedSpotlightBanner(
                     }
                 }
             }
+        }
         }
 
         // Interactive indicator pills synced with HorizontalPager

@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.geometry.Offset
@@ -53,6 +54,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.focusable
@@ -239,88 +241,91 @@ fun PlayerScreen(
                              var isLocked by remember { mutableStateOf(false) }
                              var lastUserInteractionTick by remember { mutableLongStateOf(0L) }
                              var suppressNextCenterUp by remember { mutableStateOf(false) }
+                             var suppressNextBackUp by remember { mutableStateOf(false) }
                              val playerContainerFocusRequester = remember { FocusRequester() }
                              val playPauseFocusRequester = remember { FocusRequester() }
                              val lockBtnFocusRequester = remember { FocusRequester() }
                              val skipIntroFocusRequester = remember { FocusRequester() }
 
-                            LaunchedEffect(showControls, isLocked) {
-                                if (isTV) {
-                                    if (showControls && !isLocked) {
-                                        delay(25)
-                                        try {
-                                            playPauseFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
-                                    } else if (showControls && isLocked) {
-                                        delay(25)
-                                        try {
-                                            lockBtnFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
-                                    } else {
-                                        // Saat kontrol tersembunyi, fokuskan langsung ke container utama player
-                                        // agar cukup 1x tekan tombol OK/D-pad untuk memunculkan menu kontrol
-                                        try {
-                                            playerContainerFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
-                                    }
-                                }
-                            }
-                            var isPlaying by remember { mutableStateOf(true) }
-                            var isBuffering by remember { mutableStateOf(false) }
-                            var isPrevFocused by remember { mutableStateOf(false) }
-                            var isPlayFocused by remember { mutableStateOf(false) }
-                            var isNextFocused by remember { mutableStateOf(false) }
-                            var isResFocused by remember { mutableStateOf(false) }
-                            var isSpeedFocused by remember { mutableStateOf(false) }
-                            var isFullscreenBtnFocused by remember { mutableStateOf(false) }
-                            var isSliderFocused by remember { mutableStateOf(false) }
-                            var isLockBtnFocused by remember { mutableStateOf(false) }
-                            var currentPosition by remember { mutableLongStateOf(savedProgress) }
-                            var duration by remember { mutableLongStateOf(0L) }
-                            var playerSize by remember { mutableStateOf(IntSize.Zero) }
+                             var isPlaying by remember { mutableStateOf(true) }
+                             var isBuffering by remember { mutableStateOf(false) }
+                             var isPrevFocused by remember { mutableStateOf(false) }
+                             var isPlayFocused by remember { mutableStateOf(false) }
+                             var isNextFocused by remember { mutableStateOf(false) }
+                             var isResFocused by remember { mutableStateOf(false) }
+                             var isSpeedFocused by remember { mutableStateOf(false) }
+                             var isFullscreenBtnFocused by remember { mutableStateOf(false) }
+                             var isSliderFocused by remember { mutableStateOf(false) }
+                             var isLockBtnFocused by remember { mutableStateOf(false) }
+                             var currentPosition by remember { mutableLongStateOf(savedProgress) }
+                             var duration by remember { mutableLongStateOf(0L) }
+                             var playerSize by remember { mutableStateOf(IntSize.Zero) }
 
-                            val introInterval by viewModel.introInterval.collectAsState()
-                            var isSkipIntroDismissed by remember(currentEpisodeId) { mutableStateOf(false) }
-                            val isInsideIntro = remember(currentPosition, introInterval, isSkipIntroDismissed) {
-                                val interval = introInterval
-                                !isSkipIntroDismissed && interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
-                            }
-                            var hasAutoFocusedIntro by remember(introInterval, currentEpisodeId) { mutableStateOf(false) }
+                             val introInterval by viewModel.introInterval.collectAsState()
+                             // derivedStateOf: Skip Intro tetap muncul selama intro berjalan & TIDAK memicu recomposition player tiap 500ms!
+                             val isInsideIntro by remember(introInterval) {
+                                 derivedStateOf {
+                                     val interval = introInterval
+                                     interval != null && currentPosition >= interval.startTimeMs && currentPosition < (interval.endTimeMs - 1000L)
+                                 }
+                             }
 
-                            // 2-step BackHandler: tutup dropdown/tombol kontrol/skip intro dulu, baru keluar player jika layar benar-benar bersih tanpa tombol
-                            BackHandler(enabled = true) {
-                                when {
-                                    showQualityDropdown || showSpeedDropdown -> {
-                                        showQualityDropdown = false
-                                        showSpeedDropdown = false
-                                    }
-                                    showControls -> {
-                                        showControls = false
-                                        if (isInsideIntro && !isLocked) {
-                                            isSkipIntroDismissed = true
-                                        }
-                                    }
-                                    isInsideIntro && !isLocked -> {
-                                        isSkipIntroDismissed = true
-                                    }
-                                    isFullscreen && !isTV -> {
-                                        isFullscreen = false
-                                    }
-                                    else -> {
-                                        onBackClick()
-                                    }
-                                }
-                            }
+                             LaunchedEffect(showControls, isLocked, isInsideIntro) {
+                                 if (!showControls) {
+                                     isPrevFocused = false
+                                     isPlayFocused = false
+                                     isNextFocused = false
+                                     isResFocused = false
+                                     isSpeedFocused = false
+                                     isFullscreenBtnFocused = false
+                                     isSliderFocused = false
+                                     isLockBtnFocused = false
+                                 }
+                                 if (isTV) {
+                                     if (showControls && !isLocked) {
+                                         delay(25)
+                                         try {
+                                             playPauseFocusRequester.requestFocus()
+                                         } catch (_: Exception) {}
+                                     } else if (showControls && isLocked) {
+                                         delay(25)
+                                         try {
+                                             lockBtnFocusRequester.requestFocus()
+                                         } catch (_: Exception) {}
+                                     } else if (isInsideIntro && !isLocked) {
+                                         // Fokuskan tombol Skip Intro agar sorotan aktif & siap 1x OK
+                                         delay(30)
+                                         try {
+                                             skipIntroFocusRequester.requestFocus()
+                                         } catch (_: Exception) {}
+                                     } else {
+                                         // Saat kontrol tersembunyi & tidak ada Skip Intro, fokuskan container player
+                                         delay(20)
+                                         try {
+                                             playerContainerFocusRequester.requestFocus()
+                                         } catch (_: Exception) {}
+                                     }
+                                 }
+                             }
 
-                            LaunchedEffect(isInsideIntro) {
-                                if (isInsideIntro && isTV && !hasAutoFocusedIntro) {
-                                    hasAutoFocusedIntro = true
-                                    delay(120)
-                                    try {
-                                        skipIntroFocusRequester.requestFocus()
-                                    } catch (_: Exception) {}
-                                }
-                            }
+                             // BackHandler (fallback mobile gesture & saat semua kontrol sudah tersembunyi di TV)
+                             BackHandler(enabled = true) {
+                                 when {
+                                     showQualityDropdown || showSpeedDropdown -> {
+                                         showQualityDropdown = false
+                                         showSpeedDropdown = false
+                                     }
+                                     showControls -> {
+                                         showControls = false
+                                     }
+                                     isFullscreen && !isTV -> {
+                                         isFullscreen = false
+                                     }
+                                     else -> {
+                                         onBackClick()
+                                     }
+                                 }
+                             }
 
                             var doubleTapFeedbackLeft by remember { mutableStateOf(false) }
                             var doubleTapFeedbackRight by remember { mutableStateOf(false) }
@@ -456,11 +461,12 @@ fun PlayerScreen(
                                 }
                             }
 
-                            // Periodically update progress
-                            LaunchedEffect(isPlaying) {
+                            // Periodically update progress (adaptive interval to avoid unnecessary TV recompositions)
+                            LaunchedEffect(isPlaying, showControls, introInterval) {
+                                val pollMs = if (showControls || introInterval != null) 500L else 1000L
                                 while (isPlaying) {
                                     currentPosition = exoPlayer.currentPosition
-                                    delay(250)
+                                    delay(pollMs)
                                 }
                             }
 
@@ -583,18 +589,59 @@ fun PlayerScreen(
                                     .onPreviewKeyEvent { keyEvent ->
                                         if (!isTV) return@onPreviewKeyEvent false
 
-                                        val isWakeKey = keyEvent.key == Key.DirectionCenter ||
-                                            keyEvent.key == Key.Enter ||
+                                        // Always consume matching KeyUp after we handled a Center/Enter KeyDown (e.g. Skip Intro or wake controls)
+                                        if (suppressNextCenterUp && keyEvent.type == KeyEventType.KeyUp &&
+                                            (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter)
+                                        ) {
+                                            suppressNextCenterUp = false
+                                            return@onPreviewKeyEvent true
+                                        }
+
+                                        // 1-press Back on TV: langsung sembunyikan dropdown / semua tombol kontrol meskipun sorotan masih aktif!
+                                        if (keyEvent.key == Key.Back || keyEvent.key == Key.Escape) {
+                                            if (keyEvent.type == KeyEventType.KeyDown) {
+                                                when {
+                                                    showQualityDropdown || showSpeedDropdown -> {
+                                                        showQualityDropdown = false
+                                                        showSpeedDropdown = false
+                                                        suppressNextBackUp = true
+                                                        return@onPreviewKeyEvent true
+                                                    }
+                                                    showControls -> {
+                                                        showControls = false
+                                                        suppressNextBackUp = true
+                                                        return@onPreviewKeyEvent true
+                                                    }
+                                                    else -> return@onPreviewKeyEvent false // Tidak ada kontrol -> biarkan BackHandler keluar player
+                                                }
+                                            } else if (keyEvent.type == KeyEventType.KeyUp && suppressNextBackUp) {
+                                                suppressNextBackUp = false
+                                                return@onPreviewKeyEvent true
+                                            }
+                                            return@onPreviewKeyEvent false
+                                        }
+
+                                        val isCenterKey = keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter
+                                        val isWakeKey = isCenterKey ||
                                             keyEvent.key == Key.DirectionLeft ||
                                             keyEvent.key == Key.DirectionRight ||
                                             keyEvent.key == Key.DirectionUp ||
                                             keyEvent.key == Key.DirectionDown
 
                                         if (!showControls) {
+                                            // Saat Skip Intro muncul & kontrol lain tersembunyi: 1x OK langsung klik Skip Intro TANPA memunculkan tombol lainnya!
+                                            if (keyEvent.type == KeyEventType.KeyDown && isCenterKey && isInsideIntro && !isLocked) {
+                                                introInterval?.let { interval ->
+                                                    exoPlayer.seekTo(interval.endTimeMs)
+                                                    currentPosition = interval.endTimeMs
+                                                }
+                                                suppressNextCenterUp = true
+                                                return@onPreviewKeyEvent true
+                                            }
                                             if (keyEvent.type == KeyEventType.KeyDown && isWakeKey) {
                                                 showControls = true
                                                 lastUserInteractionTick++
-                                                if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+                                                if (isCenterKey) {
                                                     suppressNextCenterUp = true
                                                 }
                                                 return@onPreviewKeyEvent true
@@ -605,17 +652,11 @@ fun PlayerScreen(
                                             if (keyEvent.type == KeyEventType.KeyDown || keyEvent.type == KeyEventType.KeyUp) {
                                                 lastUserInteractionTick++
                                             }
-                                            if (suppressNextCenterUp && keyEvent.type == KeyEventType.KeyUp &&
-                                                (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter)
-                                            ) {
-                                                suppressNextCenterUp = false
-                                                return@onPreviewKeyEvent true
-                                            }
                                             return@onPreviewKeyEvent false
                                         }
                                     }
                                     .focusRequester(playerContainerFocusRequester)
-                                    .focusable()
+                                    .focusable(enabled = !showControls && !(isInsideIntro && !isLocked))
                                     .onSizeChanged { playerSize = it }
                                     .pointerInput(Unit) {
                                         detectTapGestures(
@@ -1062,81 +1103,24 @@ fun PlayerScreen(
                                                 ),
                                             verticalArrangement = Arrangement.spacedBy(if (isFullscreen) 6.dp else 2.dp)
                                         ) {
-                                            // Row 1 (ATAS di bottom section): Seeker + Waktu kiri/kanan ala Netflix (dengan sorotan fokus TV jelas!)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(CircleShape)
-                                                    .then(
-                                                        if (isSliderFocused) {
-                                                            Modifier
-                                                                .background(Surface3.copy(alpha = 0.88f), CircleShape)
-                                                                .border(2.5.dp, accent.accent, CircleShape)
-                                                        } else Modifier
-                                                    )
-                                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                            ) {
-                                                Text(
-                                                    text = formatTime(currentPosition),
-                                                    style = MonoTextStyle.copy(
-                                                        color = if (isSliderFocused) accent.accent else FgPrimary,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                )
-                                                Slider(
-                                                    value = if (duration > 0) currentPosition.toFloat() else 0f,
-                                                    onValueChange = {
-                                                        lastUserInteractionTick++
-                                                        currentPosition = it.toLong()
-                                                        exoPlayer.seekTo(currentPosition)
-                                                    },
-                                                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(if (isFullscreen) 24.dp else 18.dp)
-                                                        .onKeyEvent { keyEvent ->
-                                                            if (keyEvent.type == KeyEventType.KeyDown) {
-                                                                when (keyEvent.key) {
-                                                                    Key.DirectionLeft -> {
-                                                                        lastUserInteractionTick++
-                                                                        val target = (currentPosition - 10000).coerceAtLeast(0L)
-                                                                        currentPosition = target
-                                                                        exoPlayer.seekTo(target)
-                                                                        true
-                                                                    }
-                                                                    Key.DirectionRight -> {
-                                                                        lastUserInteractionTick++
-                                                                        val target = (currentPosition + 10000).coerceAtMost(duration)
-                                                                        currentPosition = target
-                                                                        exoPlayer.seekTo(target)
-                                                                        true
-                                                                    }
-                                                                    else -> false
-                                                                }
-                                                            } else false
-                                                        }
-                                                        .onFocusChanged {
-                                                            isSliderFocused = it.isFocused || it.hasFocus
-                                                            if (isSliderFocused) lastUserInteractionTick++
-                                                        }
-                                                        .focusable(),
-                                                    colors = SliderDefaults.colors(
-                                                        thumbColor = if (isSliderFocused) Color.White else accent.accent,
-                                                        activeTrackColor = accent.accent,
-                                                        inactiveTrackColor = Color.White.copy(alpha = if (isSliderFocused) 0.38f else 0.24f)
-                                                    )
-                                                )
-                                                Text(
-                                                    text = formatTime(duration),
-                                                    style = MonoTextStyle.copy(
-                                                        color = if (isSliderFocused) FgPrimary else FgSecondary,
-                                                        fontSize = 11.sp
-                                                    )
-                                                )
-                                            }
+                                            // Row 1 (ATAS di bottom section): Seeker terisolasi (tanpa double-focus & tanpa memicu recomposition kontrol lain tiap 500ms!)
+                                            PlayerSeekerRow(
+                                                currentPositionProvider = { currentPosition },
+                                                duration = duration,
+                                                isFullscreen = isFullscreen,
+                                                isTV = isTV,
+                                                isFocused = isSliderFocused,
+                                                accentColor = accent.accent,
+                                                onFocusChange = { focused ->
+                                                    isSliderFocused = focused
+                                                    if (focused) lastUserInteractionTick++
+                                                },
+                                                onSeekTo = { target ->
+                                                    lastUserInteractionTick++
+                                                    currentPosition = target
+                                                    exoPlayer.seekTo(target)
+                                                }
+                                            )
 
                                             // Row 2 (PALING BAWAH): Baris Tombol Aksi ala Netflix (Kunci • Kecepatan • Resolusi • Fullscreen)
                                             Row(
@@ -1675,6 +1659,90 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Isolated Seeker row so periodic playback position updates (500ms) only recompose
+ * the seeker & timestamp rather than the entire PlayerScreen tree, and exposes a single
+ * clean TV focus target (eliminating double-focus / double-press D-pad issues with Material3 Slider).
+ */
+@Composable
+private fun PlayerSeekerRow(
+    currentPositionProvider: () -> Long,
+    duration: Long,
+    isFullscreen: Boolean,
+    isTV: Boolean,
+    isFocused: Boolean,
+    accentColor: Color,
+    onFocusChange: (Boolean) -> Unit,
+    onSeekTo: (Long) -> Unit
+) {
+    val position = currentPositionProvider()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .then(
+                if (isFocused) {
+                    Modifier
+                        .background(Surface3.copy(alpha = 0.88f), CircleShape)
+                        .border(2.5.dp, accentColor, CircleShape)
+                } else Modifier
+            )
+            .onPreviewKeyEvent { keyEvent ->
+                if (isTV && keyEvent.type == KeyEventType.KeyDown) {
+                    when (keyEvent.key) {
+                        Key.DirectionLeft -> {
+                            val target = (currentPositionProvider() - 10_000L).coerceAtLeast(0L)
+                            onSeekTo(target)
+                            true
+                        }
+                        Key.DirectionRight -> {
+                            val target = (currentPositionProvider() + 10_000L).coerceAtMost(duration.coerceAtLeast(0L))
+                            onSeekTo(target)
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .onFocusChanged { onFocusChange(it.isFocused || it.hasFocus) }
+            .then(if (isTV) Modifier.focusable() else Modifier)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = formatTime(position),
+            style = MonoTextStyle.copy(
+                color = if (isFocused) accentColor else FgPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Slider(
+            value = if (duration > 0) position.toFloat().coerceIn(0f, duration.toFloat()) else 0f,
+            onValueChange = { onSeekTo(it.toLong()) },
+            valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+            modifier = Modifier
+                .weight(1f)
+                .height(if (isFullscreen) 24.dp else 18.dp)
+                .then(if (isTV) Modifier.focusProperties { canFocus = false } else Modifier),
+            colors = SliderDefaults.colors(
+                thumbColor = if (isFocused) Color.White else accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = Color.White.copy(alpha = if (isFocused) 0.38f else 0.24f)
+            )
+        )
+        Text(
+            text = formatTime(duration),
+            style = MonoTextStyle.copy(
+                color = if (isFocused) FgPrimary else FgSecondary,
+                fontSize = 11.sp
+            )
+        )
     }
 }
 

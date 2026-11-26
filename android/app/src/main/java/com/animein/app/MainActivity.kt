@@ -263,7 +263,10 @@ fun MainApp(
                                         else Modifier
                                     )
                                     .onFocusChanged { isFocused = it.isFocused }
-                                    .clickable {
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
                                         navController.navigate(item.route) {
                                             popUpTo(navController.graph.startDestinationId) {
                                                 saveState = true
@@ -333,7 +336,10 @@ fun MainApp(
                                 else Modifier
                             )
                             .onFocusChanged { isSettingsFocused = it.isFocused }
-                            .clickable { onOpenAppearanceSettings() },
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { onOpenAppearanceSettings() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -364,10 +370,10 @@ fun MainApp(
                     navController = navController,
                     startDestination = "home",
                     modifier = Modifier.fillMaxSize(),
-                    enterTransition = { fadeIn(animationSpec = tween(200)) },
-                    exitTransition = { fadeOut(animationSpec = tween(200)) },
-                    popEnterTransition = { fadeIn(animationSpec = tween(200)) },
-                    popExitTransition = { fadeOut(animationSpec = tween(200)) }
+                    enterTransition = { fadeIn(animationSpec = tween(110)) },
+                    exitTransition = { fadeOut(animationSpec = tween(110)) },
+                    popEnterTransition = { fadeIn(animationSpec = tween(110)) },
+                    popExitTransition = { fadeOut(animationSpec = tween(110)) }
                 ) {
                     appNavGraph(navController)
                 }
