@@ -6,15 +6,15 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- AuraNime Phone Adaptive Icon: 28 deg right-tilted Volt Origami Fox peeking ("sedikit tenggelam") from bottom-left -->
+    <!-- AuraNime Phone Adaptive Icon: balanced, symmetrical, gently sunk at bottom edge (26 deg right tilt) -->
     <group
-        android:translateX="-6.5"
-        android:translateY="16.5"
+        android:translateX="-0.5"
+        android:translateY="10.0"
         android:pivotX="54"
         android:pivotY="54"
-        android:rotation="28"
-        android:scaleX="1.18"
-        android:scaleY="1.18">
+        android:rotation="26"
+        android:scaleX="0.90"
+        android:scaleY="0.90">
 
         <!-- 1. Left Ear -->
         <path android:pathData="M31,25 L43,37 L32,46 Z">
