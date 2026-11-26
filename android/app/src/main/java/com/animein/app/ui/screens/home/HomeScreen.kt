@@ -1,6 +1,15 @@
 package com.animein.app.ui.screens.home
 
+import android.content.Context
 import android.content.res.Configuration
+import android.text.Editable
+import android.text.InputType
+import android.text.TextWatcher
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -65,6 +74,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -82,6 +92,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import coil.compose.AsyncImage
@@ -89,7 +102,9 @@ import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.AnimeCompleted
 import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.data.model.SearchItem
+import com.animein.app.ui.components.AccentPillButton
 import com.animein.app.ui.components.BrandLogoMark
+import com.animein.app.ui.components.IslandPanel
 import com.animein.app.ui.components.MonoBadge
 import com.animein.app.ui.components.MusikeEmptyState
 import com.animein.app.ui.components.MusikeErrorState
@@ -97,6 +112,7 @@ import com.animein.app.ui.components.RadiusArt
 import com.animein.app.ui.components.RadiusPanel
 import com.animein.app.ui.components.RadiusTile
 import com.animein.app.ui.components.ShimmerBox
+import com.animein.app.ui.components.TonalPillButton
 import com.animein.app.ui.components.musikePosterFrame
 import com.animein.app.ui.components.musikeSurface
 import com.animein.app.ui.theme.BgGraphite
@@ -152,25 +168,34 @@ fun HomeScreen(
 
     var allowSearchFocus by remember { mutableStateOf(!isTV) }
     var isSearchFocused by remember { mutableStateOf(false) }
-    var isSearchEditing by remember { mutableStateOf(false) }
+    var showTvSearchDialog by remember { mutableStateOf(false) }
+    var wasTvSearchDialogOpen by remember { mutableStateOf(false) }
     val searchBoxFocusRequester = remember { FocusRequester() }
-    val searchInputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    // Pressing Back while viewing search results clears search instead of immediately showing exit dialog
+    BackHandler(enabled = searchQuery.isNotEmpty()) {
+        viewModel.onSearchQueryChanged("")
+    }
 
     LaunchedEffect(Unit) {
         if (isTV) {
-            delay(400)
+            delay(300)
             allowSearchFocus = true
         }
     }
 
-    LaunchedEffect(isSearchEditing) {
-        if (isTV && isSearchEditing) {
-            delay(30)
-            try {
-                searchInputFocusRequester.requestFocus()
-                keyboardController?.show()
-            } catch (_: Exception) {}
+    LaunchedEffect(showTvSearchDialog) {
+        if (isTV) {
+            if (showTvSearchDialog) {
+                wasTvSearchDialogOpen = true
+            } else if (wasTvSearchDialogOpen) {
+                wasTvSearchDialogOpen = false
+                delay(40)
+                try {
+                    searchBoxFocusRequester.requestFocus()
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -284,122 +309,156 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.weight(1f))
                     }
 
-                    // Search Pill
-                    Box(
-                        modifier = Modifier
-                            .then(
-                                if (isTV) Modifier.width(300.dp) else Modifier.weight(0.70f)
-                            )
-                            .height(42.dp)
-                            .musikeSurface(
-                                shape = CircleShape,
-                                isFocused = isSearchFocused || isSearchEditing,
-                                accentColor = accent.accent,
-                                containerColor = Surface2,
-                                focusedContainerColor = Surface3
-                            )
-                            .then(
-                                if (isTV) {
-                                    Modifier
-                                        .focusRequester(searchBoxFocusRequester)
-                                        .focusProperties { canFocus = allowSearchFocus && !isSearchEditing }
-                                        .onFocusChanged { isSearchFocused = it.isFocused }
-                                        .clickable(enabled = allowSearchFocus && !isSearchEditing) {
-                                            isSearchEditing = true
-                                        }
-                                } else {
-                                    Modifier
-                                }
-                            )
-                            .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { viewModel.onSearchQueryChanged(it) },
-                            enabled = !isTV || isSearchEditing,
-                            textStyle = TextStyle(color = FgPrimary, fontSize = 14.sp),
-                            singleLine = true,
-                            cursorBrush = SolidColor(accent.accent),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(
-                                onSearch = {
-                                    keyboardController?.hide()
-                                    if (isTV) {
-                                        isSearchEditing = false
-                                        try {
-                                            searchBoxFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
-                                    }
-                                }
-                            ),
+                    // Search Pill (TV uses single-focus trigger pill + native EditText dialog so keyboard ALWAYS opens & focus NEVER deadlocks)
+                    if (isTV) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .focusRequester(searchInputFocusRequester)
-                                .focusProperties { canFocus = if (isTV) isSearchEditing else true }
-                                .onKeyEvent { event ->
-                                    if (isTV && isSearchEditing && event.type == KeyEventType.KeyDown &&
-                                        (event.key == Key.Back || event.key == Key.Escape || event.key == Key.DirectionDown)
-                                    ) {
-                                        isSearchEditing = false
-                                        keyboardController?.hide()
-                                        try {
-                                            searchBoxFocusRequester.requestFocus()
-                                        } catch (_: Exception) {}
-                                        true
-                                    } else false
-                                }
-                                .onFocusChanged { state ->
-                                    if (!isTV) {
-                                        isSearchFocused = state.isFocused
-                                    } else if (!state.isFocused && isSearchEditing) {
-                                        isSearchEditing = false
-                                        keyboardController?.hide()
-                                    }
-                                },
-                            decorationBox = { innerTextField ->
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxSize()
+                                .width(300.dp)
+                                .height(42.dp)
+                                .musikeSurface(
+                                    shape = CircleShape,
+                                    isFocused = isSearchFocused,
+                                    accentColor = accent.accent,
+                                    containerColor = Surface2,
+                                    focusedContainerColor = Surface3
+                                )
+                                .focusRequester(searchBoxFocusRequester)
+                                .focusProperties { canFocus = allowSearchFocus }
+                                .onFocusChanged { isSearchFocused = it.isFocused }
+                                .clickable(
+                                    enabled = allowSearchFocus,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Cari",
-                                        tint = if (isSearchFocused || isSearchEditing) accent.accent else FgTertiary,
-                                        modifier = Modifier.size(18.dp)
+                                    showTvSearchDialog = true
+                                }
+                                .padding(horizontal = 14.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Cari",
+                                    tint = if (isSearchFocused) accent.accent else FgTertiary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = searchQuery.ifEmpty { "Cari judul anime..." },
+                                    color = if (searchQuery.isEmpty()) FgTertiary else FgPrimary,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        if (searchQuery.isNotEmpty()) {
+                            var isClearFocused by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .musikeSurface(
+                                        shape = CircleShape,
+                                        isFocused = isClearFocused,
+                                        accentColor = accent.accent,
+                                        containerColor = Surface2,
+                                        focusedContainerColor = Surface3
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.CenterStart
+                                    .onFocusChanged { isClearFocused = it.isFocused }
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
                                     ) {
-                                        if (searchQuery.isEmpty()) {
-                                            Text(
-                                                text = "Cari judul anime...",
-                                                color = FgTertiary,
-                                                fontSize = 13.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        innerTextField()
-                                    }
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(
-                                            onClick = { viewModel.onSearchQueryChanged("") },
-                                            modifier = Modifier.size(24.dp)
+                                        viewModel.onSearchQueryChanged("")
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Hapus Pencarian",
+                                    tint = if (isClearFocused) accent.accent else FgSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .weight(0.70f)
+                                .height(42.dp)
+                                .musikeSurface(
+                                    shape = CircleShape,
+                                    isFocused = isSearchFocused,
+                                    accentColor = accent.accent,
+                                    containerColor = Surface2,
+                                    focusedContainerColor = Surface3
+                                )
+                                .padding(horizontal = 14.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                                enabled = true,
+                                textStyle = TextStyle(color = FgPrimary, fontSize = 14.sp),
+                                singleLine = true,
+                                cursorBrush = SolidColor(accent.accent),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(
+                                    onSearch = { keyboardController?.hide() }
+                                ),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .onFocusChanged { state -> isSearchFocused = state.isFocused },
+                                decorationBox = { innerTextField ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "Cari",
+                                            tint = if (isSearchFocused) accent.accent else FgTertiary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.CenterStart
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Hapus",
-                                                tint = FgSecondary,
-                                                modifier = Modifier.size(15.dp)
-                                            )
+                                            if (searchQuery.isEmpty()) {
+                                                Text(
+                                                    text = "Cari judul anime...",
+                                                    color = FgTertiary,
+                                                    fontSize = 13.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                        if (searchQuery.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = { viewModel.onSearchQueryChanged("") },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Hapus",
+                                                    tint = FgSecondary,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
 
                     // Server Selector Pill
@@ -612,6 +671,195 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                }
+            }
+        }
+    }
+
+    if (isTV && showTvSearchDialog) {
+        TvSearchInputDialog(
+            initialQuery = searchQuery,
+            onSearchSubmit = { query ->
+                viewModel.onSearchQueryChanged(query)
+                showTvSearchDialog = false
+            },
+            onDismiss = {
+                showTvSearchDialog = false
+            }
+        )
+    }
+}
+
+/**
+ * Native EditText Search Dialog for Android TV so Leanback / Gboard TV keyboard
+ * reliably opens on click and HomeScreen focus can never get trapped or stuck.
+ */
+@Composable
+private fun TvSearchInputDialog(
+    initialQuery: String,
+    onSearchSubmit: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val accent = LocalAccentPreset.current
+    var draftQuery by remember { mutableStateOf(initialQuery) }
+    var editTextRef by remember { mutableStateOf<EditText?>(null) }
+    val textColorArgb = FgPrimary.toArgb()
+    val hintColorArgb = FgTertiary.toArgb()
+
+    fun hideIme() {
+        editTextRef?.let { et ->
+            val imm = et.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.hideSoftInputFromWindow(et.windowToken, 0)
+        }
+    }
+
+    Dialog(
+        onDismissRequest = {
+            hideIme()
+            onDismiss()
+        },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        IslandPanel(
+            modifier = Modifier
+                .width(500.dp)
+                .padding(horizontal = 24.dp),
+            bezelPadding = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = accent.accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Cari Judul Anime",
+                        color = FgPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Native Android EditText guarantees Leanback / Gboard TV keyboard opens immediately
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(CircleShape)
+                        .background(Surface3, CircleShape)
+                        .border(2.dp, accent.accent, CircleShape)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            EditText(ctx).apply {
+                                setText(initialQuery)
+                                setSelection(initialQuery.length)
+                                hint = "Ketik judul anime lalu tekan Cari..."
+                                setTextColor(textColorArgb)
+                                setHintTextColor(hintColorArgb)
+                                textSize = 15f
+                                background = null
+                                isSingleLine = true
+                                isFocusable = true
+                                isFocusableInTouchMode = true
+                                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+                                setPadding(0, 0, 0, 0)
+
+                                addTextChangedListener(object : TextWatcher {
+                                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                        draftQuery = s?.toString().orEmpty()
+                                    }
+                                    override fun afterTextChanged(s: Editable?) {}
+                                })
+
+                                setOnEditorActionListener { v, actionId, event ->
+                                    val isSubmit = actionId == EditorInfo.IME_ACTION_SEARCH ||
+                                        actionId == EditorInfo.IME_ACTION_DONE ||
+                                        actionId == EditorInfo.IME_ACTION_GO ||
+                                        (event != null && event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)
+                                    if (isSubmit) {
+                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                                        imm?.hideSoftInputFromWindow(v.windowToken, 0)
+                                        onSearchSubmit(text?.toString()?.trim().orEmpty())
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+
+                                setOnClickListener {
+                                    requestFocus()
+                                    val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                                    imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+                                }
+
+                                editTextRef = this
+                                postDelayed({
+                                    if (isAttachedToWindow) {
+                                        requestFocus()
+                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                                        imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+                                    }
+                                }, 120L)
+                                postDelayed({
+                                    if (isAttachedToWindow && hasFocus()) {
+                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                                        imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+                                    }
+                                }, 350L)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (draftQuery.isNotEmpty()) {
+                        TonalPillButton(
+                            text = "Hapus",
+                            onClick = {
+                                draftQuery = ""
+                                editTextRef?.setText("")
+                                editTextRef?.requestFocus()
+                            },
+                            height = 38.dp
+                        )
+                    }
+                    TonalPillButton(
+                        text = "Batal",
+                        onClick = {
+                            hideIme()
+                            onDismiss()
+                        },
+                        height = 38.dp
+                    )
+                    AccentPillButton(
+                        text = "Cari",
+                        icon = Icons.Default.Search,
+                        onClick = {
+                            hideIme()
+                            onSearchSubmit(draftQuery.trim())
+                        },
+                        height = 38.dp
+                    )
                 }
             }
         }
