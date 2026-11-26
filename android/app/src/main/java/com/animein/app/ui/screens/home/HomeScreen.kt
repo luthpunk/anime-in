@@ -93,8 +93,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import coil.compose.AsyncImage
@@ -102,9 +100,7 @@ import com.animein.app.data.local.entity.ContinueWatchingEntity
 import com.animein.app.data.model.AnimeCompleted
 import com.animein.app.data.model.AnimeOngoing
 import com.animein.app.data.model.SearchItem
-import com.animein.app.ui.components.AccentPillButton
 import com.animein.app.ui.components.BrandLogoMark
-import com.animein.app.ui.components.IslandPanel
 import com.animein.app.ui.components.MonoBadge
 import com.animein.app.ui.components.MusikeEmptyState
 import com.animein.app.ui.components.MusikeErrorState
@@ -112,7 +108,6 @@ import com.animein.app.ui.components.RadiusArt
 import com.animein.app.ui.components.RadiusPanel
 import com.animein.app.ui.components.RadiusTile
 import com.animein.app.ui.components.ShimmerBox
-import com.animein.app.ui.components.TonalPillButton
 import com.animein.app.ui.components.musikePosterFrame
 import com.animein.app.ui.components.musikeSurface
 import com.animein.app.ui.theme.BgGraphite
@@ -168,9 +163,6 @@ fun HomeScreen(
 
     var allowSearchFocus by remember { mutableStateOf(!isTV) }
     var isSearchFocused by remember { mutableStateOf(false) }
-    var showTvSearchDialog by remember { mutableStateOf(false) }
-    var wasTvSearchDialogOpen by remember { mutableStateOf(false) }
-    val searchBoxFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     // Pressing Back while viewing search results clears search instead of immediately showing exit dialog
@@ -182,20 +174,6 @@ fun HomeScreen(
         if (isTV) {
             delay(300)
             allowSearchFocus = true
-        }
-    }
-
-    LaunchedEffect(showTvSearchDialog) {
-        if (isTV) {
-            if (showTvSearchDialog) {
-                wasTvSearchDialogOpen = true
-            } else if (wasTvSearchDialogOpen) {
-                wasTvSearchDialogOpen = false
-                delay(40)
-                try {
-                    searchBoxFocusRequester.requestFocus()
-                } catch (_: Exception) {}
-            }
         }
     }
 
@@ -309,9 +287,12 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.weight(1f))
                     }
 
-                    // Search Pill (TV uses single-focus trigger pill + native EditText dialog so keyboard ALWAYS opens & focus NEVER deadlocks)
+                    // Search Pill (TV uses a single inline native EditText ala a-music: D-pad highlight without popup, OK unlocks & opens TV keyboard inline!)
                     if (isTV) {
-                        Box(
+                        val textColorArgb = FgPrimary.toArgb()
+                        val hintColorArgb = FgTertiary.toArgb()
+
+                        Row(
                             modifier = Modifier
                                 .width(300.dp)
                                 .height(42.dp)
@@ -322,39 +303,58 @@ fun HomeScreen(
                                     containerColor = Surface2,
                                     focusedContainerColor = Surface3
                                 )
-                                .focusRequester(searchBoxFocusRequester)
-                                .focusProperties { canFocus = allowSearchFocus }
-                                .onFocusChanged { isSearchFocused = it.isFocused }
-                                .clickable(
-                                    enabled = allowSearchFocus,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    showTvSearchDialog = true
-                                }
                                 .padding(horizontal = 14.dp),
-                            contentAlignment = Alignment.CenterStart
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Cari",
-                                    tint = if (isSearchFocused) accent.accent else FgTertiary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = searchQuery.ifEmpty { "Cari judul anime..." },
-                                    color = if (searchQuery.isEmpty()) FgTertiary else FgPrimary,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Cari",
+                                tint = if (isSearchFocused) accent.accent else FgTertiary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            AndroidView(
+                                factory = { ctx ->
+                                    TvInlineSearchEditText(ctx).apply {
+                                        hint = "Cari judul anime..."
+                                        setText(searchQuery)
+                                        setTextColor(textColorArgb)
+                                        setHintTextColor(hintColorArgb)
+                                        textSize = 13.5f
+                                        background = null
+                                        isSingleLine = true
+                                        showSoftInputOnFocus = false
+                                        isFocusable = allowSearchFocus
+                                        isFocusableInTouchMode = true
+                                        setPadding(0, 0, 0, 0)
+                                        lockForDpadNavigation()
+
+                                        onQueryChange = { q ->
+                                            viewModel.onSearchQueryChanged(q)
+                                        }
+                                        setOnFocusChangeListener { _, hasFocus ->
+                                            isSearchFocused = hasFocus
+                                            if (!hasFocus) {
+                                                stopTypingAndHideKeyboard()
+                                            }
+                                        }
+                                    }
+                                },
+                                update = { et ->
+                                    if (et.isFocusable != allowSearchFocus) {
+                                        et.isFocusable = allowSearchFocus
+                                    }
+                                    if (et.text?.toString().orEmpty() != searchQuery) {
+                                        et.suppressTextWatch = true
+                                        et.setText(searchQuery)
+                                        et.setSelection(searchQuery.length)
+                                        et.suppressTextWatch = false
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            )
                         }
 
                         if (searchQuery.isNotEmpty()) {
@@ -675,194 +675,105 @@ fun HomeScreen(
             }
         }
     }
-
-    if (isTV && showTvSearchDialog) {
-        TvSearchInputDialog(
-            initialQuery = searchQuery,
-            onSearchSubmit = { query ->
-                viewModel.onSearchQueryChanged(query)
-                showTvSearchDialog = false
-            },
-            onDismiss = {
-                showTvSearchDialog = false
-            }
-        )
-    }
 }
 
 /**
- * Native EditText Search Dialog for Android TV so Leanback / Gboard TV keyboard
- * reliably opens on click and HomeScreen focus can never get trapped or stuck.
+ * Single inline Android TV EditText modeled after a-music's TV search bar:
+ * - While merely highlighted with D-pad, stays in navigation mode (inputType = TYPE_NULL,
+ *   showSoftInputOnFocus = false, cursor hidden) so Left/Right/Up/Down never get trapped.
+ * - Pressing OK/Enter unlocks text input and opens the native TV keyboard right in place.
+ * - Pressing Search/Done or Back closes the keyboard and immediately restores D-pad navigation.
  */
-@Composable
-private fun TvSearchInputDialog(
-    initialQuery: String,
-    onSearchSubmit: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val accent = LocalAccentPreset.current
-    var draftQuery by remember { mutableStateOf(initialQuery) }
-    var editTextRef by remember { mutableStateOf<EditText?>(null) }
-    val textColorArgb = FgPrimary.toArgb()
-    val hintColorArgb = FgTertiary.toArgb()
+private class TvInlineSearchEditText(context: Context) : EditText(context) {
+    var isTvTyping: Boolean = false
+        private set
+    var suppressTextWatch: Boolean = false
+    var onQueryChange: ((String) -> Unit)? = null
 
-    fun hideIme() {
-        editTextRef?.let { et ->
-            val imm = et.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.hideSoftInputFromWindow(et.windowToken, 0)
+    init {
+        gravity = android.view.Gravity.CENTER_VERTICAL
+        addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (!suppressTextWatch) {
+                    onQueryChange?.invoke(s?.toString().orEmpty())
+                }
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        setOnEditorActionListener { _, actionId, event ->
+            val isSubmit = actionId == EditorInfo.IME_ACTION_SEARCH ||
+                actionId == EditorInfo.IME_ACTION_DONE ||
+                actionId == EditorInfo.IME_ACTION_GO ||
+                (event != null && event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)
+            if (isSubmit) {
+                stopTypingAndHideKeyboard()
+                true
+            } else {
+                false
+            }
+        }
+
+        setOnClickListener {
+            if (!isTvTyping) {
+                startTypingAndShowKeyboard()
+            } else {
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+            }
         }
     }
 
-    Dialog(
-        onDismissRequest = {
-            hideIme()
-            onDismiss()
-        },
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        IslandPanel(
-            modifier = Modifier
-                .width(500.dp)
-                .padding(horizontal = 24.dp),
-            bezelPadding = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = accent.accent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Cari Judul Anime",
-                        color = FgPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+    fun lockForDpadNavigation() {
+        isTvTyping = false
+        isCursorVisible = false
+        movementMethod = null
+        inputType = InputType.TYPE_NULL
+        maxLines = 1
+        imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+    }
 
-                // Native Android EditText guarantees Leanback / Gboard TV keyboard opens immediately
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(CircleShape)
-                        .background(Surface3, CircleShape)
-                        .border(2.dp, accent.accent, CircleShape)
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            EditText(ctx).apply {
-                                setText(initialQuery)
-                                setSelection(initialQuery.length)
-                                hint = "Ketik judul anime lalu tekan Cari..."
-                                setTextColor(textColorArgb)
-                                setHintTextColor(hintColorArgb)
-                                textSize = 15f
-                                background = null
-                                isSingleLine = true
-                                isFocusable = true
-                                isFocusableInTouchMode = true
-                                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-                                imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-                                setPadding(0, 0, 0, 0)
-
-                                addTextChangedListener(object : TextWatcher {
-                                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                                        draftQuery = s?.toString().orEmpty()
-                                    }
-                                    override fun afterTextChanged(s: Editable?) {}
-                                })
-
-                                setOnEditorActionListener { v, actionId, event ->
-                                    val isSubmit = actionId == EditorInfo.IME_ACTION_SEARCH ||
-                                        actionId == EditorInfo.IME_ACTION_DONE ||
-                                        actionId == EditorInfo.IME_ACTION_GO ||
-                                        (event != null && event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_ENTER)
-                                    if (isSubmit) {
-                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                                        imm?.hideSoftInputFromWindow(v.windowToken, 0)
-                                        onSearchSubmit(text?.toString()?.trim().orEmpty())
-                                        true
-                                    } else {
-                                        false
-                                    }
-                                }
-
-                                setOnClickListener {
-                                    requestFocus()
-                                    val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                                    imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
-                                }
-
-                                editTextRef = this
-                                postDelayed({
-                                    if (isAttachedToWindow) {
-                                        requestFocus()
-                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                                        imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
-                                    }
-                                }, 120L)
-                                postDelayed({
-                                    if (isAttachedToWindow && hasFocus()) {
-                                        val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                                        imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
-                                    }
-                                }, 350L)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (draftQuery.isNotEmpty()) {
-                        TonalPillButton(
-                            text = "Hapus",
-                            onClick = {
-                                draftQuery = ""
-                                editTextRef?.setText("")
-                                editTextRef?.requestFocus()
-                            },
-                            height = 38.dp
-                        )
-                    }
-                    TonalPillButton(
-                        text = "Batal",
-                        onClick = {
-                            hideIme()
-                            onDismiss()
-                        },
-                        height = 38.dp
-                    )
-                    AccentPillButton(
-                        text = "Cari",
-                        icon = Icons.Default.Search,
-                        onClick = {
-                            hideIme()
-                            onSearchSubmit(draftQuery.trim())
-                        },
-                        height = 38.dp
-                    )
-                }
+    fun startTypingAndShowKeyboard() {
+        isTvTyping = true
+        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        isSingleLine = true
+        movementMethod = android.text.method.ArrowKeyMovementMethod.getInstance()
+        imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        isCursorVisible = true
+        setSelection(text?.length ?: 0)
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.restartInput(this)
+        post {
+            if (isAttachedToWindow && hasFocus()) {
+                imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
             }
         }
+    }
+
+    fun stopTypingAndHideKeyboard() {
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.hideSoftInputFromWindow(windowToken, 0)
+        lockForDpadNavigation()
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (!isTvTyping && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            startTypingAndShowKeyboard()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyPreIme(keyCode: Int, event: KeyEvent?): Boolean {
+        if (isTvTyping && keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event?.action == KeyEvent.ACTION_UP) {
+                // Keyboard dismissed via Back -> immediately unlock D-pad navigation without clearing search query
+                stopTypingAndHideKeyboard()
+            }
+            return true
+        }
+        return super.onKeyPreIme(keyCode, event)
     }
 }
 
